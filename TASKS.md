@@ -11,41 +11,41 @@
 > Ref: [Spec Section 6 (Tech Stack)](travel-app-spec.md#6-proposed-tech-stack), [Section 7 (Data Models)](travel-app-spec.md#7-data-models)
 
 ### 1.1 Project Initialisation
-- [ ] **1.1.1** Initialise Node.js + Express backend (`npm init`, install express, cors, dotenv)
-- [ ] **1.1.2** Initialise React frontend with Vite (`npm create vite@latest`) + install TailwindCSS
-- [ ] **1.1.3** Set up project folder structure (`/server`, `/client`, shared `.env.example`)
-- [ ] **1.1.4** Add basic `package.json` scripts (dev, build, start) for both client and server
-- [ ] **1.1.5** Set up `.gitignore` (node_modules, .env, dist)
+- [x] **1.1.1** Initialise Node.js + Express backend (`npm init`, install express, cors, dotenv)
+- [x] **1.1.2** Initialise React frontend with Vite (`npm create vite@latest`) + install TailwindCSS
+- [x] **1.1.3** Set up project folder structure (`/server`, `/client`, shared `.env.example`)
+- [x] **1.1.4** Add basic `package.json` scripts (dev, build, start) for both client and server
+- [x] **1.1.5** Set up `.gitignore` (node_modules, .env, dist)
 
 ### 1.2 Database Setup
-- [ ] **1.2.1** Install PostgreSQL dependencies (`pg`, `knex` or an ORM like Prisma)
-- [ ] **1.2.2** Create database connection config (reads from `.env`)
-- [ ] **1.2.3** Write migration: `countries` table — [Spec Section 7: countries](travel-app-spec.md#countries)
+- [x] **1.2.1** Install PostgreSQL dependencies (`pg`, `knex` or an ORM like Prisma)
+- [x] **1.2.2** Create database connection config (reads from `.env`)
+- [x] **1.2.3** Write migration: `countries` table — [Spec Section 7: countries](travel-app-spec.md#countries)
   ```
   code (PK), name, region, population, annual_tourists, area_km2
   ```
-- [ ] **1.2.4** Write migration: `cities` table — [Spec Section 7: cities](travel-app-spec.md#cities)
+- [x] **1.2.4** Write migration: `cities` table — [Spec Section 7: cities](travel-app-spec.md#cities)
   ```
   id (PK), country_code (FK), name, population
   ```
-- [ ] **1.2.5** Write migration: `users` table — [Spec Section 7: users](travel-app-spec.md#users)
+- [x] **1.2.5** Write migration: `users` table — [Spec Section 7: users](travel-app-spec.md#users)
   ```
   id (PK), username, email, password_hash, avatar_url, home_country (FK), created_at
   ```
-- [ ] **1.2.6** Write migration: `user_countries` table — [Spec Section 7: user_countries](travel-app-spec.md#user_countries)
+- [x] **1.2.6** Write migration: `user_countries` table — [Spec Section 7: user_countries](travel-app-spec.md#user_countries)
   ```
   id (PK), user_id (FK), country_code (FK), visited_at, created_at, UNIQUE(user_id, country_code)
   ```
-- [ ] **1.2.7** Write migration: `user_cities` table — [Spec Section 7: user_cities](travel-app-spec.md#user_cities)
+- [x] **1.2.7** Write migration: `user_cities` table — [Spec Section 7: user_cities](travel-app-spec.md#user_cities)
   ```
   id (PK), user_id (FK), city_id (FK), visited_at, created_at, UNIQUE(user_id, city_id)
   ```
-- [ ] **1.2.8** Run all migrations and verify tables exist
+- [x] **1.2.8** Run all migrations and verify tables exist
 
 ### 1.3 Seed Data
-- [ ] **1.3.1** Create seed file: all ~195 countries with `code`, `name`, `region`, `population`, `annual_tourists`, `area_km2`
-- [ ] **1.3.2** Create seed file: major cities (10–30 per country) with `country_code`, `name`, `population`
-- [ ] **1.3.3** Run seeds and verify data loads correctly
+- [x] **1.3.1** Create seed file: all ~195 countries with `code`, `name`, `region`, `population`, `annual_tourists`, `area_km2`
+- [x] **1.3.2** Create seed file: major cities (10–30 per country) with `country_code`, `name`, `population`
+- [x] **1.3.3** Run seeds and verify data loads correctly
 
 ---
 

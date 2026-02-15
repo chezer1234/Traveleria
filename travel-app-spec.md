@@ -2,7 +2,7 @@
 
 **Version:** 0.1 (Draft)
 **Last Updated:** 2026-02-15
-**Status:** In Progress — Travel Points Calculation TBD
+**Status:** In Progress — Travel Points Calculation Finalised (Option E Hybrid)
 
 ---
 
@@ -58,9 +58,15 @@
 - Timestamp stored for each submission (date visited can be optional)
 
 ### 4.3 Travel Points System
-- Each country has a base Travel Points value (calculation logic TBD — see Section 9)
-- User's total score = sum of points for all submitted countries
-- Points recalculate automatically when countries are added/removed
+- Each country has a **baseline** calculated from population, tourism data, and regional distance (see Section 9)
+- Users set their **home country** during registration (used for regional multiplier)
+- Visiting a country earns the baseline points immediately
+- Users log **cities visited** within each country to earn exploration points
+- Each city contributes a **percentage** of that country explored (calculated dynamically from city population / country population)
+- Users can view their **% explored** per country
+- Total country points = baseline + (total_country_points * % explored)
+- User's total score = sum of points across all visited countries
+- Points recalculate automatically when countries/cities are added/removed
 - Points displayed on profile and leaderboard
 
 ### 4.4 User Profile
@@ -120,25 +126,48 @@ username      VARCHAR(50) UNIQUE NOT NULL
 email         VARCHAR(255) UNIQUE NOT NULL
 password_hash TEXT
 avatar_url    TEXT
+home_country  CHAR(2) REFERENCES countries(code)  -- user's home country (for regional multiplier)
 created_at    TIMESTAMP DEFAULT NOW()
 ```
 
 ### `countries`
 ```sql
-code          CHAR(2) PRIMARY KEY   -- ISO 3166-1 alpha-2
+code          CHAR(2) PRIMARY KEY         -- ISO 3166-1 alpha-2
 name          VARCHAR(100) NOT NULL
-base_points   INTEGER NOT NULL      -- TBD: calculation logic
-region        VARCHAR(50)           -- e.g. "Europe", "Asia"
+region        VARCHAR(50) NOT NULL        -- e.g. "Europe", "Asia", "North America"
+population    BIGINT NOT NULL             -- country population
+annual_tourists BIGINT NOT NULL           -- annual tourist arrivals
+area_km2      INTEGER NOT NULL            -- country area in km²
 ```
+> **Note:** `base_points` is no longer a static column — it is calculated per-user based on their home country's regional multiplier.
+
+### `cities`
+```sql
+id            UUID PRIMARY KEY
+country_code  CHAR(2) REFERENCES countries(code)
+name          VARCHAR(150) NOT NULL
+population    BIGINT NOT NULL             -- city population (used to calculate % contribution)
+```
+> **City % contribution** = `city.population / country.population` (calculated dynamically).
 
 ### `user_countries`
 ```sql
 id            UUID PRIMARY KEY
 user_id       UUID REFERENCES users(id)
 country_code  CHAR(2) REFERENCES countries(code)
-visited_at    DATE                  -- optional, user-supplied
+visited_at    DATE                        -- optional, user-supplied
 created_at    TIMESTAMP DEFAULT NOW()
 UNIQUE(user_id, country_code)
+```
+
+### `user_cities`
+```sql
+id            UUID PRIMARY KEY
+user_id       UUID REFERENCES users(id)
+city_id       UUID REFERENCES cities(id)
+visited_at    DATE                        -- optional, user-supplied
+created_at    TIMESTAMP DEFAULT NOW()
+UNIQUE(user_id, city_id)
 ```
 
 ---
@@ -155,16 +184,19 @@ UNIQUE(user_id, country_code)
 ### Countries
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/countries` | List all countries with point values |
-| GET | `/api/countries/:code` | Get single country detail |
+| GET | `/api/countries` | List all countries with point values (personalised to user's home country) |
+| GET | `/api/countries/:code` | Get single country detail including cities |
+| GET | `/api/countries/:code/cities` | List all cities in a country with % contribution |
 
 ### User Travel Log
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/users/:id/countries` | Get user's visited countries + points |
-| POST | `/api/users/:id/countries` | Add a visited country |
+| GET | `/api/users/:id/countries` | Get user's visited countries + points + % explored |
+| POST | `/api/users/:id/countries` | Add a visited country (earns baseline points) |
 | DELETE | `/api/users/:id/countries/:code` | Remove a visited country |
-| GET | `/api/users/:id/score` | Get user's total Travel Points |
+| POST | `/api/users/:id/cities` | Log a city visit (increases % explored) |
+| DELETE | `/api/users/:id/cities/:cityId` | Remove a city visit |
+| GET | `/api/users/:id/score` | Get user's total Travel Points (breakdown included) |
 
 ### Leaderboard
 | Method | Endpoint | Description |
@@ -173,34 +205,113 @@ UNIQUE(user_id, country_code)
 
 ---
 
-## 9. Travel Points Calculation ⚠️ TBD
+## 9. Travel Points Calculation — Finalised (Option E Hybrid)
 
-> **This section is intentionally left open for discussion.**
-> 
-> Below are possible approaches — the final method is to be agreed upon.
+> **Decision: Hybrid formula with outlier correction.**
+> Agreed 2026-02-15.
 
-### Option A — Flat Points
-Every country is worth the same fixed number of points (e.g. 100 pts each).
-- Simple, fair, easy to explain.
+### 9.1 Overview
 
-### Option B — Distance-Based
-Points awarded based on how far the country is from the user's home country.
-- Rewards adventurous/long-haul travel.
-- Requires knowing user's home country.
+Points are **personalised per user** (because the regional multiplier depends on the user's home country). A user earns points in two stages:
 
-### Option C — Rarity / Popularity-Based
-Countries visited less frequently by all users earn more points.
-- Dynamic — values shift as the user base grows.
-- More complex to implement and explain.
+1. **Baseline points** — earned immediately upon logging a country visit
+2. **Exploration points** — earned by logging individual city visits within that country
 
-### Option D — Regional Diversity Bonus
-Bonus multiplier when the user has visited countries across multiple continents/regions.
-- Encourages breadth of travel, not just volume.
+### 9.2 Step 1 — Baseline Points
 
-### Option E — Hybrid (Recommended starting point)
-`Travel Points = base_points + (distance_bonus) + (diversity_bonus)`
+```
+baseline = (country.population / country.annual_tourists) * regional_multiplier
+```
 
-**➡ Next step:** Agree on the points formula before development begins. This will determine the `base_points` column values in the `countries` table and any bonus logic in the scoring service.
+**Regional multiplier** depends on the distance between the user's home region and the visited country's region:
+
+| Distance tier | Example (home: Europe) | Multiplier |
+|---|---|---|
+| Same region | Europe → Europe | x1 |
+| Adjacent region | Europe → North Africa / Middle East | x1.5 |
+| Moderate distance | Europe → East Asia / Sub-Saharan Africa | x2.5 |
+| Far | Europe → North America / South America | x3 |
+| Opposite side | Europe → Oceania / Pacific Islands | x4 |
+
+> Regional multiplier tiers are defined as a lookup table per region pair (see implementation).
+
+### 9.3 Step 1b — Outlier Correction
+
+If the raw baseline falls **below 2** or **above 500**, it is discarded and replaced with an area-based alternative anchored to the regional average:
+
+```
+if baseline < 2 OR baseline > 500:
+    baseline = regional_avg_baseline * log10(area_km² / 1000 + 1)
+    baseline = clamp(baseline, 2, 500)
+```
+
+Where `regional_avg_baseline` is the mean baseline of all countries in the **same region** whose raw baselines fall within the normal 2–500 range.
+
+**Why:** This prevents extreme values caused by the population/tourist ratio:
+- Popular small countries (e.g. Iceland: 0.2 raw) get pulled **up** toward their regional average
+- Isolated countries with minimal tourism (e.g. North Korea: 5,200 raw) get pulled **down** toward their regional average
+- The `log10(area)` factor ensures larger countries within the outlier group still score higher than tiny ones
+
+### 9.4 Step 2 — Total Country Points (Exploration Ceiling)
+
+The maximum additional points available from exploring within a country:
+
+```
+area_multiplier = max(area_km² / 50,000, 2)
+total_country_points = baseline * area_multiplier
+```
+
+| Example country | area_km² | area_multiplier | If baseline=30 → total |
+|---|---|---|---|
+| Vatican City | 0.44 | 2 (floor) | 60 |
+| Iceland | 103,000 | 2.06 | 61.8 |
+| France | 640,000 | 12.8 | 384 |
+| USA | 9,834,000 | 196.7 | 5,901 |
+| Russia | 17,098,000 | 341.9 | 10,258 |
+
+### 9.5 Step 3 — City Visits & Exploration Percentage
+
+Users log cities they've visited within a country. Each city contributes a **percentage** of that country explored:
+
+```
+city_percentage = city.population / country.population
+country_explored = sum of city_percentage for all visited cities in that country
+country_explored = min(country_explored, 1.0)   -- cap at 100%
+```
+
+> Example: Visiting Paris (2.1M) in France (67M) → 2.1M / 67M = **3.1%** of France explored.
+> Visiting Paris + Lyon + Marseille + Toulouse → cumulative % toward France.
+
+### 9.6 Step 4 — Final Points Per Country
+
+```
+final_points = baseline + (total_country_points * country_explored)
+```
+
+| Component | What it rewards |
+|---|---|
+| `baseline` | Simply visiting the country (entry-level reward) |
+| `total_country_points * country_explored` | Deeper exploration within the country |
+
+**Worked example — France (user home: UK):**
+| Step | Calculation | Value |
+|---|---|---|
+| Raw baseline | (67,000,000 / 90,000,000) * 1.0 | 0.74 |
+| Outlier? | 0.74 < 2 → **yes**, apply correction | — |
+| Regional avg (Europe, normal range) | ~25 (example) | 25 |
+| Corrected baseline | 25 * log10(640,000 / 1,000 + 1) = 25 * 2.81 | **70.2** |
+| Clamp | 2 ≤ 70.2 ≤ 500 → OK | **70.2** |
+| Area multiplier | max(640,000 / 50,000, 2) | 12.8 |
+| Total country points | 70.2 * 12.8 | 898.6 |
+| Cities visited | Paris + Lyon + Marseille → 6.2% | 0.062 |
+| Exploration points | 898.6 * 0.062 | 55.7 |
+| **Final points** | **70.2 + 55.7** | **125.9** |
+
+### 9.7 User's Total Travel Points
+
+```
+total_travel_points = SUM(final_points) across all visited countries
+```
 
 ---
 
@@ -223,7 +334,7 @@ Bonus multiplier when the user has visited countries across multiple continents/
 
 | # | Question | Owner | Status |
 |---|----------|-------|--------|
-| 1 | What is the Travel Points calculation formula? | Product | ⚠️ Open |
+| 1 | What is the Travel Points calculation formula? | Product | ✅ Resolved — Option E Hybrid with outlier correction (see Section 9) |
 | 2 | Is there a "date visited" requirement or optional? | Product | ⚠️ Open |
 | 3 | Should the leaderboard be global-only, or friends-first? | Product | ⚠️ Open |
 | 4 | Do we need a mobile-native app in v2? | Product | ⚠️ Open |

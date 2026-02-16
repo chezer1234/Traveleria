@@ -53,13 +53,13 @@
 
 > Ref: [Spec Section 4.1 (Auth)](travel-app-spec.md#41-authentication), [Section 8 (Auth Endpoints)](travel-app-spec.md#auth)
 
-- [ ] **2.1** Install auth dependencies (bcrypt, jsonwebtoken)
-- [ ] **2.2** Create `POST /api/auth/register` — validate input, hash password, insert user, return JWT
+- [x] **2.1** Install auth dependencies (bcrypt, jsonwebtoken)
+- [x] **2.2** Create `POST /api/auth/register` — validate input, hash password, insert user, return JWT
   - Must accept `home_country` field — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
-- [ ] **2.3** Create `POST /api/auth/login` — verify credentials, return JWT
-- [ ] **2.4** Create `POST /api/auth/logout` — invalidate token (blacklist or client-side)
-- [ ] **2.5** Create auth middleware (`requireAuth`) that verifies JWT on protected routes
-- [ ] **2.6** Test all auth endpoints manually or with a basic test file
+- [x] **2.3** Create `POST /api/auth/login` — verify credentials, return JWT
+- [x] **2.4** Create `POST /api/auth/logout` — invalidate token (blacklist or client-side)
+- [x] **2.5** Create auth middleware (`requireAuth`) that verifies JWT on protected routes
+- [x] **2.6** Test all auth endpoints manually or with a basic test file
 
 ---
 
@@ -68,46 +68,46 @@
 > Ref: [Spec Section 9 (Travel Points Calculation)](travel-app-spec.md#9-travel-points-calculation--finalised-option-e-hybrid)
 
 ### 3.1 Regional Multiplier
-- [ ] **3.1.1** Define region list (Europe, Asia, North America, South America, Africa, Oceania, Middle East, etc.)
-- [ ] **3.1.2** Build region-pair multiplier lookup table — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
+- [x] **3.1.1** Define region list (Europe, Asia, North America, South America, Africa, Oceania, Middle East, etc.)
+- [x] **3.1.2** Build region-pair multiplier lookup table — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
   ```
   e.g. { "Europe|Europe": 1, "Europe|Oceania": 4, ... }
   ```
-- [ ] **3.1.3** Create helper function `getRegionalMultiplier(homeRegion, targetRegion) → number`
+- [x] **3.1.3** Create helper function `getRegionalMultiplier(homeRegion, targetRegion) → number`
 
 ### 3.2 Baseline Calculation
-- [ ] **3.2.1** Create function `calculateRawBaseline(country, regionalMultiplier) → number` — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
+- [x] **3.2.1** Create function `calculateRawBaseline(country, regionalMultiplier) → number` — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
   ```
   baseline = (population / annual_tourists) * regionalMultiplier
   ```
-- [ ] **3.2.2** Create function `calculateRegionalAverage(region) → number` — mean baseline of countries in normal range (2–500) — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
-- [ ] **3.2.3** Create function `applyOutlierCorrection(rawBaseline, region, areaKm2) → number` — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
+- [x] **3.2.2** Create function `calculateRegionalAverage(region) → number` — mean baseline of countries in normal range (2–500) — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
+- [x] **3.2.3** Create function `applyOutlierCorrection(rawBaseline, region, areaKm2) → number` — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
   ```
   if rawBaseline < 2 OR > 500:
       baseline = regionalAvg * log10(areaKm2 / 1000 + 1)
       clamp(baseline, 2, 500)
   ```
-- [ ] **3.2.4** Create combined function `getBaseline(country, userHomeCountry) → number`
+- [x] **3.2.4** Create combined function `getBaseline(country, userHomeCountry) → number`
 
 ### 3.3 Exploration Points
-- [ ] **3.3.1** Create function `getAreaMultiplier(areaKm2) → number` — [Spec Section 9.4](travel-app-spec.md#94-step-2--total-country-points-exploration-ceiling)
+- [x] **3.3.1** Create function `getAreaMultiplier(areaKm2) → number` — [Spec Section 9.4](travel-app-spec.md#94-step-2--total-country-points-exploration-ceiling)
   ```
   max(areaKm2 / 50000, 2)
   ```
-- [ ] **3.3.2** Create function `getTotalCountryPoints(baseline, areaKm2) → number`
+- [x] **3.3.2** Create function `getTotalCountryPoints(baseline, areaKm2) → number`
   ```
   baseline * areaMultiplier
   ```
-- [ ] **3.3.3** Create function `getCityPercentage(cityPopulation, countryPopulation) → number` — [Spec Section 9.5](travel-app-spec.md#95-step-3--city-visits--exploration-percentage)
-- [ ] **3.3.4** Create function `getCountryExplored(visitedCities, country) → number` (sum of city %, capped at 1.0)
+- [x] **3.3.3** Create function `getCityPercentage(cityPopulation, countryPopulation) → number` — [Spec Section 9.5](travel-app-spec.md#95-step-3--city-visits--exploration-percentage)
+- [x] **3.3.4** Create function `getCountryExplored(visitedCities, country) → number` (sum of city %, capped at 1.0)
 
 ### 3.4 Final Score
-- [ ] **3.4.1** Create function `calculateCountryPoints(country, userHomeCountry, visitedCities) → { baseline, explorationPoints, total }` — [Spec Section 9.6](travel-app-spec.md#96-step-4--final-points-per-country)
+- [x] **3.4.1** Create function `calculateCountryPoints(country, userHomeCountry, visitedCities) → { baseline, explorationPoints, total }` — [Spec Section 9.6](travel-app-spec.md#96-step-4--final-points-per-country)
   ```
   final = baseline + (totalCountryPoints * countryExplored)
   ```
-- [ ] **3.4.2** Create function `calculateTotalTravelPoints(user) → number` — sum across all countries — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
-- [ ] **3.4.3** Write unit tests for the points engine (normal countries, outlier-low, outlier-high, edge cases)
+- [x] **3.4.2** Create function `calculateTotalTravelPoints(user) → number` — sum across all countries — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
+- [x] **3.4.3** Write unit tests for the points engine (normal countries, outlier-low, outlier-high, edge cases)
 
 ---
 
@@ -115,9 +115,9 @@
 
 > Ref: [Spec Section 8 (Countries endpoints)](travel-app-spec.md#countries), [Spec Section 4.2 (Country Submission)](travel-app-spec.md#42-country-submission)
 
-- [ ] **4.1** Create `GET /api/countries` — return all countries with personalised baseline points for the logged-in user — [Spec Section 8](travel-app-spec.md#countries)
-- [ ] **4.2** Create `GET /api/countries/:code` — return single country detail + list of cities — [Spec Section 8](travel-app-spec.md#countries)
-- [ ] **4.3** Create `GET /api/countries/:code/cities` — return all cities for a country with their % contribution — [Spec Section 8](travel-app-spec.md#countries)
+- [x] **4.1** Create `GET /api/countries` — return all countries with personalised baseline points for the logged-in user — [Spec Section 8](travel-app-spec.md#countries)
+- [x] **4.2** Create `GET /api/countries/:code` — return single country detail + list of cities — [Spec Section 8](travel-app-spec.md#countries)
+- [x] **4.3** Create `GET /api/countries/:code/cities` — return all cities for a country with their % contribution — [Spec Section 8](travel-app-spec.md#countries)
 
 ---
 
@@ -125,12 +125,12 @@
 
 > Ref: [Spec Section 8 (User Travel Log endpoints)](travel-app-spec.md#user-travel-log)
 
-- [ ] **5.1** Create `POST /api/users/:id/countries` — add a visited country (with duplicate prevention) — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
-- [ ] **5.2** Create `DELETE /api/users/:id/countries/:code` — remove a visited country (+ cascade remove city visits)
-- [ ] **5.3** Create `GET /api/users/:id/countries` — return visited countries with points breakdown + % explored
-- [ ] **5.4** Create `POST /api/users/:id/cities` — log a city visit (validate city belongs to a visited country)
-- [ ] **5.5** Create `DELETE /api/users/:id/cities/:cityId` — remove a city visit
-- [ ] **5.6** Create `GET /api/users/:id/score` — return total Travel Points with per-country breakdown — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
+- [x] **5.1** Create `POST /api/users/:id/countries` — add a visited country (with duplicate prevention) — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
+- [x] **5.2** Create `DELETE /api/users/:id/countries/:code` — remove a visited country (+ cascade remove city visits)
+- [x] **5.3** Create `GET /api/users/:id/countries` — return visited countries with points breakdown + % explored
+- [x] **5.4** Create `POST /api/users/:id/cities` — log a city visit (validate city belongs to a visited country)
+- [x] **5.5** Create `DELETE /api/users/:id/cities/:cityId` — remove a city visit
+- [x] **5.6** Create `GET /api/users/:id/score` — return total Travel Points with per-country breakdown — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
 
 ---
 

@@ -138,13 +138,13 @@
 
 > Ref: [Spec Section 10 (Pages & Routes)](travel-app-spec.md#10-pages--routes), [Section 4.1 (Auth)](travel-app-spec.md#41-authentication)
 
-- [ ] **6.1** Set up React Router with all routes from [Spec Section 10](travel-app-spec.md#10-pages--routes)
-- [ ] **6.2** Create shared layout component (navbar, footer)
-- [ ] **6.3** Create Landing Page (`/`) — app intro + sign up / log in CTA
-- [ ] **6.4** Create Register Page (`/register`) — form with username, email, password, **home country selector**
-- [ ] **6.5** Create Login Page (`/login`) — form with email + password
-- [ ] **6.6** Store JWT in state/localStorage, create auth context for protected routes
-- [ ] **6.7** Add route guards — redirect unauthenticated users to `/login`
+- [x] **6.1** Set up React Router with all routes from [Spec Section 10](travel-app-spec.md#10-pages--routes)
+- [x] **6.2** Create shared layout component (navbar, footer)
+- [x] **6.3** Create Landing Page (`/`) — app intro + sign up / log in CTA
+- [x] **6.4** Create Register Page (`/register`) — form with username, email, password, **home country selector**
+- [x] **6.5** Create Login Page (`/login`) — form with email + password
+- [x] **6.6** Store JWT in state/localStorage, create auth context for protected routes
+- [x] **6.7** Add route guards — redirect unauthenticated users to `/login`
 
 ---
 
@@ -152,14 +152,14 @@
 
 > Ref: [Spec Section 4.2 (Country Submission)](travel-app-spec.md#42-country-submission), [Section 4.3 (Points)](travel-app-spec.md#43-travel-points-system), [Section 4.4 (Profile)](travel-app-spec.md#44-user-profile)
 
-- [ ] **7.1** Create Dashboard Page (`/dashboard`) — display total Travel Points prominently — [Spec Section 4.4](travel-app-spec.md#44-user-profile)
-- [ ] **7.2** Show list of visited countries on dashboard with points + % explored per country — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
-- [ ] **7.3** Create Add Countries Page (`/add-countries`) — search bar with autocomplete — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
-- [ ] **7.4** Implement multi-select: add multiple countries in one session
-- [ ] **7.5** Add remove country functionality (with confirmation)
-- [ ] **7.6** Create city visit UI — within a country, show cities with checkboxes to log visits
-- [ ] **7.7** Display per-country % explored bar/indicator
-- [ ] **7.8** Ensure points update in real-time when countries/cities are added or removed — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
+- [x] **7.1** Create Dashboard Page (`/dashboard`) — display total Travel Points prominently — [Spec Section 4.4](travel-app-spec.md#44-user-profile)
+- [x] **7.2** Show list of visited countries on dashboard with points + % explored per country — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
+- [x] **7.3** Create Add Countries Page (`/add-countries`) — search bar with autocomplete — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
+- [x] **7.4** Implement multi-select: add multiple countries in one session
+- [x] **7.5** Add remove country functionality (with confirmation)
+- [x] **7.6** Create city visit UI — within a country, show cities with checkboxes to log visits
+- [x] **7.7** Display per-country % explored bar/indicator
+- [x] **7.8** Ensure points update in real-time when countries/cities are added or removed — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
 
 ---
 

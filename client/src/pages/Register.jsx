@@ -55,7 +55,7 @@ export default function Register() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Create an account</h1>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
           {error}
         </div>
       )}

@@ -92,8 +92,9 @@ export default function CountryDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading country details...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading country details...</p>
       </div>
     );
   }
@@ -144,7 +145,7 @@ export default function CountryDetail() {
         {isVisited && (
           <div className="mt-4">
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs">
+              <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs" role="progressbar" aria-valuenow={Math.round(totalExplored * 10) / 10} aria-valuemin={0} aria-valuemax={100} aria-label="Country exploration">
                 <div
                   className="bg-indigo-500 h-2 rounded-full transition-all"
                   style={{ width: `${Math.min(totalExplored, 100)}%` }}
@@ -159,7 +160,7 @@ export default function CountryDetail() {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
       )}
 
       {!isVisited && (
@@ -174,37 +175,41 @@ export default function CountryDetail() {
       </h2>
 
       <div className="space-y-2">
-        {country.cities.map((city) => {
-          const isChecked = visitedCityIds.has(city.id);
-          return (
-            <label
-              key={city.id}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors cursor-pointer ${
-                isChecked
-                  ? 'bg-indigo-50 border-indigo-200'
-                  : 'bg-white border-gray-200 hover:border-gray-300'
-              } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={isChecked}
-                disabled={!isVisited || toggling === city.id}
-                onChange={() => toggleCity(city.id)}
-                className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-              />
-              <div className="flex-1 flex items-center justify-between">
-                <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
-                  {city.name}
-                </span>
-                <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
-                  <span className="hidden sm:inline">{Number(city.population).toLocaleString()} pop</span>
-                  <span>{city.percentage}%</span>
-                  {toggling === city.id && <span className="text-indigo-600">saving...</span>}
+        {country.cities.length === 0 ? (
+          <p className="text-center text-gray-500 py-8">No cities available for this country.</p>
+        ) : (
+          country.cities.map((city) => {
+            const isChecked = visitedCityIds.has(city.id);
+            return (
+              <label
+                key={city.id}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors cursor-pointer ${
+                  isChecked
+                    ? 'bg-indigo-50 border-indigo-200'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+                } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={!isVisited || toggling === city.id}
+                  onChange={() => toggleCity(city.id)}
+                  className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+                <div className="flex-1 flex items-center justify-between">
+                  <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                    {city.name}
+                  </span>
+                  <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
+                    <span className="hidden sm:inline">{Number(city.population).toLocaleString()} pop</span>
+                    <span>{city.percentage}%</span>
+                    {toggling === city.id && <span className="text-indigo-600">saving...</span>}
+                  </div>
                 </div>
-              </div>
-            </label>
-          );
-        })}
+              </label>
+            );
+          })
+        )}
       </div>
     </div>
   );

@@ -178,11 +178,11 @@
 
 > Ref: [Spec Section 5 (Non-Functional)](travel-app-spec.md#5-non-functional-requirements)
 
-- [ ] **9.1** Create Settings Page (`/settings`) — edit username, avatar, home country, change password
-- [ ] **9.2** Mobile responsiveness pass — test all pages on small screens — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
-- [ ] **9.3** Input validation & error handling across all forms and API routes — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
-- [ ] **9.4** Loading states and empty states for all data-driven pages
-- [ ] **9.5** Basic accessibility review (keyboard nav, alt text, contrast) — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
+- [x] **9.1** Create Settings Page (`/settings`) — edit username, avatar, home country, change password
+- [x] **9.2** Mobile responsiveness pass — test all pages on small screens — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
+- [x] **9.3** Input validation & error handling across all forms and API routes — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
+- [x] **9.4** Loading states and empty states for all data-driven pages
+- [x] **9.5** Basic accessibility review (keyboard nav, alt text, contrast) — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
 
 ---
 

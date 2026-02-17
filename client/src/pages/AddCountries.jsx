@@ -72,8 +72,9 @@ export default function AddCountries() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading countries...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading countries...</p>
       </div>
     );
   }
@@ -96,7 +97,7 @@ export default function AddCountries() {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
       )}
 
       {/* Search */}
@@ -104,6 +105,7 @@ export default function AddCountries() {
         <input
           type="text"
           placeholder="Search countries by name, code, or region..."
+          aria-label="Search countries"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

@@ -91,8 +91,9 @@ export default function Settings() {
 
   if (profileLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading settings...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading settings...</p>
       </div>
     );
   }
@@ -106,12 +107,12 @@ export default function Settings() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile</h2>
 
         {profileMsg && (
-          <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div role="status" className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {profileMsg}
           </div>
         )}
         {profileError && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {profileError}
           </div>
         )}
@@ -180,12 +181,12 @@ export default function Settings() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
 
         {passwordMsg && (
-          <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div role="status" className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {passwordMsg}
           </div>
         )}
         {passwordError && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {passwordError}
           </div>
         )}

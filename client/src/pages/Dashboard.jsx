@@ -49,8 +49,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading your travel data...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading your travel data...</p>
       </div>
     );
   }
@@ -58,7 +59,7 @@ export default function Dashboard() {
   if (error && countries.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
           <span>{error}</span>
           <button onClick={loadData} className="ml-4 text-red-700 underline hover:no-underline text-sm font-medium">
             Retry
@@ -130,7 +131,7 @@ export default function Dashboard() {
                   </div>
                   {/* Exploration bar */}
                   <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs">
+                    <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs" role="progressbar" aria-valuenow={explored} aria-valuemin={0} aria-valuemax={100} aria-label={`${c.country_name} exploration`}>
                       <div
                         className="bg-indigo-500 h-2 rounded-full transition-all"
                         style={{ width: `${Math.min(explored, 100)}%` }}
@@ -144,7 +145,7 @@ export default function Dashboard() {
                   onClick={() => handleRemoveCountry(c.country_code, c.country_name)}
                   disabled={removing === c.country_code}
                   className="ml-4 text-sm text-gray-400 hover:text-red-600 disabled:opacity-50"
-                  title="Remove country"
+                  aria-label={`Remove ${c.country_name}`}
                 >
                   {removing === c.country_code ? '...' : 'Remove'}
                 </button>

@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AddCountries from './pages/AddCountries';
 import CountryDetail from './pages/CountryDetail';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -39,6 +40,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <CountryDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />

@@ -196,8 +196,8 @@ export default function CountryDetail() {
                 <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                   {city.name}
                 </span>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>{Number(city.population).toLocaleString()} pop</span>
+                <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
+                  <span className="hidden sm:inline">{Number(city.population).toLocaleString()} pop</span>
                   <span>{city.percentage}%</span>
                   {toggling === city.id && <span className="text-indigo-600">saving...</span>}
                 </div>

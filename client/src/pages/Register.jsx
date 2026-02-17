@@ -26,10 +26,22 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 2) {
+      setError('Username must be at least 2 characters.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await register(username, email, password, homeCountry || undefined);
+      await register(trimmedUsername, email.trim(), password, homeCountry || undefined);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -57,6 +69,8 @@ export default function Register() {
             id="username"
             type="text"
             required
+            minLength={2}
+            maxLength={30}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

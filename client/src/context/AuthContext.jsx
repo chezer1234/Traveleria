@@ -53,6 +53,12 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  function updateUser(updatedUser) {
+    const merged = { ...user, ...updatedUser };
+    localStorage.setItem('user', JSON.stringify(merged));
+    setUser(merged);
+  }
+
   function logoutUser() {
     api.logout().catch(() => {});
     localStorage.removeItem('token');
@@ -61,7 +67,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login: loginUser, register: registerUser, logout: logoutUser }}>
+    <AuthContext.Provider value={{ user, loading, login: loginUser, register: registerUser, logout: logoutUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

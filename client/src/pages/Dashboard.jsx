@@ -49,16 +49,22 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading your travel data...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading your travel data...</p>
       </div>
     );
   }
 
-  if (error) {
+  if (error && countries.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={loadData} className="ml-4 text-red-700 underline hover:no-underline text-sm font-medium">
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -69,9 +75,9 @@ export default function Dashboard() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Score header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-8">
         <p className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Your Travel Points</p>
-        <p className="text-5xl font-bold text-indigo-600">{totalPoints.toLocaleString()}</p>
+        <p className="text-4xl sm:text-5xl font-bold text-indigo-600">{totalPoints.toLocaleString()}</p>
         <p className="text-gray-500 mt-2">
           {countryCount} {countryCount === 1 ? 'country' : 'countries'} visited
         </p>
@@ -118,14 +124,14 @@ export default function Dashboard() {
                     </Link>
                     <span className="text-xs text-gray-400">{c.region}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>{Math.round(c.total * 10) / 10} pts</span>
-                    <span>Baseline: {Math.round(c.baseline * 10) / 10}</span>
+                    <span className="hidden sm:inline">Baseline: {Math.round(c.baseline * 10) / 10}</span>
                     <span>{c.cities_visited} {c.cities_visited === 1 ? 'city' : 'cities'}</span>
                   </div>
                   {/* Exploration bar */}
                   <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs">
+                    <div className="flex-1 bg-gray-100 rounded-full h-2 max-w-xs" role="progressbar" aria-valuenow={explored} aria-valuemin={0} aria-valuemax={100} aria-label={`${c.country_name} exploration`}>
                       <div
                         className="bg-indigo-500 h-2 rounded-full transition-all"
                         style={{ width: `${Math.min(explored, 100)}%` }}
@@ -139,7 +145,7 @@ export default function Dashboard() {
                   onClick={() => handleRemoveCountry(c.country_code, c.country_name)}
                   disabled={removing === c.country_code}
                   className="ml-4 text-sm text-gray-400 hover:text-red-600 disabled:opacity-50"
-                  title="Remove country"
+                  aria-label={`Remove ${c.country_name}`}
                 >
                   {removing === c.country_code ? '...' : 'Remove'}
                 </button>

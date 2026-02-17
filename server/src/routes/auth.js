@@ -6,13 +6,25 @@ const { generateToken, requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const SALT_ROUNDS = 10;
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, home_country } = req.body;
+    const { password, home_country } = req.body;
+    const username = (req.body.username || '').trim();
+    const email = (req.body.email || '').trim().toLowerCase();
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'username, email, and password are required' });
+    }
+
+    if (username.length < 2 || username.length > 30) {
+      return res.status(400).json({ error: 'Username must be between 2 and 30 characters' });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
     }
 
     if (password.length < 6) {
@@ -61,7 +73,8 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
 
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password are required' });

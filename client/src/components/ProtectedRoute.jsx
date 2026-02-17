@@ -6,8 +6,9 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="loading-spinner" aria-hidden="true"></div>
+        <p className="text-gray-500 text-sm">Loading...</p>
       </div>
     );
   }

@@ -1,7 +1,10 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const db = require('../db/connection');
 const { requireAuth } = require('../middleware/auth');
 const { calculateCountryPoints, calculateTotalTravelPoints } = require('../lib/points');
+
+const SALT_ROUNDS = 10;
 
 const router = express.Router();
 
@@ -235,6 +238,127 @@ router.get('/:id/score', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('GET /users/:id/score error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/users/:id/profile — get user profile
+router.get('/:id/profile', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user.id !== id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const user = await db('users')
+      .where({ id })
+      .select('id', 'username', 'email', 'avatar_url', 'home_country', 'created_at')
+      .first();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('GET /users/:id/profile error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/users/:id/profile — update username, avatar_url, home_country
+router.put('/:id/profile', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user.id !== id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { username, avatar_url, home_country } = req.body;
+    const updates = {};
+
+    if (username !== undefined) {
+      const trimmed = username.trim();
+      if (!trimmed || trimmed.length < 2) {
+        return res.status(400).json({ error: 'Username must be at least 2 characters' });
+      }
+      if (trimmed.length > 30) {
+        return res.status(400).json({ error: 'Username must be 30 characters or fewer' });
+      }
+      // Check uniqueness
+      const existing = await db('users').where({ username: trimmed }).whereNot({ id }).first();
+      if (existing) {
+        return res.status(409).json({ error: 'That username is already taken' });
+      }
+      updates.username = trimmed;
+    }
+
+    if (avatar_url !== undefined) {
+      updates.avatar_url = avatar_url || null;
+    }
+
+    if (home_country !== undefined) {
+      if (home_country) {
+        const country = await db('countries').where({ code: home_country.toUpperCase() }).first();
+        if (!country) {
+          return res.status(400).json({ error: 'Invalid home_country code' });
+        }
+        updates.home_country = country.code;
+      } else {
+        updates.home_country = null;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const [updated] = await db('users')
+      .where({ id })
+      .update(updates)
+      .returning(['id', 'username', 'email', 'avatar_url', 'home_country', 'created_at']);
+
+    res.json(updated);
+  } catch (err) {
+    console.error('PUT /users/:id/profile error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/users/:id/password — change password
+router.put('/:id/password', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user.id !== id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'current_password and new_password are required' });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const password_hash = await bcrypt.hash(new_password, SALT_ROUNDS);
+    await db('users').where({ id }).update({ password_hash });
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('PUT /users/:id/password error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

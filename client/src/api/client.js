@@ -82,3 +82,22 @@ export function removeUserCity(userId, cityId) {
 export function getUserScore(userId) {
   return request(`/users/${userId}/score`);
 }
+
+// User Settings
+export function getUserProfile(userId) {
+  return request(`/users/${userId}/profile`);
+}
+
+export function updateUserProfile(userId, updates) {
+  return request(`/users/${userId}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+}
+
+export function changePassword(userId, currentPassword, newPassword) {
+  return request(`/users/${userId}/password`, {
+    method: 'PUT',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}

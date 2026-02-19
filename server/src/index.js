@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const passport = require('./config/passport');
 
 const authRoutes = require('./routes/auth');
 const countriesRoutes = require('./routes/countries');
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

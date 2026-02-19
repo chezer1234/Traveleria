@@ -116,15 +116,31 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// GET /api/auth/config — public feature flags for the frontend
+router.get('/config', (req, res) => {
+  res.json({ googleOAuthEnabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) });
+});
+
+const googleOAuthEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+function requireGoogleOAuth(req, res, next) {
+  if (!googleOAuthEnabled) {
+    return res.status(501).json({ error: 'Google OAuth is not configured on this server' });
+  }
+  next();
+}
+
 // GET /api/auth/google — initiate Google OAuth flow
 router.get(
   '/google',
+  requireGoogleOAuth,
   passport.authenticate('google', { session: false, scope: ['profile', 'email'] })
 );
 
 // GET /api/auth/google/callback — Google redirects here after consent
 router.get(
   '/google/callback',
+  requireGoogleOAuth,
   passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_URL}/login?error=oauth_failed` }),
   (req, res) => {
     const user = req.user;

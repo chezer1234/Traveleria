@@ -16,6 +16,7 @@ function parseToken(token) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -29,6 +30,9 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('user');
       }
     }
+    api.getAuthConfig()
+      .then((cfg) => setGoogleOAuthEnabled(cfg.googleOAuthEnabled))
+      .catch(() => {});
     setLoading(false);
   }, []);
 
@@ -73,7 +77,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login: loginUser, register: registerUser, logout: logoutUser, updateUser, loginWithToken }}>
+    <AuthContext.Provider value={{ user, loading, googleOAuthEnabled, login: loginUser, register: registerUser, logout: logoutUser, updateUser, loginWithToken }}>
       {children}
     </AuthContext.Provider>
   );

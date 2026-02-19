@@ -15,10 +15,14 @@ async function request(endpoint, options = {}) {
 
   if (res.status === 204) return null;
 
-  const data = await res.json();
+  let data = null;
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    data = await res.json();
+  }
 
   if (!res.ok) {
-    const err = new Error(data.error || 'Request failed');
+    const err = new Error((data && data.error) || `Request failed (${res.status})`);
     err.status = res.status;
     throw err;
   }

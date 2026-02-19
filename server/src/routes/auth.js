@@ -1,10 +1,13 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const passport = require('../config/passport');
 const db = require('../db/connection');
 const { generateToken, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -112,5 +115,33 @@ router.post('/login', async (req, res) => {
 router.post('/logout', requireAuth, (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
+
+// GET /api/auth/google — initiate Google OAuth flow
+router.get(
+  '/google',
+  passport.authenticate('google', { session: false, scope: ['profile', 'email'] })
+);
+
+// GET /api/auth/google/callback — Google redirects here after consent
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_URL}/login?error=oauth_failed` }),
+  (req, res) => {
+    const user = req.user;
+    const token = generateToken(user);
+    const userPayload = Buffer.from(
+      JSON.stringify({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        home_country: user.home_country,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at,
+      })
+    ).toString('base64');
+
+    res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}&user=${userPayload}`);
+  }
+);
 
 module.exports = router;

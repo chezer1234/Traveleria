@@ -36,18 +36,17 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  async function loginUser(email, password) {
-    const data = await api.login({ email, password });
+  async function loginUser(username, password) {
+    const data = await api.login({ username, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
     return data;
   }
 
-  async function registerUser(username, email, password, homeCountry) {
+  async function registerUser(username, password, homeCountry) {
     const data = await api.register({
       username,
-      email,
       password,
       home_country: homeCountry || undefined,
     });

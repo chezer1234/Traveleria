@@ -9,40 +9,28 @@ const SALT_ROUNDS = 10;
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
     const { password, home_country } = req.body;
     const username = (req.body.username || '').trim();
-    const email = (req.body.email || '').trim().toLowerCase();
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'username, email, and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password are required' });
     }
 
     if (username.length < 2 || username.length > 30) {
       return res.status(400).json({ error: 'Username must be between 2 and 30 characters' });
     }
 
-    if (!EMAIL_REGEX.test(email)) {
-      return res.status(400).json({ error: 'Please enter a valid email address' });
-    }
-
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check for existing user
-    const existing = await db('users')
-      .where({ email })
-      .orWhere({ username })
-      .first();
-
+    // Check for existing username
+    const existing = await db('users').where({ username }).first();
     if (existing) {
-      const field = existing.email === email ? 'email' : 'username';
-      return res.status(409).json({ error: `A user with that ${field} already exists` });
+      return res.status(409).json({ error: 'That username is already taken' });
     }
 
     // Validate home_country if provided
@@ -58,11 +46,10 @@ router.post('/register', async (req, res) => {
     const [user] = await db('users')
       .insert({
         username,
-        email,
         password_hash,
         home_country: home_country || null,
       })
-      .returning(['id', 'username', 'email', 'home_country', 'created_at']);
+      .returning(['id', 'username', 'home_country', 'created_at']);
 
     const token = generateToken(user);
 
@@ -77,20 +64,20 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { password } = req.body;
-    const email = (req.body.email || '').trim().toLowerCase();
+    const username = (req.body.username || '').trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password are required' });
     }
 
-    const user = await db('users').where({ email }).first();
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    const user = await db('users').where({ username }).first();
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const token = generateToken(user);
@@ -99,7 +86,6 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email,
         home_country: user.home_country,
         created_at: user.created_at,
       },

@@ -1,27 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getCountries } from '../api/client';
-
 export default function Register() {
   const { register, user, googleOAuthEnabled } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [homeCountry, setHomeCountry] = useState('');
-  const [countries, setCountries] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true });
   }, [user, navigate]);
-
-  // Load countries for the home country selector
-  // Countries endpoint requires auth, so we fetch a static list approach
-  // We'll fetch after registration or use a simple input for now
-  // Actually the /api/countries requires auth. For registration, we accept a country code input.
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -41,7 +32,7 @@ export default function Register() {
     setSubmitting(true);
 
     try {
-      await register(trimmedUsername, email.trim(), password, homeCountry || undefined);
+      await register(trimmedUsername, password, homeCountry || undefined);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -102,20 +93,6 @@ export default function Register() {
             maxLength={30}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>

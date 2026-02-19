@@ -27,6 +27,10 @@ async function request(endpoint, options = {}) {
 }
 
 // Auth
+export function getAuthConfig() {
+  return request('/auth/config');
+}
+
 export function register(body) {
   return request('/auth/register', { method: 'POST', body: JSON.stringify(body) });
 }

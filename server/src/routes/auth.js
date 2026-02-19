@@ -116,6 +116,11 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// GET /api/auth/config — public feature flags for the frontend
+router.get('/config', (req, res) => {
+  res.json({ googleOAuthEnabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) });
+});
+
 const googleOAuthEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 function requireGoogleOAuth(req, res, next) {

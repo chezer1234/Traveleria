@@ -7,7 +7,6 @@ export default function Register() {
   const { register, user, googleOAuthEnabled } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [homeCountry, setHomeCountry] = useState('');
   const [countries, setCountries] = useState([]);
@@ -38,10 +37,15 @@ export default function Register() {
       return;
     }
 
+    if (!homeCountry || homeCountry.length !== 2) {
+      setError('Home country code is required (e.g. GB, US, AU).');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await register(trimmedUsername, email.trim(), password, homeCountry || undefined);
+      await register(trimmedUsername, password, homeCountry);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -83,7 +87,7 @@ export default function Register() {
 
           <div className="flex items-center gap-3 mb-4">
             <hr className="flex-1 border-gray-200" />
-            <span className="text-xs text-gray-400">or sign up with email</span>
+            <span className="text-xs text-gray-400">or</span>
             <hr className="flex-1 border-gray-200" />
           </div>
         </>
@@ -107,20 +111,6 @@ export default function Register() {
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
             Password
           </label>
@@ -138,11 +128,13 @@ export default function Register() {
 
         <div>
           <label htmlFor="homeCountry" className="block text-sm font-medium text-gray-700 mb-1">
-            Home Country Code <span className="text-gray-400">(optional, e.g. GB, US, AU)</span>
+            Home Country Code <span className="text-gray-400">(e.g. GB, US, AU)</span>
           </label>
           <input
             id="homeCountry"
             type="text"
+            required
+            minLength={2}
             maxLength={2}
             value={homeCountry}
             onChange={(e) => setHomeCountry(e.target.value.toUpperCase())}

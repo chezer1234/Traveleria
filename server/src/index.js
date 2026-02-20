@@ -15,9 +15,11 @@ app.use(cors({
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
-app.options('/{*path}', cors());
 app.use(express.json());
+app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); });
 app.use(passport.initialize());
 
 app.get('/api/health', (req, res) => {

@@ -42,19 +42,7 @@ export default function Layout() {
                   Log out
                 </button>
               </>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-                  Log in
-                </Link>
-                <Link
-                  to="/register"
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
+            ) : null}
           </div>
 
           {/* Mobile menu button */}
@@ -98,16 +86,7 @@ export default function Layout() {
                   </button>
                 </div>
               </>
-            ) : (
-              <>
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-                  Log in
-                </Link>
-                <Link to="/register" onClick={() => setMenuOpen(false)} className="block py-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                  Sign up
-                </Link>
-              </>
-            )}
+            ) : null}
           </div>
         )}
       </nav>

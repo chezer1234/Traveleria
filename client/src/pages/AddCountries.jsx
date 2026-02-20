@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getCountries, getUserCountries, addUserCountry } from '../api/client';
 
 export default function AddCountries() {
-  const { user } = useAuth();
+  const { sessionId, homeCountry } = useAuth();
   const navigate = useNavigate();
   const [allCountries, setAllCountries] = useState([]);
   const [visitedCodes, setVisitedCodes] = useState(new Set());
@@ -18,8 +18,8 @@ export default function AddCountries() {
     async function load() {
       try {
         const [countries, visited] = await Promise.all([
-          getCountries(),
-          getUserCountries(user.id),
+          getCountries(homeCountry),
+          getUserCountries(sessionId, homeCountry),
         ]);
         setAllCountries(countries);
         setVisitedCodes(new Set(visited.map((v) => v.country_code)));
@@ -30,7 +30,7 @@ export default function AddCountries() {
       }
     }
     load();
-  }, [user]);
+  }, [sessionId, homeCountry]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return allCountries;
@@ -61,7 +61,7 @@ export default function AddCountries() {
     setError('');
 
     try {
-      const promises = [...selected].map((code) => addUserCountry(user.id, code));
+      const promises = [...selected].map((code) => addUserCountry(sessionId, code));
       await Promise.all(promises);
       navigate('/dashboard');
     } catch (err) {

@@ -1,20 +1,21 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const db = require('../db/connection');
-const { requireAuth } = require('../middleware/auth');
 const { calculateCountryPoints, calculateTotalTravelPoints } = require('../lib/points');
-
-const SALT_ROUNDS = 10;
 
 const router = express.Router();
 
-// Helper: load user travel data for points calculation
-async function getUserTravelData(userId) {
-  const user = await db('users').where({ id: userId }).first();
-  if (!user) return null;
+// Ensure a user record exists for the given session ID, creating one if needed
+async function ensureUser(id) {
+  const existing = await db('users').where({ id }).first();
+  if (existing) return existing;
+  const [created] = await db('users').insert({ id }).returning('*');
+  return created;
+}
 
+// Helper: load user travel data for points calculation
+async function getUserTravelData(userId, homeCountryCode) {
   const allCountries = await db('countries');
-  const homeCountry = allCountries.find(c => c.code === user.home_country);
+  const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase());
   const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
   const visitedRecords = await db('user_countries').where({ user_id: userId });
@@ -32,16 +33,14 @@ async function getUserTravelData(userId) {
     visitedCountries.push({ country, visitedCities, visited_at: uc.visited_at });
   }
 
-  return { user, homeRegion, allCountries, visitedCountries };
+  return { homeRegion, allCountries, visitedCountries };
 }
 
 // POST /api/users/:id/countries — add a visited country
-router.post('/:id/countries', requireAuth, async (req, res) => {
+router.post('/:id/countries', async (req, res) => {
   try {
     const { id } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    await ensureUser(id);
 
     const { country_code, visited_at } = req.body;
     if (!country_code) {
@@ -53,7 +52,6 @@ router.post('/:id/countries', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Country not found' });
     }
 
-    // Duplicate prevention
     const existing = await db('user_countries')
       .where({ user_id: id, country_code: country.code })
       .first();
@@ -77,12 +75,9 @@ router.post('/:id/countries', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/users/:id/countries/:code — remove a visited country + cascade city visits
-router.delete('/:id/countries/:code', requireAuth, async (req, res) => {
+router.delete('/:id/countries/:code', async (req, res) => {
   try {
     const { id, code } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
 
     const uc = await db('user_countries')
       .where({ user_id: id, country_code: code.toUpperCase() })
@@ -92,7 +87,6 @@ router.delete('/:id/countries/:code', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Country not in your visited list' });
     }
 
-    // Remove city visits for this country first
     const cityIds = await db('cities')
       .where({ country_code: code.toUpperCase() })
       .pluck('id');
@@ -115,16 +109,13 @@ router.delete('/:id/countries/:code', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/:id/countries — visited countries with points breakdown
-router.get('/:id/countries', requireAuth, async (req, res) => {
+// GET /api/users/:id/countries?home_country=XX — visited countries with points breakdown
+router.get('/:id/countries', async (req, res) => {
   try {
     const { id } = req.params;
+    await ensureUser(id);
 
-    const data = await getUserTravelData(id);
-    if (!data) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const data = await getUserTravelData(id, req.query.home_country);
     const { homeRegion, allCountries, visitedCountries } = data;
 
     const result = visitedCountries.map(({ country, visitedCities, visited_at }) => {
@@ -147,25 +138,21 @@ router.get('/:id/countries', requireAuth, async (req, res) => {
 });
 
 // POST /api/users/:id/cities — log a city visit
-router.post('/:id/cities', requireAuth, async (req, res) => {
+router.post('/:id/cities', async (req, res) => {
   try {
     const { id } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    await ensureUser(id);
 
     const { city_id, visited_at } = req.body;
     if (!city_id) {
       return res.status(400).json({ error: 'city_id is required' });
     }
 
-    // Validate city exists
     const city = await db('cities').where({ id: city_id }).first();
     if (!city) {
       return res.status(404).json({ error: 'City not found' });
     }
 
-    // Validate user has visited the country
     const hasCountry = await db('user_countries')
       .where({ user_id: id, country_code: city.country_code })
       .first();
@@ -173,7 +160,6 @@ router.post('/:id/cities', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'You must add the country before logging city visits' });
     }
 
-    // Duplicate prevention
     const existing = await db('user_cities')
       .where({ user_id: id, city_id })
       .first();
@@ -197,12 +183,9 @@ router.post('/:id/cities', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/users/:id/cities/:cityId — remove a city visit
-router.delete('/:id/cities/:cityId', requireAuth, async (req, res) => {
+router.delete('/:id/cities/:cityId', async (req, res) => {
   try {
     const { id, cityId } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
 
     const deleted = await db('user_cities')
       .where({ user_id: id, city_id: cityId })
@@ -219,16 +202,13 @@ router.delete('/:id/cities/:cityId', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/:id/score — total Travel Points with per-country breakdown
-router.get('/:id/score', requireAuth, async (req, res) => {
+// GET /api/users/:id/score?home_country=XX — total Travel Points with per-country breakdown
+router.get('/:id/score', async (req, res) => {
   try {
     const { id } = req.params;
+    await ensureUser(id);
 
-    const data = await getUserTravelData(id);
-    if (!data) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const data = await getUserTravelData(id, req.query.home_country);
     const { homeRegion, allCountries, visitedCountries } = data;
     const result = calculateTotalTravelPoints(homeRegion, allCountries, visitedCountries);
 
@@ -238,127 +218,6 @@ router.get('/:id/score', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('GET /users/:id/score error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET /api/users/:id/profile — get user profile
-router.get('/:id/profile', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const user = await db('users')
-      .where({ id })
-      .select('id', 'username', 'email', 'avatar_url', 'home_country', 'created_at')
-      .first();
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(user);
-  } catch (err) {
-    console.error('GET /users/:id/profile error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// PUT /api/users/:id/profile — update username, avatar_url, home_country
-router.put('/:id/profile', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const { username, avatar_url, home_country } = req.body;
-    const updates = {};
-
-    if (username !== undefined) {
-      const trimmed = username.trim();
-      if (!trimmed || trimmed.length < 2) {
-        return res.status(400).json({ error: 'Username must be at least 2 characters' });
-      }
-      if (trimmed.length > 30) {
-        return res.status(400).json({ error: 'Username must be 30 characters or fewer' });
-      }
-      // Check uniqueness
-      const existing = await db('users').where({ username: trimmed }).whereNot({ id }).first();
-      if (existing) {
-        return res.status(409).json({ error: 'That username is already taken' });
-      }
-      updates.username = trimmed;
-    }
-
-    if (avatar_url !== undefined) {
-      updates.avatar_url = avatar_url || null;
-    }
-
-    if (home_country !== undefined) {
-      if (home_country) {
-        const country = await db('countries').where({ code: home_country.toUpperCase() }).first();
-        if (!country) {
-          return res.status(400).json({ error: 'Invalid home_country code' });
-        }
-        updates.home_country = country.code;
-      } else {
-        updates.home_country = null;
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-
-    const [updated] = await db('users')
-      .where({ id })
-      .update(updates)
-      .returning(['id', 'username', 'email', 'avatar_url', 'home_country', 'created_at']);
-
-    res.json(updated);
-  } catch (err) {
-    console.error('PUT /users/:id/profile error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// PUT /api/users/:id/password — change password
-router.put('/:id/password', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (req.user.id !== id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const { current_password, new_password } = req.body;
-
-    if (!current_password || !new_password) {
-      return res.status(400).json({ error: 'current_password and new_password are required' });
-    }
-
-    if (new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
-
-    const user = await db('users').where({ id }).first();
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const valid = await bcrypt.compare(current_password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-
-    const password_hash = await bcrypt.hash(new_password, SALT_ROUNDS);
-    await db('users').where({ id }).update({ password_hash });
-
-    res.json({ message: 'Password updated successfully' });
-  } catch (err) {
-    console.error('PUT /users/:id/password error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

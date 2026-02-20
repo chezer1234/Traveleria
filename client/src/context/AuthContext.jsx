@@ -1,89 +1,29 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import * as api from '../api/client';
+import { createContext, useContext, useState } from 'react';
 
-const AuthContext = createContext(null);
+const SessionContext = createContext(null);
 
-function parseToken(token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
-    return payload;
-  } catch {
-    return null;
+function getOrCreateSessionId() {
+  let id = localStorage.getItem('session_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('session_id', id);
   }
+  return id;
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (token && storedUser) {
-      const payload = parseToken(token);
-      if (payload) {
-        setUser(JSON.parse(storedUser));
-      } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
-    api.getAuthConfig()
-      .then((cfg) => setGoogleOAuthEnabled(cfg.googleOAuthEnabled))
-      .catch(() => {});
-    setLoading(false);
-  }, []);
-
-  async function loginUser(username, password) {
-    const data = await api.login({ username, password });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
-    return data;
-  }
-
-  async function registerUser(username, password, homeCountry) {
-    const data = await api.register({
-      username,
-      password,
-      home_country: homeCountry,
-    });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
-    return data;
-  }
-
-  function loginWithToken(token, userData) {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  }
-
-  function updateUser(updatedUser) {
-    const merged = { ...user, ...updatedUser };
-    localStorage.setItem('user', JSON.stringify(merged));
-    setUser(merged);
-  }
-
-  function logoutUser() {
-    api.logout().catch(() => {});
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  }
+  const [sessionId] = useState(getOrCreateSessionId);
+  const [homeCountry, setHomeCountry] = useState(null);
 
   return (
-    <AuthContext.Provider value={{ user, loading, googleOAuthEnabled, login: loginUser, register: registerUser, logout: logoutUser, updateUser, loginWithToken }}>
+    <SessionContext.Provider value={{ sessionId, homeCountry, setHomeCountry }}>
       {children}
-    </AuthContext.Provider>
+    </SessionContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
+  const ctx = useContext(SessionContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

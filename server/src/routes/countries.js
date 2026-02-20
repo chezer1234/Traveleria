@@ -1,18 +1,16 @@
 const express = require('express');
 const db = require('../db/connection');
-const { requireAuth } = require('../middleware/auth');
 const { getBaseline, getCityPercentage } = require('../lib/points');
 
 const router = express.Router();
 
-// GET /api/countries — all countries with personalised baseline points
-router.get('/', requireAuth, async (req, res) => {
+// GET /api/countries?home_country=XX — all countries with baseline points
+router.get('/', async (req, res) => {
   try {
     const allCountries = await db('countries').orderBy('name');
 
-    // Get user's home region
-    const user = await db('users').where({ id: req.user.id }).first();
-    const homeCountry = allCountries.find(c => c.code === user.home_country);
+    const homeCountryCode = (req.query.home_country || '').toUpperCase();
+    const homeCountry = allCountries.find(c => c.code === homeCountryCode);
     const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
     const result = allCountries.map(country => ({
@@ -32,8 +30,8 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/countries/:code — single country detail with cities
-router.get('/:code', requireAuth, async (req, res) => {
+// GET /api/countries/:code?home_country=XX — single country detail with cities
+router.get('/:code', async (req, res) => {
   try {
     const { code } = req.params;
     const country = await db('countries').where({ code: code.toUpperCase() }).first();
@@ -43,8 +41,8 @@ router.get('/:code', requireAuth, async (req, res) => {
     }
 
     const allCountries = await db('countries');
-    const user = await db('users').where({ id: req.user.id }).first();
-    const homeCountry = allCountries.find(c => c.code === user.home_country);
+    const homeCountryCode = (req.query.home_country || '').toUpperCase();
+    const homeCountry = allCountries.find(c => c.code === homeCountryCode);
     const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
     const cities = await db('cities').where({ country_code: country.code }).orderBy('population', 'desc');
@@ -68,7 +66,7 @@ router.get('/:code', requireAuth, async (req, res) => {
 });
 
 // GET /api/countries/:code/cities — cities for a country with % contribution
-router.get('/:code/cities', requireAuth, async (req, res) => {
+router.get('/:code/cities', async (req, res) => {
   try {
     const { code } = req.params;
     const country = await db('countries').where({ code: code.toUpperCase() }).first();

@@ -5,7 +5,7 @@ import { getCountry, getUserCountries, addUserCity, removeUserCity } from '../ap
 
 export default function CountryDetail() {
   const { code } = useParams();
-  const { user } = useAuth();
+  const { sessionId, homeCountry } = useAuth();
   const [country, setCountry] = useState(null);
   const [visitedCityIds, setVisitedCityIds] = useState(new Set());
   const [isVisited, setIsVisited] = useState(false);
@@ -15,56 +15,26 @@ export default function CountryDetail() {
 
   useEffect(() => {
     loadData();
-  }, [code, user]);
+  }, [code, sessionId, homeCountry]);
 
   async function loadData() {
     setLoading(true);
     setError('');
     try {
       const [countryData, userCountries] = await Promise.all([
-        getCountry(code),
-        getUserCountries(user.id),
+        getCountry(code, homeCountry),
+        getUserCountries(sessionId, homeCountry),
       ]);
       setCountry(countryData);
 
       const uc = userCountries.find((c) => c.country_code === code.toUpperCase());
       setIsVisited(!!uc);
-
-      if (uc) {
-        // Get cities the user has visited in this country by comparing with all user city visits
-        // We need to check which cities are visited - we'll track them via the API response
-        // The userCountries response doesn't include city IDs, so we track locally
-        // We'll need to fetch city visit status differently
-        // For now, we use a local set that gets populated from the initial load
-        // and updated as the user toggles
-      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
-
-  // On initial load, figure out which cities the user has visited
-  // We need to call the user countries endpoint and cross-reference
-  useEffect(() => {
-    if (!country || !isVisited) return;
-    async function loadVisitedCities() {
-      try {
-        const userCountries = await getUserCountries(user.id);
-        const uc = userCountries.find((c) => c.country_code === code.toUpperCase());
-        // The API doesn't return individual city IDs in getUserCountries,
-        // but we can track them locally as users toggle
-        // For a fresh load, we need another approach - let's check via score endpoint
-        // Actually, let's just maintain state as user interacts
-        // We'll use a dedicated fetch to get visited city IDs
-        // For now, start empty and let user toggle
-      } catch {
-        // silent
-      }
-    }
-    loadVisitedCities();
-  }, [country, isVisited, user, code]);
 
   async function toggleCity(cityId) {
     if (!isVisited) return;
@@ -73,14 +43,14 @@ export default function CountryDetail() {
 
     try {
       if (visitedCityIds.has(cityId)) {
-        await removeUserCity(user.id, cityId);
+        await removeUserCity(sessionId, cityId);
         setVisitedCityIds((prev) => {
           const next = new Set(prev);
           next.delete(cityId);
           return next;
         });
       } else {
-        await addUserCity(user.id, cityId);
+        await addUserCity(sessionId, cityId);
         setVisitedCityIds((prev) => new Set([...prev, cityId]));
       }
     } catch (err) {

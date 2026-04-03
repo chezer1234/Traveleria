@@ -6,6 +6,7 @@ import AddCountries from './pages/AddCountries';
 import CountryDetail from './pages/CountryDetail';
 import Welcome from './pages/Welcome';
 import Leaderboard from './pages/Leaderboard';
+import Map from './pages/Map';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ function AppRoutes() {
         <Route path="/add-countries" element={<AddCountries />} />
         <Route path="/countries/:code" element={<CountryDetail />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/map" element={<Map />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

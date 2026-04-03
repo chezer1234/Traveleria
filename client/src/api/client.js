@@ -22,6 +22,18 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
+// Users
+export function createOrFindUser(username, homeCountry) {
+  return request('/users', {
+    method: 'POST',
+    body: JSON.stringify({ username, home_country: homeCountry }),
+  });
+}
+
+export function getUser(id) {
+  return request(`/users/${id}`);
+}
+
 // Countries
 export function getCountries(homeCountry) {
   const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
@@ -68,4 +80,10 @@ export function removeUserCity(userId, cityId) {
 export function getUserScore(userId, homeCountry) {
   const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
   return request(`/users/${userId}/score${qs}`);
+}
+
+// Leaderboard
+export function getLeaderboard(userId) {
+  const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+  return request(`/leaderboard${qs}`);
 }

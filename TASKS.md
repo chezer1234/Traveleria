@@ -1,200 +1,369 @@
-# TravelPoints — Development Task List
+# TravelPoints — Rescue Plan
 
-> Broken down from [travel-app-spec.md](travel-app-spec.md).
-> Each task is a small, self-contained unit of work. Complete them in order within each phase.
-> Mark tasks `[x]` as you go.
-
----
-
-## Phase 1 — Project Setup & Database
-
-> Ref: [Spec Section 6 (Tech Stack)](travel-app-spec.md#6-proposed-tech-stack), [Section 7 (Data Models)](travel-app-spec.md#7-data-models)
-
-### 1.1 Project Initialisation
-- [x] **1.1.1** Initialise Node.js + Express backend (`npm init`, install express, cors, dotenv)
-- [x] **1.1.2** Initialise React frontend with Vite (`npm create vite@latest`) + install TailwindCSS
-- [x] **1.1.3** Set up project folder structure (`/server`, `/client`, shared `.env.example`)
-- [x] **1.1.4** Add basic `package.json` scripts (dev, build, start) for both client and server
-- [x] **1.1.5** Set up `.gitignore` (node_modules, .env, dist)
-
-### 1.2 Database Setup
-- [x] **1.2.1** Install PostgreSQL dependencies (`pg`, `knex` or an ORM like Prisma)
-- [x] **1.2.2** Create database connection config (reads from `.env`)
-- [x] **1.2.3** Write migration: `countries` table — [Spec Section 7: countries](travel-app-spec.md#countries)
-  ```
-  code (PK), name, region, population, annual_tourists, area_km2
-  ```
-- [x] **1.2.4** Write migration: `cities` table — [Spec Section 7: cities](travel-app-spec.md#cities)
-  ```
-  id (PK), country_code (FK), name, population
-  ```
-- [x] **1.2.5** Write migration: `users` table — [Spec Section 7: users](travel-app-spec.md#users)
-  ```
-  id (PK), username, email, password_hash, avatar_url, home_country (FK), created_at
-  ```
-- [x] **1.2.6** Write migration: `user_countries` table — [Spec Section 7: user_countries](travel-app-spec.md#user_countries)
-  ```
-  id (PK), user_id (FK), country_code (FK), visited_at, created_at, UNIQUE(user_id, country_code)
-  ```
-- [x] **1.2.7** Write migration: `user_cities` table — [Spec Section 7: user_cities](travel-app-spec.md#user_cities)
-  ```
-  id (PK), user_id (FK), city_id (FK), visited_at, created_at, UNIQUE(user_id, city_id)
-  ```
-- [x] **1.2.8** Run all migrations and verify tables exist
-
-### 1.3 Seed Data
-- [x] **1.3.1** Create seed file: all ~195 countries with `code`, `name`, `region`, `population`, `annual_tourists`, `area_km2`
-- [x] **1.3.2** Create seed file: major cities (10–30 per country) with `country_code`, `name`, `population`
-- [x] **1.3.3** Run seeds and verify data loads correctly
+> **Goal:** Get this app running locally with `make up` and deployed with a single merge to `main`.
+> **Audience:** A 15-year-old dev (Charlie), his dad (Lewis), and Claude agents.
+> **Principle:** Simplest thing that works. No gold-plating. Ship it, then iterate.
 
 ---
 
-## Phase 2 — Authentication
+## Progress Checklist
 
-> Ref: [Spec Section 4.1 (Auth)](travel-app-spec.md#41-authentication), [Section 8 (Auth Endpoints)](travel-app-spec.md#auth)
+### Phase 0 — Docker & Local Dev
+- [x] `docker-compose.yml` with PostgreSQL, server, client services
+- [x] `server/Dockerfile` with Node 20, file watching
+- [x] `client/Dockerfile` with Vite dev server
+- [x] `Makefile` with up/down/logs/migrate/seed/reset-db/shell/psql
+- [x] `.env` with working defaults (no manual setup needed)
+- [x] `server/entrypoint.sh` — wait for PG, migrate, seed, start
+- [x] Verify: `make up` → app at http://localhost:5173
+- [x] Idempotent seeds (don't wipe user data on restart)
+- [x] Persistent PostgreSQL volume (data survives restarts, `make reset-db` to wipe)
 
-- [x] **2.1** Install auth dependencies (bcrypt, jsonwebtoken)
-- [x] **2.2** Create `POST /api/auth/register` — validate input, hash password, insert user, return JWT
-  - Must accept `home_country` field — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
-- [x] **2.3** Create `POST /api/auth/login` — verify credentials, return JWT
-- [x] **2.4** Create `POST /api/auth/logout` — invalidate token (blacklist or client-side)
-- [x] **2.5** Create auth middleware (`requireAuth`) that verifies JWT on protected routes
-- [x] **2.6** Test all auth endpoints manually or with a basic test file
+### Phase 1 — Fix Authentication
+- [x] Remove JWT, bcrypt, passport dependencies and code
+- [x] Add `POST /api/users` — create or find user by username + home_country
+- [x] Add `GET /api/users/:id` — get user profile
+- [x] Frontend welcome screen: name + country → creates user
+- [x] AuthContext stores user in localStorage, exposes user/logout
+- [x] Update API client to use user ID from context (no JWT headers)
+- [x] Verify: open app → enter name → land on dashboard → refresh → still logged in
 
----
+### Phase 2 — Fix Core Loop
+- [x] Dashboard shows real points and visited countries
+- [x] Add Countries page works with real user ID
+- [x] Country Detail page: city checkboxes work, exploration % updates
+- [x] Navigation: Dashboard / Add Countries / Leaderboard / username / logout
+- [x] Empty states and loading states
+- [x] Verify: full loop — welcome → add countries → explore cities → dashboard updates
 
-## Phase 3 — Points Calculation Engine
+### Phase 3 — Leaderboard
+- [x] `GET /api/leaderboard` endpoint — top 50 by points
+- [x] Leaderboard page with rank, username, flag, points, countries count
+- [x] Current user highlighted, shows rank if outside top 50
+- [x] Verify: create 2+ users → see them ranked
 
-> Ref: [Spec Section 9 (Travel Points Calculation)](travel-app-spec.md#9-travel-points-calculation--finalised-option-e-hybrid)
+### Phase 4 — Polish
+- [x] User-friendly error messages
+- [x] Number formatting (1,234 pts), flag emojis
+- [x] Mobile responsiveness pass
+- [x] No console errors, no broken states
 
-### 3.1 Regional Multiplier
-- [x] **3.1.1** Define region list (Europe, Asia, North America, South America, Africa, Oceania, Middle East, etc.)
-- [x] **3.1.2** Build region-pair multiplier lookup table — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
-  ```
-  e.g. { "Europe|Europe": 1, "Europe|Oceania": 4, ... }
-  ```
-- [x] **3.1.3** Create helper function `getRegionalMultiplier(homeRegion, targetRegion) → number`
+### Phase 5 — Production Deployment
+- [ ] Express serves built React in production mode
+- [ ] Railway/Render project with PostgreSQL
+- [ ] GitHub Actions workflow: build + deploy on push to main
+- [ ] Seed production database
+- [ ] Verify deployment via `gh` CLI (check workflow run status)
 
-### 3.2 Baseline Calculation
-- [x] **3.2.1** Create function `calculateRawBaseline(country, regionalMultiplier) → number` — [Spec Section 9.2](travel-app-spec.md#92-step-1--baseline-points)
-  ```
-  baseline = (population / annual_tourists) * regionalMultiplier
-  ```
-- [x] **3.2.2** Create function `calculateRegionalAverage(region) → number` — mean baseline of countries in normal range (2–500) — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
-- [x] **3.2.3** Create function `applyOutlierCorrection(rawBaseline, region, areaKm2) → number` — [Spec Section 9.3](travel-app-spec.md#93-step-1b--outlier-correction)
-  ```
-  if rawBaseline < 2 OR > 500:
-      baseline = regionalAvg * log10(areaKm2 / 1000 + 1)
-      clamp(baseline, 2, 500)
-  ```
-- [x] **3.2.4** Create combined function `getBaseline(country, userHomeCountry) → number`
-
-### 3.3 Exploration Points
-- [x] **3.3.1** Create function `getAreaMultiplier(areaKm2) → number` — [Spec Section 9.4](travel-app-spec.md#94-step-2--total-country-points-exploration-ceiling)
-  ```
-  max(areaKm2 / 50000, 2)
-  ```
-- [x] **3.3.2** Create function `getTotalCountryPoints(baseline, areaKm2) → number`
-  ```
-  baseline * areaMultiplier
-  ```
-- [x] **3.3.3** Create function `getCityPercentage(cityPopulation, countryPopulation) → number` — [Spec Section 9.5](travel-app-spec.md#95-step-3--city-visits--exploration-percentage)
-- [x] **3.3.4** Create function `getCountryExplored(visitedCities, country) → number` (sum of city %, capped at 1.0)
-
-### 3.4 Final Score
-- [x] **3.4.1** Create function `calculateCountryPoints(country, userHomeCountry, visitedCities) → { baseline, explorationPoints, total }` — [Spec Section 9.6](travel-app-spec.md#96-step-4--final-points-per-country)
-  ```
-  final = baseline + (totalCountryPoints * countryExplored)
-  ```
-- [x] **3.4.2** Create function `calculateTotalTravelPoints(user) → number` — sum across all countries — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
-- [x] **3.4.3** Write unit tests for the points engine (normal countries, outlier-low, outlier-high, edge cases)
+### Phase 6 — Browser Testing
+- [ ] Smoke test via Chrome: welcome flow works
+- [ ] Smoke test via Chrome: add countries + cities flow
+- [ ] Smoke test via Chrome: leaderboard shows data
+- [ ] Smoke test via Chrome: mobile viewport check
 
 ---
 
-## Phase 4 — Country & City API Routes
+## Current State
 
-> Ref: [Spec Section 8 (Countries endpoints)](travel-app-spec.md#countries), [Spec Section 4.2 (Country Submission)](travel-app-spec.md#42-country-submission)
+The app has solid bones but doesn't run:
+- Express API with routes for countries, users, cities, and a good points engine
+- React + Vite + Tailwind frontend with dashboard, add-countries, and country-detail pages
+- PostgreSQL schema with migrations and seed data (195 countries + cities)
+- **BUT**: No Docker/local dev setup, fake auth (random UUIDs), frontend and backend auth don't match, no way to create a user through the UI
 
-- [x] **4.1** Create `GET /api/countries` — return all countries with personalised baseline points for the logged-in user — [Spec Section 8](travel-app-spec.md#countries)
-- [x] **4.2** Create `GET /api/countries/:code` — return single country detail + list of cities — [Spec Section 8](travel-app-spec.md#countries)
-- [x] **4.3** Create `GET /api/countries/:code/cities` — return all cities for a country with their % contribution — [Spec Section 8](travel-app-spec.md#countries)
+## Architecture Decisions
 
----
+### Keep
+- **React + Vite + TailwindCSS** frontend — already built, works
+- **Express + Knex** backend — already built, works
+- **PostgreSQL** — right choice for relational data
+- **Points calculation engine** (`server/src/lib/points.js`) — genuinely good, don't touch it
+- **Seed data** — 195 countries and cities, already done
 
-## Phase 5 — User Travel Log API Routes
+### Remove
+- **JWT authentication** — overkill for MVP, adds complexity
+- **bcrypt / password hashing** — no passwords needed yet
+- **Passport.js / Google OAuth** — half-implemented, adds 3 dependencies for zero value
+- **Auth middleware** (`requireAuth`) — not needed without JWT
 
-> Ref: [Spec Section 8 (User Travel Log endpoints)](travel-app-spec.md#user-travel-log)
+### Add
+- **Docker Compose** — PostgreSQL + backend + frontend, one command
+- **Makefile** — `make up`, `make down`, `make migrate`, `make seed`, `make logs`
+- **Simple auth flow** — "What's your name?" + "Where are you from?" → creates user, stores ID in localStorage
+- **Leaderboard** — the fun social feature that makes people care
 
-- [x] **5.1** Create `POST /api/users/:id/countries` — add a visited country (with duplicate prevention) — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
-- [x] **5.2** Create `DELETE /api/users/:id/countries/:code` — remove a visited country (+ cascade remove city visits)
-- [x] **5.3** Create `GET /api/users/:id/countries` — return visited countries with points breakdown + % explored
-- [x] **5.4** Create `POST /api/users/:id/cities` — log a city visit (validate city belongs to a visited country)
-- [x] **5.5** Create `DELETE /api/users/:id/cities/:cityId` — remove a city visit
-- [x] **5.6** Create `GET /api/users/:id/score` — return total Travel Points with per-country breakdown — [Spec Section 9.7](travel-app-spec.md#97-users-total-travel-points)
-
----
-
-## Phase 6 — Frontend: Layout & Auth Pages
-
-> Ref: [Spec Section 10 (Pages & Routes)](travel-app-spec.md#10-pages--routes), [Section 4.1 (Auth)](travel-app-spec.md#41-authentication)
-
-- [x] **6.1** Set up React Router with all routes from [Spec Section 10](travel-app-spec.md#10-pages--routes)
-- [x] **6.2** Create shared layout component (navbar, footer)
-- [x] **6.3** Create Landing Page (`/`) — app intro + sign up / log in CTA
-- [x] **6.4** Create Register Page (`/register`) — form with username, email, password, **home country selector**
-- [x] **6.5** Create Login Page (`/login`) — form with email + password
-- [x] **6.6** Store JWT in state/localStorage, create auth context for protected routes
-- [x] **6.7** Add route guards — redirect unauthenticated users to `/login`
-
----
-
-## Phase 7 — Frontend: Dashboard & Country Management
-
-> Ref: [Spec Section 4.2 (Country Submission)](travel-app-spec.md#42-country-submission), [Section 4.3 (Points)](travel-app-spec.md#43-travel-points-system), [Section 4.4 (Profile)](travel-app-spec.md#44-user-profile)
-
-- [x] **7.1** Create Dashboard Page (`/dashboard`) — display total Travel Points prominently — [Spec Section 4.4](travel-app-spec.md#44-user-profile)
-- [x] **7.2** Show list of visited countries on dashboard with points + % explored per country — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
-- [x] **7.3** Create Add Countries Page (`/add-countries`) — search bar with autocomplete — [Spec Section 4.2](travel-app-spec.md#42-country-submission)
-- [x] **7.4** Implement multi-select: add multiple countries in one session
-- [x] **7.5** Add remove country functionality (with confirmation)
-- [x] **7.6** Create city visit UI — within a country, show cities with checkboxes to log visits
-- [x] **7.7** Display per-country % explored bar/indicator
-- [x] **7.8** Ensure points update in real-time when countries/cities are added or removed — [Spec Section 4.3](travel-app-spec.md#43-travel-points-system)
+### Change
+- **Auth model** — Replace JWT session with simple "pick a username" flow. Store user ID in localStorage. No passwords.
+- **CORS** — Lock down to known origins instead of `origin: true`
+- **API client** — Use Vite proxy in dev (already configured), relative URLs
 
 ---
 
-## Phase 8 — Frontend: Leaderboard & Public Profiles
+## Phase 0 — Docker & Local Dev Setup
+> **Goal:** Anyone can clone and run the app with one command on any OS.
 
-> Ref: [Spec Section 4.5 (Leaderboard)](travel-app-spec.md#45-leaderboard), [Section 4.6 (Social)](travel-app-spec.md#46-social--sharing)
+### 0.1 Create `docker-compose.yml`
+- **PostgreSQL** service: port 5432, volume for data persistence, healthcheck
+- **Server** service: Node.js, port 3000, depends on postgres, auto-runs migrations + seeds on startup
+- **Client** service: Vite dev server, port 5173, depends on server
 
-- [ ] **8.1** Create `GET /api/leaderboard` backend route — top users by total Travel Points — [Spec Section 8](travel-app-spec.md#leaderboard)
-- [ ] **8.2** Create Leaderboard Page (`/leaderboard`) — table with rank, username, total points — [Spec Section 4.5](travel-app-spec.md#45-leaderboard)
-- [ ] **8.3** Add pagination (top 50 default view)
-- [ ] **8.4** Create Public Profile Page (`/u/:username`) — read-only view of a user's countries + score — [Spec Section 4.6](travel-app-spec.md#46-social--sharing)
+### 0.2 Create Dockerfiles
+- `server/Dockerfile` — Node 20 alpine, install deps, run dev server with file watching (nodemon or node --watch)
+- `client/Dockerfile` — Node 20 alpine, install deps, run `vite --host` (needed for Docker networking)
+
+### 0.3 Create `Makefile`
+```
+make up        — docker compose up -d --build
+make down      — docker compose down
+make logs      — docker compose logs -f
+make migrate   — run knex migrations inside server container
+make seed      — run knex seeds inside server container
+make reset-db  — drop and recreate database, run migrations + seeds
+make shell     — open a bash shell in the server container
+make psql      — connect to the database
+```
+
+### 0.4 Create `.env` from `.env.example` defaults
+- All defaults should work out of the box (no manual env setup needed)
+- Docker compose should pass env vars to services
+
+### 0.5 Create `server/entrypoint.sh`
+- Wait for PostgreSQL to be ready
+- Run migrations
+- Run seeds (idempotent — skip if data exists)
+- Start the dev server
+
+**Acceptance:** `git clone && make up` → app running at http://localhost:5173
 
 ---
 
-## Phase 9 — Settings & Polish
+## Phase 1 — Fix Authentication
+> **Goal:** A user can enter their name and home country and start using the app. No passwords.
 
-> Ref: [Spec Section 5 (Non-Functional)](travel-app-spec.md#5-non-functional-requirements)
+### 1.1 Simplify the backend auth
+- Remove `passport`, `passport-google-oauth20`, `jsonwebtoken`, `bcrypt` from dependencies
+- Remove `server/src/config/passport.js`
+- Remove `server/src/middleware/auth.js` (the JWT middleware)
+- Remove auth routes (`/api/auth/*`) — we don't need register/login/logout
 
-- [x] **9.1** Create Settings Page (`/settings`) — edit username, avatar, home country, change password
-- [x] **9.2** Mobile responsiveness pass — test all pages on small screens — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
-- [x] **9.3** Input validation & error handling across all forms and API routes — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
-- [x] **9.4** Loading states and empty states for all data-driven pages
-- [x] **9.5** Basic accessibility review (keyboard nav, alt text, contrast) — [Spec Section 5](travel-app-spec.md#5-non-functional-requirements)
+### 1.2 Add simple user creation endpoint
+- `POST /api/users` — accepts `{ username, home_country }`, returns created user
+  - If username already exists, return the existing user (this is the "login")
+  - Validate: username required (3-30 chars, alphanumeric + underscores), home_country must be valid country code
+- `GET /api/users/:id` — get user profile
+
+### 1.3 Update the frontend auth flow
+- On first visit, show a welcome screen: "What's your name?" + "Where are you from?" (country dropdown)
+- On submit, call `POST /api/users` → store returned user object in localStorage
+- `AuthContext` should expose `{ user, setUser, logout }` where user has `{ id, username, home_country }`
+- "Logout" = clear localStorage, show welcome screen again
+- If localStorage has a user, skip the welcome screen
+
+### 1.4 Update API client
+- All API calls that need user context should read user ID from AuthContext
+- Remove any JWT token headers
+- Use relative URLs (Vite proxy handles `/api` → backend)
+
+### 1.5 Update the users routes
+- Remove `requireAuth` middleware from all routes
+- User ID comes from the URL param (e.g., `/api/users/:id/countries`)
+- The frontend ensures it only calls routes for the logged-in user's ID
+
+**Acceptance:** Open app → enter name + country → land on dashboard → refresh page → still logged in
 
 ---
 
-## Phase 10 — Stretch Goals
+## Phase 2 — Fix the Dashboard & Core Loop
+> **Goal:** The main loop works: add countries → see points → explore cities → see points update.
 
-> Ref: [Spec Section 4.4](travel-app-spec.md#44-user-profile), [Section 4.6](travel-app-spec.md#46-social--sharing)
+### 2.1 Fix Dashboard page
+- Fetch user's visited countries and score using the real user ID from auth context
+- Display total Travel Points prominently
+- List visited countries with points per country
+- "Add Countries" button links to `/add-countries`
+- Handle empty state: "You haven't visited any countries yet!"
 
-- [ ] **10.1** World map visualisation on dashboard highlighting visited countries — [Spec Section 4.4](travel-app-spec.md#44-user-profile)
-- [ ] **10.2** Share score card as image or link — [Spec Section 4.6](travel-app-spec.md#46-social--sharing)
-- [ ] **10.3** Friend/follow system + friends-only leaderboard — [Spec Section 4.5](travel-app-spec.md#45-leaderboard)
-- [ ] **10.4** OAuth via Google — [Spec Section 4.1](travel-app-spec.md#41-authentication)
+### 2.2 Fix Add Countries page
+- Fetch all countries from `/api/countries?home_country=XX`
+- Search/filter works
+- Clicking a country adds it via `POST /api/users/:id/countries`
+- Already-visited countries are visually marked and can't be re-added
+- After adding, user can go back to dashboard or continue adding
+
+### 2.3 Fix Country Detail page
+- Show country info + baseline points
+- List cities with checkboxes
+- Checking a city calls `POST /api/users/:id/cities`
+- Unchecking calls `DELETE /api/users/:id/cities/:cityId`
+- Show exploration percentage updating in real-time
+- Show how many points this country is worth with current exploration
+
+### 2.4 Fix the navigation
+- Nav should show: Dashboard, Add Countries, Leaderboard (placeholder), username
+- "Logout" option in nav (clears session, returns to welcome screen)
+- Mobile hamburger menu should work
+
+**Acceptance:** Full loop works: welcome → add countries → drill into country → check cities → dashboard shows updated points
 
 ---
 
-*Generated from [travel-app-spec.md](travel-app-spec.md) on 2026-02-15.*
+## Phase 3 — Leaderboard
+> **Goal:** Users can see how they rank against others. This is the social hook.
+
+### 3.1 Create leaderboard API endpoint
+- `GET /api/leaderboard` — returns top 50 users ranked by total Travel Points
+- Each entry: `{ rank, username, home_country, total_points, countries_visited_count }`
+- Points calculation should use each user's own home_country for their personalised scores
+
+### 3.2 Create Leaderboard page
+- Table: Rank, Username, Home Country (flag emoji), Points, Countries Visited
+- Highlight the current user's row
+- If user not in top 50, show their rank at the bottom: "You are #73"
+
+### 3.3 Wire up navigation
+- Leaderboard link in nav bar works
+- Route: `/leaderboard`
+
+**Acceptance:** Multiple users can sign up and see themselves ranked on the leaderboard
+
+---
+
+## Phase 4 — Polish & Bug Fixes
+> **Goal:** The app feels finished enough to show friends.
+
+### 4.1 Error handling
+- API errors show user-friendly messages (not raw JSON)
+- Network errors show "Something went wrong, try again"
+- Loading spinners on data fetches
+
+### 4.2 Visual polish
+- Consistent spacing, colours, typography
+- Points displayed with proper formatting (e.g., "1,234 pts")
+- Country flags where possible (emoji flags from country codes)
+- Empty states have helpful messaging
+
+### 4.3 Mobile responsiveness check
+- All pages usable on a phone-width screen
+- Tables scroll horizontally if needed
+- Touch targets are large enough
+
+### 4.4 Data integrity
+- Seed script is idempotent (can run multiple times safely)
+- Removing a country cascades to remove its city visits
+- Duplicate country/city additions are handled gracefully
+
+**Acceptance:** App looks good on phone and desktop, no console errors, no broken states
+
+---
+
+## Phase 5 — Production Deployment
+> **Goal:** The app is live on the internet, auto-deploys from `main`.
+
+### 5.1 Choose and set up hosting
+- **Recommended: Railway** — free tier, deploys from GitHub, has managed PostgreSQL
+- Alternative: Render (also free tier, also deploys from GitHub)
+- Create a Railway project with two services: web (Express serving built React) + PostgreSQL
+
+### 5.2 Production build setup
+- Backend serves the built React frontend in production (`express.static`)
+- Add `client/dist` to Express static middleware when `NODE_ENV=production`
+- Build script: `cd client && npm run build`
+- Single `Procfile` or `railway.json` that builds + starts
+
+### 5.3 Production configuration
+- `DATABASE_URL` env var (provided by Railway)
+- `NODE_ENV=production`
+- Auto-run migrations on deploy (but NOT seeds in prod — seed once manually)
+- CORS set to production domain
+
+### 5.4 CI/CD with GitHub Actions
+- GitHub Actions workflow (`.github/workflows/deploy.yml`):
+  - Trigger: push to `main`
+  - Steps: install deps → build client → run tests → deploy to Railway
+  - Railway deploy via `railway up` CLI or Railway GitHub integration
+- Add `RAILWAY_TOKEN` to GitHub repo secrets
+- Workflow should report status clearly so we can verify with `gh run list` and `gh run view`
+
+### 5.5 Seed production database
+- Run seed script once against production DB
+- Verify all 195 countries + cities loaded
+
+### 5.6 Verify CI/CD pipeline
+- After first deploy, run `gh run list --workflow=deploy.yml` to check status
+- Run `gh run view <id>` to confirm steps passed
+- Verify the deployed app loads in browser
+
+**Acceptance:** Push to `main` → GitHub Actions runs → deploys to Railway → app live → `gh run list` shows green
+
+---
+
+## Phase 6 — Browser Smoke Tests
+> **Goal:** Verify the app actually works end-to-end by driving Chrome.
+
+### 6.1 Welcome flow
+- Open http://localhost:5173
+- Verify welcome screen appears
+- Enter username and select home country
+- Submit and verify dashboard loads
+
+### 6.2 Add countries flow
+- Navigate to Add Countries
+- Search for a country and add it
+- Verify it appears in the list / dashboard
+
+### 6.3 City exploration flow
+- Click into a visited country
+- Check some city checkboxes
+- Verify exploration percentage updates
+- Return to dashboard, verify points changed
+
+### 6.4 Leaderboard
+- Navigate to leaderboard
+- Verify current user appears with correct points
+
+### 6.5 Mobile viewport
+- Resize to mobile width (375px)
+- Verify layout doesn't break, nav works
+
+**Acceptance:** All smoke tests pass via Chrome automation
+
+---
+
+## Open Questions / Ambiguities
+
+> These need discussion before or during implementation. Agents should flag these rather than guessing.
+
+| # | Question | Context | Suggested Default |
+|---|----------|---------|-------------------|
+| 1 | **Username uniqueness as auth — is this OK?** | No passwords means anyone could type someone else's username and "become" them. Fine for friends, bad for internet strangers. | For MVP: yes, keep it simple. Add a simple PIN or password in v2 if needed. |
+| 2 | **Should we keep the JWT/password auth code or delete it?** | It's unused but represents work Charlie did. Deleting is cleaner. | Delete it. It's in git history if we ever want it back. |
+| 3 | **Home country required or optional?** | Points are personalised by home country (distance-based multipliers). Without it, we can't calculate properly. | Required. Ask on signup. Allow changing later. |
+| 4 | **What domain/name for production?** | Need to decide URL for Railway/Render deployment. | Use whatever Railway gives us for now. Custom domain later. |
+| 5 | **Should the leaderboard recalculate all scores on every request?** | Currently scores are calculated on-the-fly. With many users this gets slow. | Fine for <100 users. Cache/materialise later if needed. |
+| 6 | **Keep cities feature or defer?** | Cities add exploration depth but also complexity. The core loop works without them. | Keep — it's already built and it's the unique part of the app. |
+
+---
+
+## Agent Execution Guide
+
+> How to use Claude agents to get this done efficiently.
+
+### Recommended workflow
+1. **Phase 0** — Single agent: Create Docker setup, Makefile, entrypoint script. Test with `make up`.
+2. **Phase 1** — Single agent: Strip auth, add simple user flow. Test end-to-end.
+3. **Phase 2** — Single agent: Fix frontend pages to work with new auth. Test the full loop.
+4. **Phase 3** — Single agent: Add leaderboard backend + frontend. Test with multiple users.
+5. **Phase 4** — Single agent: Polish pass. Visual review.
+6. **Phase 5** — Pair with human: Deployment needs account setup (Railway/Render) which requires human interaction.
+
+### Each agent should
+- Read this plan first
+- Read the relevant existing code before changing it
+- Make a single PR per phase (or per sub-phase if the diff is large)
+- Test their changes work by running `make up` and hitting the app
+- Not modify files outside their phase's scope
+
+---
+
+*This plan replaces the previous TASKS.md. The old task list is in git history if needed.*
+*Written 2026-04-03 by Claude (chief tech lizard) for Charlie and Lewis.*

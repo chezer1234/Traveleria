@@ -1,29 +1,32 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
-const SessionContext = createContext(null);
-
-function getOrCreateSessionId() {
-  let id = localStorage.getItem('session_id');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('session_id', id);
-  }
-  return id;
-}
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [sessionId] = useState(getOrCreateSessionId);
-  const [homeCountry, setHomeCountry] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('travelpoints_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('travelpoints_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('travelpoints_user');
+    }
+  }, [user]);
+
+  const logout = () => setUser(null);
 
   return (
-    <SessionContext.Provider value={{ sessionId, homeCountry, setHomeCountry }}>
+    <AuthContext.Provider value={{ user, setUser, logout }}>
       {children}
-    </SessionContext.Provider>
+    </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(SessionContext);
+  const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

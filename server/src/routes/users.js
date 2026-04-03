@@ -1,16 +1,75 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../db/connection');
 const { calculateCountryPoints, calculateTotalTravelPoints } = require('../lib/points');
 
 const router = express.Router();
 
-// Ensure a user record exists for the given session ID, creating one if needed
-async function ensureUser(id) {
-  const existing = await db('users').where({ id }).first();
-  if (existing) return existing;
-  const [created] = await db('users').insert({ id }).returning('*');
-  return created;
-}
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
+// POST /api/users — create or find user by username
+router.post('/', async (req, res) => {
+  try {
+    const { username, home_country } = req.body;
+
+    if (!username || !USERNAME_REGEX.test(username)) {
+      return res.status(400).json({
+        error: 'Username is required (3-30 characters, letters/numbers/underscores only)',
+      });
+    }
+
+    if (!home_country || typeof home_country !== 'string' || home_country.length !== 2) {
+      return res.status(400).json({ error: 'home_country must be a 2-character country code' });
+    }
+
+    // Try to find existing user (case-insensitive)
+    const existing = await db('users')
+      .whereRaw('LOWER(username) = ?', [username.toLowerCase()])
+      .first();
+
+    if (existing) {
+      return res.status(200).json({
+        id: existing.id,
+        username: existing.username,
+        home_country: existing.home_country,
+        created_at: existing.created_at,
+      });
+    }
+
+    // Create new user
+    const [created] = await db('users')
+      .insert({
+        id: crypto.randomUUID(),
+        username,
+        home_country: home_country.toUpperCase(),
+      })
+      .returning(['id', 'username', 'home_country', 'created_at']);
+
+    res.status(201).json(created);
+  } catch (err) {
+    console.error('POST /users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/users/:id — get user profile
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await db('users').where({ id: req.params.id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({
+      id: user.id,
+      username: user.username,
+      home_country: user.home_country,
+      created_at: user.created_at,
+    });
+  } catch (err) {
+    console.error('GET /users/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Helper: load user travel data for points calculation
 async function getUserTravelData(userId, homeCountryCode) {
@@ -40,7 +99,6 @@ async function getUserTravelData(userId, homeCountryCode) {
 router.post('/:id/countries', async (req, res) => {
   try {
     const { id } = req.params;
-    await ensureUser(id);
 
     const { country_code, visited_at } = req.body;
     if (!country_code) {
@@ -113,7 +171,6 @@ router.delete('/:id/countries/:code', async (req, res) => {
 router.get('/:id/countries', async (req, res) => {
   try {
     const { id } = req.params;
-    await ensureUser(id);
 
     const data = await getUserTravelData(id, req.query.home_country);
     const { homeRegion, allCountries, visitedCountries } = data;
@@ -141,7 +198,6 @@ router.get('/:id/countries', async (req, res) => {
 router.post('/:id/cities', async (req, res) => {
   try {
     const { id } = req.params;
-    await ensureUser(id);
 
     const { city_id, visited_at } = req.body;
     if (!city_id) {
@@ -206,7 +262,6 @@ router.delete('/:id/cities/:cityId', async (req, res) => {
 router.get('/:id/score', async (req, res) => {
   try {
     const { id } = req.params;
-    await ensureUser(id);
 
     const data = await getUserTravelData(id, req.query.home_country);
     const { homeRegion, allCountries, visitedCountries } = data;

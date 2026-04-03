@@ -313,8 +313,12 @@ const cities = [
  * @param {import('knex').Knex} knex
  */
 exports.seed = async function (knex) {
-  await knex('user_cities').del();
-  await knex('cities').del();
+  // Only seed if cities table is empty (idempotent — won't wipe user data on restart)
+  const existing = await knex('cities').count('* as count').first();
+  if (parseInt(existing.count, 10) > 0) {
+    console.log('Cities already seeded, skipping.');
+    return;
+  }
 
   const batchSize = 50;
   for (let i = 0; i < cities.length; i += batchSize) {

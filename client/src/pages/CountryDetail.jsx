@@ -5,7 +5,8 @@ import { getCountry, getUserCountries, addUserCity, removeUserCity } from '../ap
 
 export default function CountryDetail() {
   const { code } = useParams();
-  const { sessionId, homeCountry } = useAuth();
+  const { user } = useAuth();
+  const homeCountry = user.home_country;
   const [country, setCountry] = useState(null);
   const [visitedCityIds, setVisitedCityIds] = useState(new Set());
   const [isVisited, setIsVisited] = useState(false);
@@ -15,7 +16,7 @@ export default function CountryDetail() {
 
   useEffect(() => {
     loadData();
-  }, [code, sessionId, homeCountry]);
+  }, [code, user.id, homeCountry]);
 
   async function loadData() {
     setLoading(true);
@@ -23,7 +24,7 @@ export default function CountryDetail() {
     try {
       const [countryData, userCountries] = await Promise.all([
         getCountry(code, homeCountry),
-        getUserCountries(sessionId, homeCountry),
+        getUserCountries(user.id, homeCountry),
       ]);
       setCountry(countryData);
 
@@ -43,14 +44,14 @@ export default function CountryDetail() {
 
     try {
       if (visitedCityIds.has(cityId)) {
-        await removeUserCity(sessionId, cityId);
+        await removeUserCity(user.id, cityId);
         setVisitedCityIds((prev) => {
           const next = new Set(prev);
           next.delete(cityId);
           return next;
         });
       } else {
-        await addUserCity(sessionId, cityId);
+        await addUserCity(user.id, cityId);
         setVisitedCityIds((prev) => new Set([...prev, cityId]));
       }
     } catch (err) {

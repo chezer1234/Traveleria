@@ -220,11 +220,12 @@ const countries = [
  * @param {import('knex').Knex} knex
  */
 exports.seed = async function (knex) {
-  await knex('user_cities').del();
-  await knex('user_countries').del();
-  await knex('users').del();
-  await knex('cities').del();
-  await knex('countries').del();
+  // Only seed if countries table is empty (idempotent — won't wipe user data on restart)
+  const existing = await knex('countries').count('* as count').first();
+  if (parseInt(existing.count, 10) > 0) {
+    console.log('Countries already seeded, skipping.');
+    return;
+  }
 
   // Insert in batches to avoid hitting parameter limits
   const batchSize = 50;

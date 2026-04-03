@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "cd client && npm install && npm run build && cd ../server && npm install"
+  },
+  "deploy": {
+    "startCommand": "cd server && npx knex migrate:latest --knexfile src/db/knexfile.js && npx knex seed:run --knexfile src/db/knexfile.js && node src/index.js",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

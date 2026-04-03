@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -20,6 +22,20 @@ export default function Layout() {
             <Link to="/add-countries" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
               Add Countries
             </Link>
+            <Link to="/leaderboard" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
+              Leaderboard
+            </Link>
+            {user && (
+              <>
+                <span className="text-sm text-gray-500">{user.username}</span>
+                <button
+                  onClick={logout}
+                  className="text-sm text-red-500 hover:text-red-700 font-medium"
+                >
+                  Logout
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -48,6 +64,20 @@ export default function Layout() {
             <Link to="/add-countries" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
               Add Countries
             </Link>
+            <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
+              Leaderboard
+            </Link>
+            {user && (
+              <>
+                <div className="py-2 text-sm text-gray-500">{user.username}</div>
+                <button
+                  onClick={() => { logout(); setMenuOpen(false); }}
+                  className="block py-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                >
+                  Logout
+                </button>
+              </>
+            )}
           </div>
         )}
       </nav>

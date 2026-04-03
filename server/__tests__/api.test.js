@@ -1,20 +1,12 @@
 /**
- * Integration tests for API routes: auth, countries, user travel log.
+ * Integration tests for API routes: countries, user travel log, points.
  * Uses the test database with migrations and seeds.
  */
+const crypto = require('crypto');
 const { db } = require('./setup');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-
-// We test the route handlers directly by importing the app
-// For simplicity, we test the core flows via database + points engine
-// (Express 5 supertest setup can be added later)
-
-const { generateToken, JWT_SECRET } = require('../src/middleware/auth');
 const { calculateCountryPoints, calculateTotalTravelPoints, getBaseline } = require('../src/lib/points');
 
 let testUser;
-let authToken;
 
 beforeAll(async () => {
   // Run seeds to populate countries and cities
@@ -27,41 +19,23 @@ beforeEach(async () => {
   await db('user_countries').del();
   await db('users').del();
 
-  // Create a test user
-  const password_hash = await bcrypt.hash('testpass123', 10);
+  // Create a test user (simple auth — no passwords)
   const [user] = await db('users')
     .insert({
+      id: crypto.randomUUID(),
       username: 'testuser',
-      email: 'test@example.com',
-      password_hash,
       home_country: 'GB',
     })
     .returning('*');
 
   testUser = user;
-  authToken = generateToken(testUser);
 });
 
-describe('Auth', () => {
-  test('generateToken creates a valid JWT', () => {
-    const token = generateToken(testUser);
-    const decoded = jwt.verify(token, JWT_SECRET);
-    expect(decoded.id).toBe(testUser.id);
-    expect(decoded.username).toBe('testuser');
-    expect(decoded.email).toBe('test@example.com');
-  });
-
-  test('password hashing works correctly', async () => {
-    const hash = await bcrypt.hash('mypassword', 10);
-    expect(await bcrypt.compare('mypassword', hash)).toBe(true);
-    expect(await bcrypt.compare('wrongpassword', hash)).toBe(false);
-  });
-
+describe('User Creation', () => {
   test('user is created with correct fields', () => {
     expect(testUser.username).toBe('testuser');
-    expect(testUser.email).toBe('test@example.com');
     expect(testUser.home_country).toBe('GB');
-    expect(testUser.password_hash).toBeDefined();
+    expect(testUser.id).toBeDefined();
   });
 });
 
@@ -126,8 +100,7 @@ describe('User Travel Log — Add/Remove Countries', () => {
     const city = await db('cities').where({ country_code: 'GB' }).first();
     await db('user_cities').insert({ user_id: testUser.id, city_id: city.id });
 
-    // Remove the country
-    // First remove city visits for the country
+    // Remove the country (manually cascade city visits first)
     const cityIds = await db('cities').where({ country_code: 'GB' }).pluck('id');
     await db('user_cities').where({ user_id: testUser.id }).whereIn('city_id', cityIds).del();
     await db('user_countries').where({ user_id: testUser.id, country_code: 'GB' }).del();

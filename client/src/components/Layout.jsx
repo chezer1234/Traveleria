@@ -25,6 +25,9 @@ export default function Layout() {
             <Link to="/leaderboard" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
               Leaderboard
             </Link>
+            <Link to="/map" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
+              Map
+            </Link>
             {user && (
               <>
                 <span className="text-sm text-gray-500">{user.username}</span>
@@ -66,6 +69,9 @@ export default function Layout() {
             </Link>
             <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
               Leaderboard
+            </Link>
+            <Link to="/map" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
+              Map
             </Link>
             {user && (
               <>

@@ -7,7 +7,7 @@
     "dev": "node src/index.js",
     "start": "node src/index.js",
     "build": "echo 'No build step required for Node.js backend'",
-    "test": "NODE_ENV=test jest --verbose --runInBand",
+    "test": "NODE_ENV=test jest --verbose --runInBand --forceExit --testTimeout=30000",
     "migrate": "knex migrate:latest --knexfile src/db/knexfile.js",
     "migrate:rollback": "knex migrate:rollback --knexfile src/db/knexfile.js",
     "seed": "knex seed:run --knexfile src/db/knexfile.js"

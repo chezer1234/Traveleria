@@ -1,5 +1,61 @@
+# TravelPoints
+
+Track your travels. Earn points. See the world.
+
+## Quick Start
+
+### Prerequisites
+
+You need two things installed:
+
+1. **Git** — https://git-scm.com/download/win (Windows) or `brew install git` (Mac)
+2. **Docker Desktop** — https://www.docker.com/products/docker-desktop/
+
+That's it. No Node.js, no PostgreSQL, no other installs needed.
+
+### Clone and run
+
+```bash
+git clone https://github.com/chezer1234/Traveleria.git
+cd Traveleria
+docker compose up -d --build
+```
+
+Wait for it to finish (first time takes a few minutes to download images and install dependencies), then open http://localhost:5173
+
+### Useful commands
+
+| Command | What it does |
+|---------|-------------|
+| `docker compose up -d --build` | Start everything |
+| `docker compose down` | Stop everything |
+| `docker compose logs -f` | Watch live logs |
+| `docker compose logs -f server` | Watch server logs only |
+| `docker compose restart server` | Restart the backend |
+| `docker compose down -v` | Stop and wipe database (fresh start) |
+
+If you have `make` installed (Mac has it, Windows: `winget install GnuWin32.Make`):
+
+| Command | What it does |
+|---------|-------------|
+| `make up` | Start everything |
+| `make down` | Stop everything |
+| `make logs` | Watch live logs |
+| `make reset-db` | Wipe database and restart fresh |
+| `make psql` | Open a database shell |
+
+### How it works
+
+- **PostgreSQL** runs in Docker on port 5432 (data persists between restarts)
+- **Express API** runs on port 3000 (auto-reloads when you edit server code)
+- **Vite dev server** runs on port 5173 (auto-reloads when you edit client code)
+
+Edit any file in `server/` or `client/` and the changes appear immediately.
+
+---
+
 [travel-app-spec.md](https://github.com/user-attachments/files/25339115/travel-app-spec.md)
-# 🌍 TravelPoints — Technical Specification
+# Technical Specification
 
 **Version:** 0.1 (Draft)
 **Last Updated:** 2026-02-15

@@ -49,17 +49,19 @@
 - [x] No console errors, no broken states
 
 ### Phase 5 — Production Deployment
-- [ ] Express serves built React in production mode
-- [ ] Railway/Render project with PostgreSQL
-- [ ] GitHub Actions workflow: build + deploy on push to main
+- [x] Express serves built React in production mode
+- [ ] Railway/Render project with PostgreSQL (needs account setup)
+- [x] GitHub Actions CI workflow: build, test, smoke test on push to main/PR
+- [x] railway.json config for build/deploy
+- [ ] Connect Railway to GitHub repo (enable "Wait for CI")
 - [ ] Seed production database
 - [ ] Verify deployment via `gh` CLI (check workflow run status)
 
-### Phase 6 — Browser Testing
-- [ ] Smoke test via Chrome: welcome flow works
-- [ ] Smoke test via Chrome: add countries + cities flow
-- [ ] Smoke test via Chrome: leaderboard shows data
-- [ ] Smoke test via Chrome: mobile viewport check
+### Phase 6 — Browser Testing (completed during development)
+- [x] Smoke test via Chrome: welcome flow works
+- [x] Smoke test via Chrome: add countries + cities flow
+- [x] Smoke test via Chrome: leaderboard shows data
+- [x] Smoke test via Chrome: mobile viewport check
 
 ---
 

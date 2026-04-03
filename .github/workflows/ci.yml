@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: travelpoints_test
+          POSTGRES_USER: travelpoints
+          POSTGRES_PASSWORD: travelpoints
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U travelpoints -d travelpoints_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      # --- Server ---
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: travelpoints_test
+          DB_USER: travelpoints
+          DB_PASSWORD: travelpoints
+          NODE_ENV: test
+        run: npx knex migrate:latest --knexfile src/db/knexfile.js
+
+      - name: Run seeds
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: travelpoints_test
+          DB_USER: travelpoints
+          DB_PASSWORD: travelpoints
+          NODE_ENV: test
+        run: npx knex seed:run --knexfile src/db/knexfile.js
+
+      - name: Run server tests
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: travelpoints_test
+          DB_USER: travelpoints
+          DB_PASSWORD: travelpoints
+          NODE_ENV: test
+        run: npm test
+
+      # --- Client ---
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+      # --- Smoke test ---
+      - name: Verify client build output exists
+        run: |
+          test -f client/dist/index.html
+          echo "Client build OK — index.html exists"
+
+      - name: Verify API health endpoint
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: travelpoints_test
+          DB_USER: travelpoints
+          DB_PASSWORD: travelpoints
+          NODE_ENV: test
+          PORT: 3000
+        run: |
+          node src/index.js &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
+          echo "Server health check OK"
+          kill $SERVER_PID

@@ -35,7 +35,7 @@ Countries are classified into three tiers by population rank. The top 30 by popu
 | 10 | Mexico | MX | 128,932,753 | 1 |
 | 11 | Japan | JP | 126,476,461 | 2 |
 | 12 | Ethiopia | ET | 114,963,588 | 2 |
-| 13 | Philippines | PH | 109,581,078 | 2 — see anomaly note |
+| 13 | Philippines | PH | 109,581,078 | 2 — 82 provinces |
 | 14 | Egypt | EG | 102,334,404 | 2 |
 | 15 | Vietnam | VN | 97,338,579 | 2 |
 | 16 | DR Congo | CD | 89,561,403 | 2 |
@@ -74,9 +74,15 @@ All other countries (~165) are **Tier 3**.
 base = subregion_multiplier × (population / annual_tourists)
 ```
 
-`subregion_multiplier` replaces the old `regional_multiplier`. It is calculated from geographic distance between the user's home region and the destination region. Flight prices are **excluded** (too volatile). Anomaly corrections are applied for outlier countries as in the current system.
+`subregion_multiplier` is based on **UN subregions**. It is calculated by geographic distance between the centre of the user's home subregion and the centre of the destination subregion. Flight prices are **excluded** (too volatile). Values are assigned per subregion category — **Europe is anchored at 2 points** and all other subregions are scaled relative to that.
 
-> The existing `REGION_MULTIPLIERS` table is the starting point. Refinements to those values may be made during implementation once we can test outputs.
+**Base points anomaly cap:** If a country's calculated base points exceed ~500 (e.g. North Korea, due to extremely low tourism figures), the value is recalculated as:
+
+```
+capped_base = (country_area_km2 / area_of_largest_neighbouring_country_km2) × original_base
+```
+
+This prevents extreme outliers from distorting the scoring system.
 
 ### 3.2 Explorer Points Ceiling
 
@@ -84,9 +90,7 @@ base = subregion_multiplier × (population / annual_tourists)
 explorer_ceiling = base × (area_km2 / regional_value)
 ```
 
-`regional_value` is a **tunable constant per country or region** that prevents extreme results for very large or very dense nations. For example, Russia (17M km²) and China (9.6M km²) need different regional_values to ensure China scores comparably to Russia despite having a smaller area, because China's population density makes its provinces more meaningful to explore.
-
-> Exact `regional_value` constants will be calibrated during implementation using representative test cases. They are not derived algorithmically — they are editorial tuning values.
+`regional_value` is a constant defined **for every nation**, derived from the **UN subregion's average population**, inversely proportional — a higher-population subregion produces a lower constant. This means denser or more populous regions generate explorer points at a lower rate, preventing extreme values. All nations use this system with no editorial overrides.
 
 ### 3.3 Province Points (Tiers 1 & 2)
 
@@ -106,10 +110,10 @@ For Tier 1 countries, provinces that contain one or more of the country's **top 
 city_bonus_ceiling = 0.4 × x
 ```
 
-Visiting a city within that province earns a share of `city_bonus_ceiling`, proportional to the city's population relative to all top-15 cities present in that province:
+Visiting a city within that province earns an equal share of `city_bonus_ceiling`, split evenly across all top-15 cities present in that province. For example, if a province is worth 20 points and has 2 top-15 cities, the bonus ceiling is 8 points and each city visit is worth 4 points:
 
 ```
-city_contribution = (city_population / sum_of_top15_cities_in_province) × city_bonus_ceiling
+city_contribution = city_bonus_ceiling / count_of_top15_cities_in_province
 ```
 
 Provinces with no top-15 cities have no bonus ceiling. Maximum province total = `x + 0.4x = 1.4x`.
@@ -157,7 +161,7 @@ Provinces will be seeded manually for the top 30 countries. The `provinces` tabl
 | India | States + Union Territories | 36 | Standard, well-documented. |
 | United States | States + DC | 51 | Clean. |
 | Indonesia | Provinces | 34 | Standard. |
-| Pakistan | Provinces + territories | ~8 | Complex — includes AJK, GB, FATA. **Decision needed on how to handle disputed territories.** |
+| Pakistan | Provinces + territories | ~8 | Includes AJK and Gilgit-Baltistan. ✅ Both included, flagged as `disputed = true` in DB. |
 | Brazil | States + Federal District | 27 | Standard. |
 | Nigeria | States + FCT | 37 | Standard. |
 | Bangladesh | Divisions | 8 | Using divisions (not 64 districts). |
@@ -165,36 +169,34 @@ Provinces will be seeded manually for the top 30 countries. The `provinces` tabl
 | Mexico | States + CDMX | 32 | Standard. |
 | Japan | Prefectures | 47 | Standard. |
 | Ethiopia | Regions + chartered cities | 12 | Standard. |
-| Philippines | **Regions (not provinces)** | 17 | ⚠️ **Anomaly: 82 official provinces — far too granular.** Recommend 17 administrative regions instead. |
+| Philippines | Provinces | 82 | Using all 82 official provinces. |
 | Egypt | Governorates | 27 | Standard. |
 | Vietnam | Provinces + municipalities | 63 | High count but manageable. |
 | DR Congo | Provinces | 26 | Post-2015 restructuring. |
-| Turkey | **Statistical regions (NUTS-1)** | 12 | ⚠️ **Anomaly: 81 administrative provinces — too many.** Recommend 12 NUTS-1 statistical regions for usability. |
+| Turkey | Statistical regions (NUTS-1) | 12 | Using 12 NUTS-1 statistical regions. ✅ Confirmed. |
 | Iran | Provinces | 31 | Standard. |
 | Germany | Federal states (Länder) | 16 | Clean. |
-| Thailand | **Groups / super-regions** | ~6 | ⚠️ **Anomaly: 77 provinces — too granular.** Recommend grouping into ~6 geographic regions (North, Northeast, Central, East, West, South). |
-| United Kingdom | **Nations** | 4 | ⚠️ **Anomaly: sub-national admin is very complex (counties, LAs, unitary authorities vary by nation).** Recommend England, Scotland, Wales, Northern Ireland as the 4 top-level units. |
+| Thailand | **Groups / super-regions** | ~6 | ⚠️ **STILL OPEN: grouping into ~6 geographic regions recommended (North, Northeast, Central, East, West, South) — exact boundaries and count need confirmation.** |
+| United Kingdom | Nations + Crown Dependencies | 4 + 3 | England, Scotland, Wales, Northern Ireland as 4 units. ✅ Confirmed. Crown Dependencies (Isle of Man, Jersey, Guernsey) each award 1 flat point — they are not provinces but have their own fixed value. |
 | France | Regions (metropolitan + overseas) | 18 | Standard. Includes overseas regions (Guadeloupe, Martinique, etc.). |
 | Italy | Regions | 20 | Standard. |
 | Tanzania | Regions | 31 | Standard. |
 | South Africa | Provinces | 9 | Clean. |
-| Myanmar | States + Regions + Union Territory | 15 | ⚠️ **Anomaly: overlapping categorisations (7 states, 7 regions, 1 union territory, self-administered zones).** Recommend the 14 states+regions + Nay Pyi Taw = 15 units, ignoring self-administered sub-zones. |
+| Myanmar | States + Regions + Union Territory | 15 | 14 states+regions + Nay Pyi Taw = 15 units. ✅ Confirmed. Self-administered zones ignored. |
 | Kenya | Counties | 47 | Manageable. |
 | South Korea | Special/metro cities + provinces | 17 | Standard (includes Seoul, Busan, etc. as top-level units). |
 | Colombia | Departments + Bogotá DC | 33 | Standard. |
-| Spain | Autonomous communities | 17 | ⚠️ **Note: Spain has 50 provinces, but 17 autonomous communities is the appropriate top-level.** Recommend communities. Includes Canary Islands, Balearic Islands, Ceuta, Melilla. |
+| Spain | Autonomous communities | 17 | 17 autonomous communities. ✅ Confirmed. Includes Canary Islands, Balearic Islands, Ceuta, Melilla. |
 
-### Anomaly decisions needed
+### Anomaly decisions
 
-Before seeding, confirm the recommended approach for:
-
-- [ ] **Philippines** — 17 regions vs 82 provinces
-- [ ] **Turkey** — 12 NUTS regions vs 81 provinces
-- [ ] **Thailand** — ~6 geographic groups vs 77 provinces
-- [ ] **United Kingdom** — 4 nations (or include Crown Dependencies?)
-- [ ] **Pakistan** — how to handle AJK and Gilgit-Baltistan (disputed)
-- [ ] **Myanmar** — confirm 15-unit structure
-- [ ] **Spain** — 17 communities confirmed, note Ceuta & Melilla inclusion
+- [x] **Philippines** — 82 provinces ✅
+- [x] **Turkey** — 12 NUTS-1 statistical regions ✅
+- [ ] **Thailand** — ⚠️ **STILL OPEN** — ~6 geographic groups recommended, exact list and boundaries need confirmation
+- [x] **United Kingdom** — 4 nations; Crown Dependencies (Isle of Man, Jersey, Guernsey) each give 1 flat point, not treated as provinces ✅
+- [x] **Pakistan** — AJK and Gilgit-Baltistan included, flagged `disputed = true` in DB ✅
+- [x] **Myanmar** — 15-unit structure (14 states+regions + Nay Pyi Taw), self-administered zones ignored ✅
+- [x] **Spain** — 17 autonomous communities including Ceuta & Melilla ✅
 
 ---
 
@@ -209,6 +211,7 @@ code        varchar(10) UNIQUE  -- e.g. 'US-CA', 'CN-XZ'
 name        varchar(100) NOT NULL
 population  integer
 area_km2    integer
+disputed    boolean DEFAULT false  -- e.g. AJK, Gilgit-Baltistan
 created_at  timestamp DEFAULT now()
 ```
 
@@ -251,8 +254,8 @@ UNIQUE(user_id, province_code)
 
 | # | Question | Status |
 |---|----------|--------|
-| OQ-1 | Exact `regional_value` constants per country — calibrate during implementation | Open |
-| OQ-2 | Anomaly decisions for Philippines, Turkey, Thailand, UK, Pakistan, Myanmar, Spain | Open — needs user input |
+| OQ-1 | `regional_value` derived from UN subregion average population (inversely proportional) — implement algorithmically, calibrate during implementation | In progress |
+| OQ-2 | Anomaly decisions — see section 5 | 6/7 resolved — **Thailand still open** |
 | OQ-3 | Should microstates (Vatican, Monaco, San Marino, etc.) have explorer_ceiling = 0, or a flat small bonus? | Open |
 | OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | Open |
 

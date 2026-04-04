@@ -1,7 +1,7 @@
 # Province-Based Exploration System
 
 **Branch:** `feature/province-exploration-system`
-**Status:** Planning
+**Status:** Complete (core feature)
 **Last Updated:** 2026-04-04
 
 ---
@@ -259,7 +259,7 @@ UNIQUE(user_id, province_code)
 - [x] Show province exploration % bar (replacing or alongside city bar for tier 1/2)
 - [x] Dashboard — update explored % to reflect province system, shows province counts
 - [x] Interactive province map on CountryDetail — d3-geo SVG with click-to-toggle, tooltip, overseas territory insets
-- [ ] Add Countries page — consider whether province logging happens here or on country detail
+- [x] ~~Add Countries page~~ — province logging happens on country detail page (decided)
 
 ---
 
@@ -270,7 +270,7 @@ UNIQUE(user_id, province_code)
 | OQ-1 | `regional_value` derived from region average population — computed algorithmically, Europe anchored at ~50K | ✅ Implemented |
 | OQ-2 | Anomaly decisions — see section 5 | ✅ All resolved |
 | OQ-3 | Microstate flat point tiers | ✅ Resolved — see below |
-| OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | Open |
+| OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | ✅ Uses province names, codes are internal only |
 
 ---
 
@@ -288,3 +288,14 @@ UNIQUE(user_id, province_code)
 10. ✅ Frontend: dashboard exploration % update (province counts, exploration bar reflects provinces)
 11. ✅ Frontend: interactive province map with d3-geo SVG, click-to-toggle, tooltips, overseas territory insets
 12. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system (deferred — not blocking)
+
+---
+
+## 11. Future Work
+
+These are non-blocking items for follow-up:
+
+- **Tier 1 city bonus**: Requires adding `province_code` to the `cities` table to map cities into provinces. The formula (0.4x bonus per province split across top-15 cities) is spec'd but not yet wired.
+- **Data migration script**: Orphan Tier 2 city visits from score calculation, map existing Tier 1 city visits to the bonus system. Not needed until city bonus is implemented.
+- **Crown Dependencies**: Isle of Man, Jersey, Guernsey each award 1 flat point — not yet implemented as separate scoring entities.
+- **GeoJSON refinement**: Some countries have minor boundary mismatches between NE admin-1 codes and our province codes (e.g. Philippines has 118 NE features vs our 82 provinces). Features that don't match are hidden on the map.

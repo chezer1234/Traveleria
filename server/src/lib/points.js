@@ -1,15 +1,26 @@
 /**
- * Travel Points Calculation Engine — Province-Based Exploration System
+ * Travel Points Calculation Engine — Distance-Based Rebalance
  *
- * Tier 1 (top 10 by pop): provinces + optional city bonus for top-15 cities
- * Tier 2 (ranks 11–30):   provinces only
- * Tier 3 (all others):    top-15 cities per country
- * Microstates:            flat points on visit
+ * Base points:     distance_multiplier × (tourism_score + size_score)
+ * Explorer ceiling: baseline × log10(area / regional_value + 1)
  *
- * See docs/projects/province-exploration-system.md for full spec.
+ * Distance replaces the old regional multiplier table.
+ * Tourism score is log-scaled and capped.
+ * Explorer uses inverse-population regional values.
+ *
+ * See docs/points-rebalance-plan.md for full spec.
  */
 
-// ── Country tier classification ──────────────────────────────────────────────
+// ── Constants ───────────────────────────────────────────────────────────────
+
+const TOURISM_WEIGHT = 3.0;
+const TOURISM_CAP = 20.0;
+const SIZE_WEIGHT = 2.0;
+const FLOOR = 5.0;
+const BASE_CAP = 200.0;
+const EUROPE_ANCHOR = 50000;
+
+// ── Country tier classification ─────────────────────────────────────────────
 
 const TIER_1_CODES = new Set([
   'CN', 'IN', 'US', 'ID', 'PK', 'BR', 'NG', 'BD', 'RU', 'MX',
@@ -37,111 +48,77 @@ function getCountryTier(code) {
   return 3;
 }
 
-// ── Regional multiplier ──────────────────────────────────────────────────────
+// ── Haversine distance ──────────────────────────────────────────────────────
 
-const REGION_MULTIPLIERS = {
-  'Europe|Europe': 1,
-  'Europe|Middle East': 1.5,
-  'Europe|Africa': 2.5,
-  'Europe|Asia': 2.5,
-  'Europe|North America': 3,
-  'Europe|South America': 3,
-  'Europe|Oceania': 4,
-
-  'Asia|Asia': 1,
-  'Asia|Middle East': 1.5,
-  'Asia|Europe': 2.5,
-  'Asia|Oceania': 2.5,
-  'Asia|Africa': 3,
-  'Asia|North America': 3,
-  'Asia|South America': 4,
-
-  'Middle East|Middle East': 1,
-  'Middle East|Europe': 1.5,
-  'Middle East|Africa': 1.5,
-  'Middle East|Asia': 1.5,
-  'Middle East|North America': 3,
-  'Middle East|South America': 3.5,
-  'Middle East|Oceania': 4,
-
-  'Africa|Africa': 1,
-  'Africa|Middle East': 1.5,
-  'Africa|Europe': 2.5,
-  'Africa|Asia': 3,
-  'Africa|South America': 3,
-  'Africa|North America': 3,
-  'Africa|Oceania': 4,
-
-  'North America|North America': 1,
-  'North America|South America': 1.5,
-  'North America|Europe': 3,
-  'North America|Africa': 3,
-  'North America|Middle East': 3,
-  'North America|Asia': 3,
-  'North America|Oceania': 4,
-
-  'South America|South America': 1,
-  'South America|North America': 1.5,
-  'South America|Africa': 3,
-  'South America|Europe': 3,
-  'South America|Middle East': 3.5,
-  'South America|Asia': 4,
-  'South America|Oceania': 4,
-
-  'Oceania|Oceania': 1,
-  'Oceania|Asia': 2.5,
-  'Oceania|North America': 3,
-  'Oceania|South America': 4,
-  'Oceania|Middle East': 4,
-  'Oceania|Africa': 4,
-  'Oceania|Europe': 4,
-};
-
-function getRegionalMultiplier(homeRegion, targetRegion) {
-  return REGION_MULTIPLIERS[`${homeRegion}|${targetRegion}`] || 2.5;
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ── Base points ──────────────────────────────────────────────────────────────
-// base = regional_multiplier × (population / annual_tourists)
+// ── Distance multiplier ─────────────────────────────────────────────────────
+// Continuous multiplier based on great-circle distance from user's home.
+// Ranges from 1.0 (distance=0) to ~5.2 (20,000 km).
 
-function calculateRawBaseline(country, regionalMultiplier) {
-  if (country.annual_tourists === 0) return 500;
-  return (country.population / country.annual_tourists) * regionalMultiplier;
+function getDistanceMultiplier(homeCountry, targetCountry) {
+  if (!homeCountry || !targetCountry) return 3; // fallback
+  const homeLat = Number(homeCountry.lat);
+  const homeLng = Number(homeCountry.lng);
+  const targetLat = Number(targetCountry.lat);
+  const targetLng = Number(targetCountry.lng);
+  if (isNaN(homeLat) || isNaN(homeLng) || isNaN(targetLat) || isNaN(targetLng)) return 3;
+  const distKm = haversine(homeLat, homeLng, targetLat, targetLng);
+  return 1 + Math.log2(distKm / 1000 + 1);
 }
 
-function calculateRegionalAverage(countriesInRegion, regionalMultiplier) {
-  const normalBaselines = [];
-  for (const c of countriesInRegion) {
-    const raw = calculateRawBaseline(c, regionalMultiplier);
-    if (raw >= 2 && raw <= 500) {
-      normalBaselines.push(raw);
-    }
-  }
-  if (normalBaselines.length === 0) return 25;
-  return normalBaselines.reduce((a, b) => a + b, 0) / normalBaselines.length;
+function getDistanceKm(homeCountry, targetCountry) {
+  if (!homeCountry || !targetCountry) return null;
+  const homeLat = Number(homeCountry.lat);
+  const homeLng = Number(homeCountry.lng);
+  const targetLat = Number(targetCountry.lat);
+  const targetLng = Number(targetCountry.lng);
+  if (isNaN(homeLat) || isNaN(homeLng) || isNaN(targetLat) || isNaN(targetLng)) return null;
+  return Math.round(haversine(homeLat, homeLng, targetLat, targetLng));
 }
 
-function applyOutlierCorrection(rawBaseline, regionalAvg, areaKm2) {
-  if (rawBaseline >= 2 && rawBaseline <= 500) return rawBaseline;
-  const corrected = regionalAvg * Math.log10(areaKm2 / 1000 + 1);
-  return Math.max(2, Math.min(500, corrected));
+// ── Tourism score ───────────────────────────────────────────────────────────
+// log2(pop/tourists + 1) × weight, capped to prevent single-factor dominance
+
+function getTourismScore(country) {
+  const tourists = Number(country.annual_tourists) || 1;
+  const pop = Number(country.population) || 1;
+  const raw = Math.log2(pop / tourists + 1) * TOURISM_WEIGHT;
+  return Math.min(raw, TOURISM_CAP);
 }
 
-function getBaseline(country, homeRegion, allCountries) {
-  const regionalMultiplier = getRegionalMultiplier(homeRegion, country.region);
-  const rawBaseline = calculateRawBaseline(country, regionalMultiplier);
-  const countriesInRegion = allCountries.filter(c => c.region === country.region);
-  const regionalAvg = calculateRegionalAverage(countriesInRegion, regionalMultiplier);
-  return applyOutlierCorrection(rawBaseline, regionalAvg, country.area_km2);
+// ── Size score ──────────────────────────────────────────────────────────────
+
+function getSizeScore(country) {
+  const area = Number(country.area_km2) || 1;
+  return Math.log10(area / 1000 + 1) * SIZE_WEIGHT;
 }
 
-// ── Explorer ceiling ─────────────────────────────────────────────────────────
-// explorer_ceiling = base × (area_km2 / regional_value)
-//
-// regional_value is computed per region from average country population in that
-// region, scaled so that Europe anchors at a reasonable baseline. Higher-pop
-// regions produce higher regional_value → lower explorer points per km².
-// These values will be further calibrated in step 6.
+// ── Base points ─────────────────────────────────────────────────────────────
+
+function getBaseline(country, homeCountry, _allCountries) {
+  const tier = getCountryTier(country.code);
+  if (tier === 'microstate') return MICROSTATE_POINTS[country.code];
+
+  const distMult = getDistanceMultiplier(homeCountry, country);
+  const tourism = getTourismScore(country);
+  const size = getSizeScore(country);
+  const raw = distMult * (tourism + size);
+  return Math.max(FLOOR, Math.min(BASE_CAP, round2(raw)));
+}
+
+// ── Inverse regional values ─────────────────────────────────────────────────
+// Inversely proportional to average population per region.
+// High-pop regions (Asia) → low value → more explorer per km²
+// Low-pop regions (Oceania) → high value → less explorer per km²
 
 let _regionalValueCache = null;
 
@@ -154,57 +131,47 @@ function computeRegionalValues(allCountries) {
     byRegion[c.region].push(c);
   }
 
-  // Compute average population per region
   const avgPop = {};
   for (const [region, countries] of Object.entries(byRegion)) {
     const totalPop = countries.reduce((sum, c) => sum + Number(c.population), 0);
     avgPop[region] = totalPop / countries.length;
   }
 
-  // Scale factor: we want Europe's regional_value ≈ 50,000 as an anchor.
-  // regional_value = avg_population × SCALE / europe_avg_population × 50000
+  // Inverse: regional_value = europeAvgPop × ANCHOR / avgPop[region]
   const europeAvg = avgPop['Europe'] || 15000000;
-  const scaleFactor = 50000 / europeAvg;
+  const anchor = europeAvg * EUROPE_ANCHOR;
 
   const values = {};
   for (const [region, avg] of Object.entries(avgPop)) {
-    values[region] = Math.max(avg * scaleFactor, 10000); // floor at 10,000
+    values[region] = Math.max(10000, anchor / avg);
   }
 
   _regionalValueCache = values;
   return values;
 }
 
+// ── Explorer ceiling ────────────────────────────────────────────────────────
+// Log-scaled: baseline × log10(area / regional_value + 1)
+// Prevents massive countries from getting astronomical explorer points.
+
 function getExplorerCeiling(baseline, country, allCountries) {
+  const tier = getCountryTier(country.code);
+  if (tier === 'microstate') return 0;
+
   const regionalValues = computeRegionalValues(allCountries);
-  const rv = regionalValues[country.region] || 50000;
-  return baseline * (country.area_km2 / rv);
+  const rv = regionalValues[country.region] || EUROPE_ANCHOR;
+  const area = Number(country.area_km2) || 1;
+  return round2(baseline * Math.log10(area / rv + 1));
 }
 
-// ── Province points (Tiers 1 & 2) ───────────────────────────────────────────
-// Each province: x = (province_pop / national_pop) × explorer_ceiling
-// Tier 1 city bonus: visited top-15 cities in a province earn up to 0.4x extra
+// ── Province points (Tiers 1 & 2) ──────────────────────────────────────────
 
 const TOP_CITIES_PER_COUNTRY = 15;
-// const CITY_BONUS_RATIO = 0.4; // Used when city-province mapping is wired in
 
-/**
- * Calculate province-based explorer points.
- * @param {number} explorerCeiling
- * @param {object} country
- * @param {Array} allProvinces - all provinces for this country
- * @param {Array} visitedProvinces - province objects the user has visited
- * @param {Array} allCities - all cities for this country (for Tier 1 city bonus)
- * @param {Array} visitedCities - cities the user has visited in this country
- * @returns {{ explorerPoints: number, explored: number, provinceBreakdown: Array }}
- */
 function calculateProvinceExploration(explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities) {
-  const tier = getCountryTier(country.code);
   const nationalPop = Number(country.population) || 1;
   const visitedCodes = new Set(visitedProvinces.map(p => p.code));
 
-  // Tier 1 city bonus requires city→province mapping (cities need province_code).
-  // That mapping will be wired in a future step. Province base points work now.
   let totalExplorerPoints = 0;
   const provinceBreakdown = [];
 
@@ -212,14 +179,8 @@ function calculateProvinceExploration(explorerCeiling, country, allProvinces, vi
     const provincePop = Number(province.population) || 0;
     const x = (provincePop / nationalPop) * explorerCeiling;
     const visited = visitedCodes.has(province.code);
-
-    let basePoints = visited ? x : 0;
-    let cityBonusPoints = 0;
-
-    // Tier 1 city bonus: when we have city-province mapping, calculate bonus
-    // For now, city bonus will be wired in when cities get province_code field
-
-    const total = basePoints + cityBonusPoints;
+    const basePoints = visited ? x : 0;
+    const total = basePoints;
     totalExplorerPoints += total;
 
     provinceBreakdown.push({
@@ -231,7 +192,7 @@ function calculateProvinceExploration(explorerCeiling, country, allProvinces, vi
     });
   }
 
-  const maxPossible = explorerCeiling; // sum of all province x values ≈ ceiling
+  const maxPossible = explorerCeiling;
   const explored = maxPossible > 0 ? Math.min(totalExplorerPoints / maxPossible, 1.0) : 0;
 
   return {
@@ -241,12 +202,9 @@ function calculateProvinceExploration(explorerCeiling, country, allProvinces, vi
   };
 }
 
-// ── Tier 3: city-based exploration ───────────────────────────────────────────
-// exploration_ratio = sum(visited_top15_city_pops) / sum(all_top15_city_pops)
-// explorer_points = exploration_ratio × explorer_ceiling
+// ── Tier 3: city-based exploration ──────────────────────────────────────────
 
 function calculateCityExploration(explorerCeiling, _country, allCities, visitedCities) {
-  // Rank all cities by population, take top 15
   const sorted = [...allCities].sort((a, b) => Number(b.population) - Number(a.population));
   const top15 = sorted.slice(0, TOP_CITIES_PER_COUNTRY);
 
@@ -270,27 +228,126 @@ function calculateCityExploration(explorerCeiling, _country, allCities, visitedC
   };
 }
 
-// ── Main scoring function ────────────────────────────────────────────────────
+// ── Score breakdown (for transparency UI) ───────────────────────────────────
 
-/**
- * Calculate total points for a single country visit.
- *
- * @param {object} country - country row from DB
- * @param {string} homeRegion - user's home region
- * @param {Array} allCountries - all countries (for baseline/regional calculations)
- * @param {object} opts
- * @param {Array} opts.visitedProvinces - provinces the user visited in this country
- * @param {Array} opts.visitedCities - cities the user visited in this country
- * @param {Array} opts.allProvinces - all provinces for this country
- * @param {Array} opts.allCities - all cities for this country
- * @returns {object} points breakdown
- */
-function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
+const SIZE_COMPARISONS = [
+  { maxArea: 2000, label: 'London' },
+  { maxArea: 5000, label: 'Luxembourg' },
+  { maxArea: 15000, label: 'Cyprus' },
+  { maxArea: 30000, label: 'Wales' },
+  { maxArea: 50000, label: 'Belgium' },
+  { maxArea: 90000, label: 'Ireland' },
+  { maxArea: 400000, label: 'the UK' },
+  { maxArea: 900000, label: 'France' },
+  { maxArea: 1500000, label: 'Egypt' },
+  { maxArea: 5000000, label: 'India' },
+  { maxArea: 12000000, label: 'Australia' },
+  { maxArea: Infinity, label: 'Russia' },
+];
+
+function getSizeComparison(areaKm2) {
+  for (const entry of SIZE_COMPARISONS) {
+    if (areaKm2 <= entry.maxArea) return entry.label;
+  }
+  return 'Russia';
+}
+
+function getTourismDifficulty(population, annualTourists) {
+  if (annualTourists === 0) return { label: 'Extremely hard to visit', ratio: 'Almost no tourists visit' };
+  const ratio = population / annualTourists;
+  if (ratio < 0.2) return { label: 'Very easy to visit', ratio: `about ${Math.round(annualTourists / population)} tourists for every resident` };
+  if (ratio < 1) return { label: 'Easy to visit', ratio: `about ${Math.round(annualTourists / population * 10) / 10} tourists for every resident` };
+  if (ratio < 10) return { label: 'Moderate', ratio: `roughly 1 tourist for every ${Math.round(ratio)} people` };
+  if (ratio < 100) return { label: 'Hard to visit', ratio: `roughly 1 tourist for every ${Math.round(ratio)} people` };
+  if (ratio < 1000) return { label: 'Very hard to visit', ratio: `roughly 1 tourist for every ${Math.round(ratio)} people` };
+  return { label: 'Extremely hard to visit', ratio: `roughly 1 tourist for every ${Math.round(ratio).toLocaleString()} people` };
+}
+
+function getDistancePercentile(distanceKm, homeCountry, allCountries) {
+  if (distanceKm === null) return null;
+  const distances = allCountries
+    .filter(c => c.code !== (homeCountry && homeCountry.code))
+    .map(c => getDistanceKm(homeCountry, c))
+    .filter(d => d !== null)
+    .sort((a, b) => a - b);
+  if (distances.length === 0) return 50;
+  const rank = distances.filter(d => d <= distanceKm).length;
+  return Math.round((rank / distances.length) * 100);
+}
+
+function getScoreBreakdown(country, homeCountry, allCountries, explorerCeiling, explorerEarned, explorationDetail) {
+  const tier = getCountryTier(country.code);
+  if (tier === 'microstate') {
+    return {
+      isMicrostate: true,
+      explanation: `${country.name} is a microstate and receives a flat ${MICROSTATE_POINTS[country.code]} point${MICROSTATE_POINTS[country.code] !== 1 ? 's' : ''} for visiting.`,
+    };
+  }
+
+  const distKm = getDistanceKm(homeCountry, country);
+  const distMult = getDistanceMultiplier(homeCountry, country);
+  const tourismPts = getTourismScore(country);
+  const sizePts = getSizeScore(country);
+  const pop = Number(country.population);
+  const tourists = Number(country.annual_tourists);
+  const area = Number(country.area_km2);
+  const percentile = getDistancePercentile(distKm, homeCountry, allCountries);
+  const tourismInfo = getTourismDifficulty(pop, tourists);
+  const sizeRef = getSizeComparison(area);
+
+  return {
+    isMicrostate: false,
+    distance: {
+      km: distKm,
+      multiplier: round2(distMult),
+      percentile,
+      explanation: distKm !== null
+        ? `${country.name} is ${distKm.toLocaleString()} km from your home country` +
+          (percentile !== null ? ` — in the ${percentile >= 50 ? 'furthest' : 'closest'} ${percentile >= 50 ? 100 - percentile : percentile}% of all countries` : '')
+        : 'Distance could not be calculated',
+    },
+    tourism: {
+      population: pop,
+      annualTourists: tourists,
+      difficulty: tourismInfo.label,
+      ratio: tourismInfo.ratio,
+      points: round2(tourismPts),
+      explanation: `${country.name} gets about ${formatNumber(tourists)} tourists a year for a population of ${formatNumber(pop)} — ${tourismInfo.ratio}`,
+    },
+    size: {
+      areaKm2: area,
+      comparison: `about the same size as ${sizeRef}`,
+      points: round2(sizePts),
+      explanation: `Larger countries have more to see and take more effort to travel across`,
+    },
+    exploration: {
+      method: (tier === 1 || tier === 2) ? 'provinces' : 'cities',
+      ceiling: round2(explorerCeiling),
+      earned: round2(explorerEarned || 0),
+      ...(explorationDetail || {}),
+      explanation: explorerCeiling > 0
+        ? `Explore ${(tier === 1 || tier === 2) ? 'provinces' : 'major cities'} within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points`
+        : 'This country has no exploration bonus',
+    },
+  };
+}
+
+function formatNumber(n) {
+  if (n >= 1000000000) return (n / 1000000000).toFixed(1) + ' billion';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + ' million';
+  if (n >= 1000) return (n / 1000).toFixed(0) + ',000';
+  return String(n);
+}
+
+// ── Main scoring function ───────────────────────────────────────────────────
+
+function calculateCountryPoints(country, homeCountry, allCountries, opts = {}) {
   const {
     visitedProvinces = [],
     visitedCities = [],
     allProvinces = [],
     allCities = [],
+    includeBreakdown = false,
   } = opts;
 
   const tier = getCountryTier(country.code);
@@ -298,7 +355,7 @@ function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
   // Microstates: flat points, no exploration
   if (tier === 'microstate') {
     const flat = MICROSTATE_POINTS[country.code];
-    return {
+    const result = {
       tier: 'microstate',
       baseline: flat,
       explorerCeiling: 0,
@@ -306,9 +363,18 @@ function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
       explored: 0,
       total: flat,
     };
+    if (includeBreakdown) {
+      result.breakdown = getScoreBreakdown(country, homeCountry, allCountries, 0, 0, null);
+    }
+    return result;
   }
 
-  const baseline = getBaseline(country, homeRegion, allCountries);
+  // homeCountry can be a country object or a region string (legacy)
+  // If it's a string (region), we can't compute distance — use fallback
+  const homeObj = typeof homeCountry === 'object' ? homeCountry : null;
+  const baseline = homeObj
+    ? getBaseline(country, homeObj, allCountries)
+    : getBaseline(country, homeCountry, allCountries);
   const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
 
   let explorationPoints = 0;
@@ -316,7 +382,6 @@ function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
   let provinceBreakdown = undefined;
 
   if (tier === 1 || tier === 2) {
-    // Province-based exploration
     const result = calculateProvinceExploration(
       explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities,
     );
@@ -324,13 +389,12 @@ function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
     explored = result.explored;
     provinceBreakdown = result.provinceBreakdown;
   } else {
-    // Tier 3: city-based exploration
     const result = calculateCityExploration(explorerCeiling, country, allCities, visitedCities);
     explorationPoints = result.explorerPoints;
     explored = result.explored;
   }
 
-  return {
+  const pointsResult = {
     tier,
     baseline: round2(baseline),
     explorerCeiling: round2(explorerCeiling),
@@ -339,21 +403,30 @@ function calculateCountryPoints(country, homeRegion, allCountries, opts = {}) {
     total: round2(baseline + explorationPoints),
     ...(provinceBreakdown ? { provinceBreakdown } : {}),
   };
+
+  if (includeBreakdown && homeObj) {
+    const explorationDetail = {};
+    if (tier === 1 || tier === 2) {
+      explorationDetail.total = allProvinces.length;
+      explorationDetail.visited = visitedProvinces.length;
+    } else {
+      const sorted = [...allCities].sort((a, b) => Number(b.population) - Number(a.population));
+      explorationDetail.total = Math.min(sorted.length, TOP_CITIES_PER_COUNTRY);
+      explorationDetail.visited = visitedCities.length;
+    }
+    pointsResult.breakdown = getScoreBreakdown(
+      country, homeObj, allCountries, explorerCeiling, explorationPoints, explorationDetail,
+    );
+  }
+
+  return pointsResult;
 }
 
-// ── User total travel points ─────────────────────────────────────────────────
+// ── User total travel points ────────────────────────────────────────────────
 
-/**
- * Calculate total travel points across all visited countries for a user.
- *
- * @param {string} homeRegion
- * @param {Array} allCountries
- * @param {Array} visitedCountries - array of { country, visitedCities, visitedProvinces, allProvinces, allCities }
- * @returns {{ countries: Array, totalPoints: number }}
- */
-function calculateTotalTravelPoints(homeRegion, allCountries, visitedCountries) {
+function calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries) {
   const countryBreakdown = visitedCountries.map(({ country, visitedCities = [], visitedProvinces = [], allProvinces = [], allCities = [] }) => {
-    const pts = calculateCountryPoints(country, homeRegion, allCountries, {
+    const pts = calculateCountryPoints(country, homeCountry, allCountries, {
       visitedProvinces,
       visitedCities,
       allProvinces,
@@ -374,19 +447,13 @@ function calculateTotalTravelPoints(homeRegion, allCountries, visitedCountries) 
   };
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function round2(n) { return Math.round(n * 100) / 100; }
 function round4(n) { return Math.round(n * 10000) / 10000; }
-
-/**
- * Reset cached regional values (useful for testing).
- */
 function resetCache() { _regionalValueCache = null; }
 
-// ── Legacy compatibility ─────────────────────────────────────────────────────
-// getCityPercentage is still used by the countries route for display purposes
-
+// Legacy compatibility
 function getCityPercentage(cityPopulation, countryPopulation) {
   if (countryPopulation === 0) return 0;
   return cityPopulation / countryPopulation;
@@ -399,11 +466,14 @@ module.exports = {
   TIER_2_CODES,
   MICROSTATE_POINTS,
 
-  // Core formula
-  getRegionalMultiplier,
-  calculateRawBaseline,
-  calculateRegionalAverage,
-  applyOutlierCorrection,
+  // Distance
+  haversine,
+  getDistanceMultiplier,
+  getDistanceKm,
+
+  // Score components
+  getTourismScore,
+  getSizeScore,
   getBaseline,
   getExplorerCeiling,
   computeRegionalValues,
@@ -412,6 +482,12 @@ module.exports = {
   calculateProvinceExploration,
   calculateCityExploration,
 
+  // Breakdown
+  getScoreBreakdown,
+  getTourismDifficulty,
+  getSizeComparison,
+  formatNumber,
+
   // Main API
   calculateCountryPoints,
   calculateTotalTravelPoints,
@@ -419,5 +495,11 @@ module.exports = {
   // Utilities
   getCityPercentage,
   resetCache,
-  REGION_MULTIPLIERS,
+
+  // Constants (for testing)
+  TOURISM_WEIGHT,
+  TOURISM_CAP,
+  SIZE_WEIGHT,
+  FLOOR,
+  BASE_CAP,
 };

@@ -11,6 +11,7 @@ import {
   removeUserProvince,
 } from '../api/client';
 import ProvinceMap from '../components/ProvinceMap';
+import ScoreBreakdown from '../components/ScoreBreakdown';
 
 export default function CountryDetail() {
   const { code } = useParams();
@@ -161,22 +162,18 @@ export default function CountryDetail() {
         </div>
         <p className="text-sm text-gray-500 mb-4">{country.region} &middot; {country.code}</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-gray-500">Baseline Points</p>
+            <p className="text-gray-500">Base Points</p>
             <p className="font-semibold text-gray-900">{country.baseline_points}</p>
           </div>
           <div>
-            <p className="text-gray-500">Explorer Ceiling</p>
-            <p className="font-semibold text-gray-900">{country.explorer_ceiling}</p>
+            <p className="text-gray-500">Explorer Bonus</p>
+            <p className="font-semibold text-gray-900">up to {country.explorer_ceiling}</p>
           </div>
           <div>
-            <p className="text-gray-500">Population</p>
-            <p className="font-semibold text-gray-900">{Number(country.population).toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Area</p>
-            <p className="font-semibold text-gray-900">{Number(country.area_km2).toLocaleString()} km&sup2;</p>
+            <p className="text-gray-500">Max Total</p>
+            <p className="font-semibold text-gray-900">{Math.round((country.baseline_points + country.explorer_ceiling) * 10) / 10}</p>
           </div>
         </div>
 
@@ -196,6 +193,12 @@ export default function CountryDetail() {
           </div>
         )}
       </div>
+
+      <ScoreBreakdown
+        country={country}
+        visitedProvinceCodes={visitedProvinceCodes}
+        visitedCityIds={visitedCityIds}
+      />
 
       {error && (
         <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>

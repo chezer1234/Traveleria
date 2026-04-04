@@ -135,6 +135,18 @@ total = base + explorer_points_earned
 
 Where `explorer_points_earned` is the sum of province visits (+ city bonuses for Tier 1), or the tier-3 city ratio calculation.
 
+### 3.7 Microstate Flat Points
+
+Microstates bypass the province/city system entirely and award a fixed flat point value on visit:
+
+| Points | Countries |
+|--------|-----------|
+| 1 pt | Vatican City, and similarly sized microstates |
+| 2 pts | Monaco, and countries of comparable size |
+| 3 pts | Singapore (exception — significant city-state) |
+
+> The full list of countries assigned to each tier needs to be finalised during seeding. Candidates include San Marino, Liechtenstein, Andorra, and others with negligible land area relative to Tier 3 nations.
+
 ---
 
 ## 4. Data Migration
@@ -256,7 +268,7 @@ UNIQUE(user_id, province_code)
 |---|----------|--------|
 | OQ-1 | `regional_value` derived from UN subregion average population (inversely proportional) — implement algorithmically, calibrate during implementation | In progress |
 | OQ-2 | Anomaly decisions — see section 5 | ✅ All resolved |
-| OQ-3 | Should microstates (Vatican, Monaco, San Marino, etc.) have explorer_ceiling = 0, or a flat small bonus? | Open |
+| OQ-3 | Microstate flat point tiers | ✅ Resolved — see below |
 | OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | Open |
 
 ---

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const db = require('./db/connection');
 
 const countriesRoutes = require('./routes/countries');
 const usersRoutes = require('./routes/users');
@@ -37,8 +38,21 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`TravelPoints server running on port ${PORT}`);
+async function start() {
+  console.log('Running migrations...');
+  await db.migrate.latest();
+  console.log('Running seeds...');
+  await db.seed.run();
+  console.log('Database ready.');
+
+  app.listen(PORT, () => {
+    console.log(`TravelPoints server running on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
 
 module.exports = app;

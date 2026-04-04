@@ -1,19 +1,23 @@
 /**
  * Unit tests for the Travel Points calculation engine.
- * Tests: regional multiplier, baseline, outlier correction, exploration, final score.
+ * Tests: tiers, regional multiplier, baseline, outlier correction,
+ *        explorer ceiling, province exploration, city exploration, final score.
  */
 const {
+  getCountryTier,
   getRegionalMultiplier,
   calculateRawBaseline,
   calculateRegionalAverage,
   applyOutlierCorrection,
   getBaseline,
-  getAreaMultiplier,
-  getTotalCountryPoints,
+  getExplorerCeiling,
   getCityPercentage,
-  getCountryExplored,
+  calculateProvinceExploration,
+  calculateCityExploration,
   calculateCountryPoints,
   calculateTotalTravelPoints,
+  computeRegionalValues,
+  resetCache,
 } = require('../src/lib/points');
 
 // Sample countries for testing
@@ -28,7 +32,44 @@ const sampleCountries = [
   { code: 'VA', name: 'Vatican City', region: 'Europe', population: 825, annual_tourists: 5000000, area_km2: 1 },
   { code: 'US', name: 'United States', region: 'North America', population: 331002651, annual_tourists: 79256000, area_km2: 9833517 },
   { code: 'BR', name: 'Brazil', region: 'South America', population: 212559417, annual_tourists: 6621000, area_km2: 8515767 },
+  { code: 'PT', name: 'Portugal', region: 'Europe', population: 10196709, annual_tourists: 16000000, area_km2: 92090 },
 ];
+
+beforeEach(() => {
+  resetCache();
+});
+
+// ── Tier classification ──────────────────────────────────────────────────────
+
+describe('Country Tiers', () => {
+  test('Tier 1: top 10 by population', () => {
+    expect(getCountryTier('US')).toBe(1);
+    expect(getCountryTier('CN')).toBe(1);
+    expect(getCountryTier('BR')).toBe(1);
+    expect(getCountryTier('MX')).toBe(1);
+  });
+
+  test('Tier 2: ranks 11-30', () => {
+    expect(getCountryTier('JP')).toBe(2);
+    expect(getCountryTier('DE')).toBe(2);
+    expect(getCountryTier('FR')).toBe(2);
+    expect(getCountryTier('ES')).toBe(2);
+  });
+
+  test('Tier 3: all others', () => {
+    expect(getCountryTier('PT')).toBe(3);
+    expect(getCountryTier('IS')).toBe(3);
+    expect(getCountryTier('AU')).toBe(3);
+  });
+
+  test('Microstates', () => {
+    expect(getCountryTier('VA')).toBe('microstate');
+    expect(getCountryTier('MC')).toBe('microstate');
+    expect(getCountryTier('SG')).toBe('microstate');
+  });
+});
+
+// ── Regional multiplier ──────────────────────────────────────────────────────
 
 describe('Regional Multiplier', () => {
   test('same region returns 1', () => {
@@ -50,6 +91,8 @@ describe('Regional Multiplier', () => {
     expect(getRegionalMultiplier('Unknown', 'Unknown')).toBe(2.5);
   });
 });
+
+// ── Raw baseline ─────────────────────────────────────────────────────────────
 
 describe('Raw Baseline Calculation', () => {
   test('France from Europe: (67M / 90M) * 1 = ~0.75', () => {
@@ -76,6 +119,8 @@ describe('Raw Baseline Calculation', () => {
   });
 });
 
+// ── Outlier correction ───────────────────────────────────────────────────────
+
 describe('Outlier Correction', () => {
   test('normal value (2-500) passes through unchanged', () => {
     expect(applyOutlierCorrection(50, 25, 100000)).toBe(50);
@@ -85,7 +130,6 @@ describe('Outlier Correction', () => {
 
   test('value below 2 gets corrected using regional avg and area', () => {
     const corrected = applyOutlierCorrection(0.5, 25, 640679);
-    // 25 * log10(640679/1000 + 1) = 25 * log10(641.679) = 25 * 2.807 = ~70.2
     expect(corrected).toBeGreaterThan(2);
     expect(corrected).toBeLessThan(500);
     expect(corrected).toBeCloseTo(70.2, 0);
@@ -99,103 +143,211 @@ describe('Outlier Correction', () => {
 
   test('very small area results in minimum clamp of 2', () => {
     const corrected = applyOutlierCorrection(0.1, 0.5, 1);
-    // 0.5 * log10(1/1000 + 1) ≈ 0.5 * 0.0004 ≈ very small → clamped to 2
     expect(corrected).toBe(2);
   });
 });
+
+// ── Regional average ─────────────────────────────────────────────────────────
 
 describe('Regional Average', () => {
   test('calculates mean of baselines in normal range', () => {
     const europeanCountries = sampleCountries.filter(c => c.region === 'Europe');
     const avg = calculateRegionalAverage(europeanCountries, 1);
-    // Should be a positive number based on countries with baselines in 2-500
     expect(avg).toBeGreaterThan(0);
   });
 });
 
-describe('Area Multiplier & Total Country Points', () => {
-  test('area_multiplier = max(area/50000, 2)', () => {
-    expect(getAreaMultiplier(1)).toBe(2); // floor at 2
-    expect(getAreaMultiplier(100000)).toBe(2); // 100000/50000 = 2
-    expect(getAreaMultiplier(640000)).toBeCloseTo(12.8, 1);
-    expect(getAreaMultiplier(9833517)).toBeCloseTo(196.67, 1);
+// ── Explorer ceiling ─────────────────────────────────────────────────────────
+
+describe('Explorer Ceiling', () => {
+  test('computed regional values scale with population', () => {
+    const values = computeRegionalValues(sampleCountries);
+    // Europe should be anchored at ~50,000
+    expect(values['Europe']).toBeCloseTo(50000, -3);
+    // All regions should have positive values
+    for (const v of Object.values(values)) {
+      expect(v).toBeGreaterThanOrEqual(10000);
+    }
   });
 
-  test('total_country_points = baseline * area_multiplier', () => {
-    const total = getTotalCountryPoints(30, 640000);
-    // 30 * 12.8 = 384
-    expect(total).toBeCloseTo(384, 0);
+  test('ceiling = baseline * (area / regional_value)', () => {
+    const france = sampleCountries.find(c => c.code === 'FR');
+    const baseline = getBaseline(france, 'Europe', sampleCountries);
+    const ceiling = getExplorerCeiling(baseline, france, sampleCountries);
+    expect(ceiling).toBeGreaterThan(0);
+    expect(ceiling).toBeGreaterThan(baseline); // France is large enough
+  });
+
+  test('large country gets higher ceiling than small country', () => {
+    const us = sampleCountries.find(c => c.code === 'US');
+    const pt = sampleCountries.find(c => c.code === 'PT');
+    const usCeiling = getExplorerCeiling(10, us, sampleCountries);
+    const ptCeiling = getExplorerCeiling(10, pt, sampleCountries);
+    expect(usCeiling).toBeGreaterThan(ptCeiling);
   });
 });
 
-describe('City Exploration', () => {
+// ── Province exploration (Tiers 1 & 2) ──────────────────────────────────────
+
+describe('Province Exploration', () => {
+  const mockCountry = { code: 'US', population: 331002651 };
+  const mockProvinces = [
+    { code: 'US-CA', name: 'California', population: 39538223 },
+    { code: 'US-TX', name: 'Texas', population: 29145505 },
+    { code: 'US-FL', name: 'Florida', population: 21538187 },
+    { code: 'US-NY', name: 'New York', population: 20201249 },
+  ];
+
+  test('no provinces visited = 0 points', () => {
+    const result = calculateProvinceExploration(100, mockCountry, mockProvinces, [], [], []);
+    expect(result.explorerPoints).toBe(0);
+    expect(result.explored).toBe(0);
+  });
+
+  test('visiting one province earns proportional points', () => {
+    const visited = [{ code: 'US-CA' }];
+    const result = calculateProvinceExploration(100, mockCountry, mockProvinces, visited, [], []);
+    // California is ~12% of total mock population
+    expect(result.explorerPoints).toBeGreaterThan(0);
+    expect(result.provinceBreakdown.find(p => p.code === 'US-CA').visited).toBe(true);
+    expect(result.provinceBreakdown.find(p => p.code === 'US-TX').visited).toBe(false);
+  });
+
+  test('visiting all provinces earns full ceiling', () => {
+    const visited = mockProvinces.map(p => ({ code: p.code }));
+    const result = calculateProvinceExploration(100, mockCountry, mockProvinces, visited, [], []);
+    // Should be close to 100 (the ceiling) — not exact because these 4 states
+    // don't make up 100% of the population
+    expect(result.explorerPoints).toBeGreaterThan(0);
+    expect(result.explorerPoints).toBeLessThanOrEqual(100);
+  });
+});
+
+// ── City exploration (Tier 3) ────────────────────────────────────────────────
+
+describe('City Exploration (Tier 3)', () => {
+  const mockCountry = { code: 'PT', population: 10196709 };
+  const mockCities = [
+    { id: '1', name: 'Lisbon', population: 504718 },
+    { id: '2', name: 'Porto', population: 237591 },
+    { id: '3', name: 'Vila Nova de Gaia', population: 186502 },
+    { id: '4', name: 'Amadora', population: 175136 },
+  ];
+
+  test('no cities visited = 0 points', () => {
+    const result = calculateCityExploration(50, mockCountry, mockCities, []);
+    expect(result.explorerPoints).toBe(0);
+    expect(result.explored).toBe(0);
+  });
+
+  test('visiting the largest city earns proportional points', () => {
+    const visited = [{ id: '1', name: 'Lisbon', population: 504718 }];
+    const result = calculateCityExploration(50, mockCountry, mockCities, visited);
+    expect(result.explorerPoints).toBeGreaterThan(0);
+    // Lisbon is ~45% of top-4 population
+    expect(result.explored).toBeGreaterThan(0.4);
+  });
+
+  test('visiting all cities earns full ceiling', () => {
+    const result = calculateCityExploration(50, mockCountry, mockCities, mockCities);
+    expect(result.explorerPoints).toBeCloseTo(50, 1);
+    expect(result.explored).toBeCloseTo(1.0, 3);
+  });
+});
+
+// ── getCityPercentage (legacy, used by countries route) ──────────────────────
+
+describe('getCityPercentage', () => {
   test('city percentage = city_pop / country_pop', () => {
-    // Paris (2.1M) in France (67M)
     const pct = getCityPercentage(2100000, 67390000);
     expect(pct).toBeCloseTo(0.0312, 3);
   });
-
-  test('country explored is sum of city percentages', () => {
-    const cities = [
-      { population: 2100000 }, // Paris ~3.1%
-      { population: 516000 },  // Lyon ~0.77%
-      { population: 870000 },  // Marseille ~1.3%
-    ];
-    const explored = getCountryExplored(cities, 67390000);
-    expect(explored).toBeCloseTo(0.0517, 3);
-  });
-
-  test('country explored is capped at 1.0', () => {
-    // Give a tiny country huge cities to exceed 100%
-    const cities = [
-      { population: 500000 },
-      { population: 600000 },
-    ];
-    const explored = getCountryExplored(cities, 800);
-    expect(explored).toBe(1.0);
-  });
-
-  test('empty cities list returns 0', () => {
-    expect(getCountryExplored([], 67390000)).toBe(0);
-  });
 });
 
-describe('Full Country Points Calculation', () => {
-  test('France from UK (Europe→Europe) with cities', () => {
-    const france = sampleCountries.find(c => c.code === 'FR');
-    const cities = [
-      { population: 2100000 }, // Paris
-      { population: 516000 },  // Lyon
-      { population: 870000 },  // Marseille
-    ];
-    const pts = calculateCountryPoints(france, 'Europe', sampleCountries, cities);
+// ── Full country points ──────────────────────────────────────────────────────
 
-    expect(pts.baseline).toBeGreaterThan(0);
-    expect(pts.explorationPoints).toBeGreaterThan(0);
-    expect(pts.explored).toBeGreaterThan(0);
-    expect(pts.total).toBe(pts.baseline + pts.explorationPoints);
+describe('Full Country Points Calculation', () => {
+  test('microstate returns flat points', () => {
+    const va = sampleCountries.find(c => c.code === 'VA');
+    const pts = calculateCountryPoints(va, 'Europe', sampleCountries, {});
+    expect(pts.tier).toBe('microstate');
+    expect(pts.total).toBe(1);
+    expect(pts.explorationPoints).toBe(0);
   });
 
-  test('country with no cities visited returns baseline only', () => {
-    const germany = sampleCountries.find(c => c.code === 'DE');
-    const pts = calculateCountryPoints(germany, 'Europe', sampleCountries, []);
+  test('Tier 2 country (France) with provinces', () => {
+    const france = sampleCountries.find(c => c.code === 'FR');
+    const allProvinces = [
+      { code: 'FR-IDF', name: 'Île-de-France', population: 12278210, country_code: 'FR' },
+      { code: 'FR-ARA', name: 'Auvergne-Rhône-Alpes', population: 8042936, country_code: 'FR' },
+    ];
+    const visitedProvinces = [{ code: 'FR-IDF' }];
 
+    const pts = calculateCountryPoints(france, 'Europe', sampleCountries, {
+      allProvinces,
+      visitedProvinces,
+      visitedCities: [],
+      allCities: [],
+    });
+
+    expect(pts.tier).toBe(2);
+    expect(pts.baseline).toBeGreaterThan(0);
+    expect(pts.explorationPoints).toBeGreaterThan(0);
+    expect(pts.total).toBeCloseTo(pts.baseline + pts.explorationPoints, 2);
+    expect(pts.provinceBreakdown).toBeDefined();
+    expect(pts.provinceBreakdown).toHaveLength(2);
+  });
+
+  test('Tier 3 country with no cities returns baseline only', () => {
+    const portugal = sampleCountries.find(c => c.code === 'PT');
+    const pts = calculateCountryPoints(portugal, 'Europe', sampleCountries, {
+      allCities: [
+        { id: '1', name: 'Lisbon', population: 504718 },
+      ],
+    });
+
+    expect(pts.tier).toBe(3);
     expect(pts.explorationPoints).toBe(0);
     expect(pts.explored).toBe(0);
     expect(pts.total).toBe(pts.baseline);
   });
+
+  test('Tier 1 country (US) with provinces and no cities', () => {
+    const us = sampleCountries.find(c => c.code === 'US');
+    const allProvinces = [
+      { code: 'US-CA', name: 'California', population: 39538223, country_code: 'US' },
+      { code: 'US-TX', name: 'Texas', population: 29145505, country_code: 'US' },
+    ];
+
+    const pts = calculateCountryPoints(us, 'Europe', sampleCountries, {
+      allProvinces,
+      visitedProvinces: [{ code: 'US-CA' }],
+      visitedCities: [],
+      allCities: [],
+    });
+
+    expect(pts.tier).toBe(1);
+    expect(pts.explorationPoints).toBeGreaterThan(0);
+    expect(pts.provinceBreakdown).toHaveLength(2);
+  });
 });
+
+// ── Total travel points ──────────────────────────────────────────────────────
 
 describe('Total Travel Points', () => {
   test('sums points across all visited countries', () => {
     const visited = [
       {
-        country: sampleCountries.find(c => c.code === 'FR'),
-        visitedCities: [{ population: 2100000 }],
+        country: sampleCountries.find(c => c.code === 'PT'),
+        visitedCities: [{ id: '1', population: 504718 }],
+        allCities: [{ id: '1', name: 'Lisbon', population: 504718 }],
       },
       {
         country: sampleCountries.find(c => c.code === 'JP'),
-        visitedCities: [],
+        allProvinces: [
+          { code: 'JP-13', name: 'Tokyo', population: 14047594, country_code: 'JP' },
+        ],
+        visitedProvinces: [],
       },
     ];
 
@@ -203,7 +355,7 @@ describe('Total Travel Points', () => {
 
     expect(result.countries).toHaveLength(2);
     expect(result.totalPoints).toBeGreaterThan(0);
-    expect(result.countries[0].countryCode).toBe('FR');
+    expect(result.countries[0].countryCode).toBe('PT');
     expect(result.countries[1].countryCode).toBe('JP');
   });
 

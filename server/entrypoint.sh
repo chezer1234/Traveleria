@@ -8,11 +8,5 @@ until pg_isready -h postgres -U travelpoints -d travelpoints > /dev/null 2>&1; d
 done
 echo "PostgreSQL is ready!"
 
-echo "Running migrations..."
-npx knex migrate:latest --knexfile src/db/knexfile.js
-
-echo "Running seeds..."
-npx knex seed:run --knexfile src/db/knexfile.js
-
 echo "Starting server..."
 exec node --watch src/index.js

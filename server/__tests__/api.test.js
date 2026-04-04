@@ -151,18 +151,23 @@ describe('Points Calculation — Integration', () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
 
-    const pts = calculateCountryPoints(france, 'Europe', allCountries, []);
+    const pts = calculateCountryPoints(france, 'Europe', allCountries, {});
+    expect(pts.tier).toBe(2);
     expect(pts.baseline).toBeGreaterThan(0);
     expect(pts.explorationPoints).toBe(0);
     expect(pts.total).toBe(pts.baseline);
   });
 
-  test('visiting France with Paris gives exploration points', async () => {
+  test('visiting France with a province gives exploration points', async () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
-    const paris = await db('cities').where({ country_code: 'FR', name: 'Paris' }).first();
+    const allProvinces = await db('provinces').where({ country_code: 'FR' });
+    const idf = allProvinces.find(p => p.code === 'FR-IDF');
 
-    const pts = calculateCountryPoints(france, 'Europe', allCountries, [paris]);
+    const pts = calculateCountryPoints(france, 'Europe', allCountries, {
+      allProvinces,
+      visitedProvinces: [{ code: idf.code }],
+    });
     expect(pts.baseline).toBeGreaterThan(0);
     expect(pts.explorationPoints).toBeGreaterThan(0);
     expect(pts.explored).toBeGreaterThan(0);
@@ -175,8 +180,8 @@ describe('Points Calculation — Integration', () => {
     const japan = allCountries.find(c => c.code === 'JP');
 
     const visited = [
-      { country: france, visitedCities: [] },
-      { country: japan, visitedCities: [] },
+      { country: france },
+      { country: japan },
     ];
 
     const result = calculateTotalTravelPoints('Europe', allCountries, visited);

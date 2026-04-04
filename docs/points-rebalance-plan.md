@@ -1,7 +1,7 @@
 # Points System Rebalance Plan
 
 **Date:** 2026-04-04
-**Status:** Agreed — ready to implement
+**Status:** Implemented (merged in PR #16)
 
 ---
 

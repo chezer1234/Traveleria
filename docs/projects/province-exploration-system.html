@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Province Exploration System — Plan</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 24px; color: #1a1a2e; line-height: 1.7; background: #f8f9ff; }
+  h1 { color: #4f46e5; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; }
+  h2 { color: #3730a3; border-bottom: 1px solid #c7d2fe; padding-bottom: 6px; margin-top: 40px; }
+  h3 { color: #4338ca; margin-top: 28px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  td, th { border: 1px solid #c7d2fe; padding: 8px 12px; text-align: left; }
+  tr:nth-child(even) { background: #eef2ff; }
+  tr:first-child td { background: #4f46e5; color: white; font-weight: 600; }
+  code { background: #e0e7ff; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
+  pre { background: #1e1e3f; color: #a5b4fc; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; color: inherit; padding: 0; }
+  li { margin: 4px 0; }
+  li.todo { list-style: none; margin-left: -20px; color: #6366f1; }
+  li.done { list-style: none; margin-left: -20px; color: #22c55e; }
+  hr { border: none; border-top: 2px solid #c7d2fe; margin: 32px 0; }
+  strong { color: #3730a3; }
+  p { margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Province-Based Exploration System</h1>
+
+<strong>Branch:</strong> <code>feature/province-exploration-system</code>
+<strong>Status:</strong> Planning
+<strong>Last Updated:</strong> 2026-04-04
+
+<hr>
+
+<h2>1. Motivation</h2>
+
+<p>The current city-based exploration system has two structural problems:</p>
+
+<p>1. <strong>100% explored is unreachable.</strong> Cities in the DB do not cover the full national population, so exploration % caps around 9–10% regardless of effort. 2. <strong>Exploration points don't reflect country scale.</strong> Exploring the US should be worth significantly more than exploring Vatican City — but the current formula doesn't adequately reward coverage of large, populous nations.</p>
+
+<p>This feature replaces city-based exploration with a province/state-level system for the world's most populous countries, and recalibrates how explorer points are calculated relative to base points.</p>
+
+<hr>
+
+<h2>2. Country Tiers</h2>
+
+<p>Countries are classified into three tiers by population rank. The top 30 by population from our seed data:</p>
+
+<tr><td>Rank</td><td>Country</td><td>Code</td><td>Population</td><td>Tier</td></tr>
+
+<tr><td>1</td><td>China</td><td>CN</td><td>1,439,323,776</td><td>1</td></tr>
+<tr><td>2</td><td>India</td><td>IN</td><td>1,380,004,385</td><td>1</td></tr>
+<tr><td>3</td><td>United States</td><td>US</td><td>331,002,651</td><td>1</td></tr>
+<tr><td>4</td><td>Indonesia</td><td>ID</td><td>273,523,615</td><td>1</td></tr>
+<tr><td>5</td><td>Pakistan</td><td>PK</td><td>220,892,340</td><td>1</td></tr>
+<tr><td>6</td><td>Brazil</td><td>BR</td><td>212,559,417</td><td>1</td></tr>
+<tr><td>7</td><td>Nigeria</td><td>NG</td><td>206,139,589</td><td>1</td></tr>
+<tr><td>8</td><td>Bangladesh</td><td>BD</td><td>164,689,383</td><td>1</td></tr>
+<tr><td>9</td><td>Russia</td><td>RU</td><td>145,934,462</td><td>1</td></tr>
+<tr><td>10</td><td>Mexico</td><td>MX</td><td>128,932,753</td><td>1</td></tr>
+<tr><td>11</td><td>Japan</td><td>JP</td><td>126,476,461</td><td>2</td></tr>
+<tr><td>12</td><td>Ethiopia</td><td>ET</td><td>114,963,588</td><td>2</td></tr>
+<tr><td>13</td><td>Philippines</td><td>PH</td><td>109,581,078</td><td>2 — see anomaly note</td></tr>
+<tr><td>14</td><td>Egypt</td><td>EG</td><td>102,334,404</td><td>2</td></tr>
+<tr><td>15</td><td>Vietnam</td><td>VN</td><td>97,338,579</td><td>2</td></tr>
+<tr><td>16</td><td>DR Congo</td><td>CD</td><td>89,561,403</td><td>2</td></tr>
+<tr><td>17</td><td>Turkey</td><td>TR</td><td>84,339,067</td><td>2 — see anomaly note</td></tr>
+<tr><td>18</td><td>Iran</td><td>IR</td><td>83,992,949</td><td>2</td></tr>
+<tr><td>19</td><td>Germany</td><td>DE</td><td>83,783,942</td><td>2</td></tr>
+<tr><td>20</td><td>Thailand</td><td>TH</td><td>69,799,978</td><td>2 — see anomaly note</td></tr>
+<tr><td>21</td><td>United Kingdom</td><td>GB</td><td>67,886,011</td><td>2 — see anomaly note</td></tr>
+<tr><td>22</td><td>France</td><td>FR</td><td>67,390,000</td><td>2</td></tr>
+<tr><td>23</td><td>Italy</td><td>IT</td><td>60,461,826</td><td>2</td></tr>
+<tr><td>24</td><td>Tanzania</td><td>TZ</td><td>59,734,218</td><td>2</td></tr>
+<tr><td>25</td><td>South Africa</td><td>ZA</td><td>59,308,690</td><td>2</td></tr>
+<tr><td>26</td><td>Myanmar</td><td>MM</td><td>54,409,800</td><td>2 — see anomaly note</td></tr>
+<tr><td>27</td><td>Kenya</td><td>KE</td><td>53,771,296</td><td>2</td></tr>
+<tr><td>28</td><td>South Korea</td><td>KR</td><td>51,269,185</td><td>2</td></tr>
+<tr><td>29</td><td>Colombia</td><td>CO</td><td>50,882,891</td><td>2</td></tr>
+<tr><td>30</td><td>Spain</td><td>ES</td><td>46,754,778</td><td>2</td></tr>
+
+<p>All other countries (~165) are <strong>Tier 3</strong>.</p>
+
+<h3>Tier summary</h3>
+
+<tr><td>Tier</td><td>Countries</td><td>Exploration system</td></tr>
+
+<tr><td><strong>Tier 1</strong></td><td>Ranks 1–10 by population</td><td>Provinces + optional city bonus</td></tr>
+<tr><td><strong>Tier 2</strong></td><td>Ranks 11–30 by population</td><td>Provinces only</td></tr>
+<tr><td><strong>Tier 3</strong></td><td>All others</td><td>Top-15-cities-per-country system</td></tr>
+
+<hr>
+
+<h2>3. Points Formula</h2>
+
+<h3>3.1 Base Points</h3>
+
+<p>``<code> base = subregion_multiplier × (population / annual_tourists) </code>`<code></p>
+
+</code>subregion_multiplier<code> replaces the old </code>regional_multiplier<code>. It is calculated from geographic distance between the user's home region and the destination region. Flight prices are <strong>excluded</strong> (too volatile). Anomaly corrections are applied for outlier countries as in the current system.
+
+<p>&gt; The existing </code>REGION_MULTIPLIERS<code> table is the starting point. Refinements to those values may be made during implementation once we can test outputs.</p>
+
+<h3>3.2 Explorer Points Ceiling</h3>
+
+</code>`<code>
+explorer_ceiling = base × (area_km2 / regional_value)
+</code>`<code>
+
+</code>regional_value<code> is a <strong>tunable constant per country or region</strong> that prevents extreme results for very large or very dense nations. For example, Russia (17M km²) and China (9.6M km²) need different regional_values to ensure China scores comparably to Russia despite having a smaller area, because China's population density makes its provinces more meaningful to explore.
+
+<p>&gt; Exact </code>regional_value<code> constants will be calibrated during implementation using representative test cases. They are not derived algorithmically — they are editorial tuning values.</p>
+
+<h3>3.3 Province Points (Tiers 1 &amp; 2)</h3>
+
+<p>Each province is worth:</p>
+
+</code>`<code>
+x = (province_population / national_population) × explorer_ceiling
+</code>`<code>
+
+<p>Visiting a province earns </code>x<code> explorer points for that province.</p>
+
+<h3>3.4 City Bonus (Tier 1 only)</h3>
+
+<p>For Tier 1 countries, provinces that contain one or more of the country's <strong>top 15 cities by population</strong> have a bonus allocation:</p>
+
+</code>`<code>
+city_bonus_ceiling = 0.4 × x
+</code>`<code>
+
+<p>Visiting a city within that province earns a share of </code>city_bonus_ceiling<code>, proportional to the city's population relative to all top-15 cities present in that province:</p>
+
+</code>`<code>
+city_contribution = (city_population / sum_of_top15_cities_in_province) × city_bonus_ceiling
+</code>`<code>
+
+<p>Provinces with no top-15 cities have no bonus ceiling. Maximum province total = </code>x + 0.4x = 1.4x<code>.</p>
+
+<h3>3.5 Tier 3 Exploration (City-Based Fallback)</h3>
+
+</code>`<code>
+exploration_ratio = sum(visited_top15_city_populations) / sum(all_top15_city_populations)
+tier3_explorer_points = exploration_ratio × explorer_ceiling
+</code>`<code>
+
+<p>The top 15 cities are ranked <strong>per country</strong> by population. This uses existing city data.</p>
+
+<h3>3.6 Total Country Points</h3>
+
+</code>`<code>
+total = base + explorer_points_earned
+</code>`<code>
+
+<p>Where </code>explorer_points_earned<code> is the sum of province visits (+ city bonuses for Tier 1), or the tier-3 city ratio calculation.</p>
+
+<hr>
+
+<h2>4. Data Migration</h2>
+
+<tr><td>Scope</td><td>Action</td></tr>
+
+<tr><td>Tier 1 country city visits</td><td><strong>Kept</strong> — mapped to city bonus system where city is in top-15 national list</td></tr>
+<tr><td>Tier 2 country city visits</td><td><strong>Orphaned</strong> — retained in DB but excluded from score calculation</td></tr>
+<tr><td>Tier 3 country city visits</td><td><strong>Active</strong> — used in top-15 city ratio system</td></tr>
+
+<p>No city data is deleted. Orphaned rows are simply ignored by the scoring engine.</p>
+
+<hr>
+
+<h2>5. Province Data — Seeding Plan &amp; Anomalies</h2>
+
+<p>Provinces will be seeded manually for the top 30 countries. The </code>provinces<code> table will store: </code>code<code>, </code>country_code<code>, </code>name<code>, </code>population<code>, </code>area_km2<code>.</p>
+
+<h3>Proposed administrative level per country</h3>
+
+<tr><td>Country</td><td>Admin level</td><td>Count</td><td>Notes</td></tr>
+
+<tr><td>China</td><td>Province/Autonomous Region/Municipality/SAR</td><td>34</td><td>Well-defined. Includes Tibet, Xinjiang, Hong Kong, Macau.</td></tr>
+<tr><td>India</td><td>States + Union Territories</td><td>36</td><td>Standard, well-documented.</td></tr>
+<tr><td>United States</td><td>States + DC</td><td>51</td><td>Clean.</td></tr>
+<tr><td>Indonesia</td><td>Provinces</td><td>34</td><td>Standard.</td></tr>
+<tr><td>Pakistan</td><td>Provinces + territories</td><td>~8</td><td>Complex — includes AJK, GB, FATA. <strong>Decision needed on how to handle disputed territories.</strong></td></tr>
+<tr><td>Brazil</td><td>States + Federal District</td><td>27</td><td>Standard.</td></tr>
+<tr><td>Nigeria</td><td>States + FCT</td><td>37</td><td>Standard.</td></tr>
+<tr><td>Bangladesh</td><td>Divisions</td><td>8</td><td>Using divisions (not 64 districts).</td></tr>
+<tr><td>Russia</td><td>Federal subjects</td><td>85</td><td>Many, but well-known. Includes republics, oblasts, krais, federal cities.</td></tr>
+<tr><td>Mexico</td><td>States + CDMX</td><td>32</td><td>Standard.</td></tr>
+<tr><td>Japan</td><td>Prefectures</td><td>47</td><td>Standard.</td></tr>
+<tr><td>Ethiopia</td><td>Regions + chartered cities</td><td>12</td><td>Standard.</td></tr>
+<tr><td>Philippines</td><td><strong>Regions (not provinces)</strong></td><td>17</td><td>⚠️ <strong>Anomaly: 82 official provinces — far too granular.</strong> Recommend 17 administrative regions instead.</td></tr>
+<tr><td>Egypt</td><td>Governorates</td><td>27</td><td>Standard.</td></tr>
+<tr><td>Vietnam</td><td>Provinces + municipalities</td><td>63</td><td>High count but manageable.</td></tr>
+<tr><td>DR Congo</td><td>Provinces</td><td>26</td><td>Post-2015 restructuring.</td></tr>
+<tr><td>Turkey</td><td><strong>Statistical regions (NUTS-1)</strong></td><td>12</td><td>⚠️ <strong>Anomaly: 81 administrative provinces — too many.</strong> Recommend 12 NUTS-1 statistical regions for usability.</td></tr>
+<tr><td>Iran</td><td>Provinces</td><td>31</td><td>Standard.</td></tr>
+<tr><td>Germany</td><td>Federal states (Länder)</td><td>16</td><td>Clean.</td></tr>
+<tr><td>Thailand</td><td><strong>Groups / super-regions</strong></td><td>~6</td><td>⚠️ <strong>Anomaly: 77 provinces — too granular.</strong> Recommend grouping into ~6 geographic regions (North, Northeast, Central, East, West, South).</td></tr>
+<tr><td>United Kingdom</td><td><strong>Nations</strong></td><td>4</td><td>⚠️ <strong>Anomaly: sub-national admin is very complex (counties, LAs, unitary authorities vary by nation).</strong> Recommend England, Scotland, Wales, Northern Ireland as the 4 top-level units.</td></tr>
+<tr><td>France</td><td>Regions (metropolitan + overseas)</td><td>18</td><td>Standard. Includes overseas regions (Guadeloupe, Martinique, etc.).</td></tr>
+<tr><td>Italy</td><td>Regions</td><td>20</td><td>Standard.</td></tr>
+<tr><td>Tanzania</td><td>Regions</td><td>31</td><td>Standard.</td></tr>
+<tr><td>South Africa</td><td>Provinces</td><td>9</td><td>Clean.</td></tr>
+<tr><td>Myanmar</td><td>States + Regions + Union Territory</td><td>15</td><td>⚠️ <strong>Anomaly: overlapping categorisations (7 states, 7 regions, 1 union territory, self-administered zones).</strong> Recommend the 14 states+regions + Nay Pyi Taw = 15 units, ignoring self-administered sub-zones.</td></tr>
+<tr><td>Kenya</td><td>Counties</td><td>47</td><td>Manageable.</td></tr>
+<tr><td>South Korea</td><td>Special/metro cities + provinces</td><td>17</td><td>Standard (includes Seoul, Busan, etc. as top-level units).</td></tr>
+<tr><td>Colombia</td><td>Departments + Bogotá DC</td><td>33</td><td>Standard.</td></tr>
+<tr><td>Spain</td><td>Autonomous communities</td><td>17</td><td>⚠️ <strong>Note: Spain has 50 provinces, but 17 autonomous communities is the appropriate top-level.</strong> Recommend communities. Includes Canary Islands, Balearic Islands, Ceuta, Melilla.</td></tr>
+
+<h3>Anomaly decisions needed</h3>
+
+<p>Before seeding, confirm the recommended approach for:</p>
+
+<li class="todo">&#9744; <strong>Philippines</strong> — 17 regions vs 82 provinces</li>
+<li class="todo">&#9744; <strong>Turkey</strong> — 12 NUTS regions vs 81 provinces</li>
+<li class="todo">&#9744; <strong>Thailand</strong> — ~6 geographic groups vs 77 provinces</li>
+<li class="todo">&#9744; <strong>United Kingdom</strong> — 4 nations (or include Crown Dependencies?)</li>
+<li class="todo">&#9744; <strong>Pakistan</strong> — how to handle AJK and Gilgit-Baltistan (disputed)</li>
+<li class="todo">&#9744; <strong>Myanmar</strong> — confirm 15-unit structure</li>
+<li class="todo">&#9744; <strong>Spain</strong> — 17 communities confirmed, note Ceuta &amp; Melilla inclusion</li>
+
+<hr>
+
+<h2>6. New Database Schema</h2>
+
+<h3></code>provinces<code> table</h3>
+
+</code>`<code>sql
+id          uuid PRIMARY KEY
+country_code  char(2) REFERENCES countries(code) ON DELETE CASCADE
+code        varchar(10) UNIQUE  -- e.g. 'US-CA', 'CN-XZ'
+name        varchar(100) NOT NULL
+population  integer
+area_km2    integer
+created_at  timestamp DEFAULT now()
+</code>`<code>
+
+<h3></code>user_provinces<code> table</h3>
+
+</code>`<code>sql
+id            uuid PRIMARY KEY
+user_id       uuid REFERENCES users(id) ON DELETE CASCADE
+province_code varchar(10) REFERENCES provinces(code) ON DELETE CASCADE
+visited_at    date
+created_at    timestamp DEFAULT now()
+UNIQUE(user_id, province_code)
+</code>`<code>
+
+<hr>
+
+<h2>7. Backend Changes</h2>
+
+<li class="todo">&#9744; New migration: </code>provinces<code> table</li>
+<li class="todo">&#9744; New migration: </code>user_provinces<code> table</li>
+<li class="todo">&#9744; Seed file: provinces for top 30 countries (post anomaly decisions)</li>
+<li class="todo">&#9744; Update </code>points.js<code>: new </code>calculateCountryPoints<code> handling all 3 tiers</li>
+<li class="todo">&#9744; New </code>regional_value<code> constants map (tunable, per country or region)</li>
+<li class="todo">&#9744; New routes: </code>POST /users/:id/provinces<code>, </code>DELETE /users/:id/provinces/:code<code>, </code>GET /users/:id/provinces<code></li>
+<li class="todo">&#9744; Update score endpoint to use new formula</li>
+<li class="todo">&#9744; Update leaderboard to use new scores</li>
+
+<hr>
+
+<h2>8. Frontend Changes</h2>
+
+<li class="todo">&#9744; Add Province UI to </code>CountryDetail.jsx<code> — list provinces, mark visited</li>
+<li class="todo">&#9744; Show province exploration % bar (replacing or alongside city bar for tier 1/2)</li>
+<li class="todo">&#9744; Dashboard — update explored % to reflect province system</li>
+<li class="todo">&#9744; Add Countries page — consider whether province logging happens here or on country detail</li>
+
+<hr>
+
+<h2>9. Open Questions</h2>
+
+<tr><td>#</td><td>Question</td><td>Status</td></tr>
+
+<tr><td>OQ-1</td><td>Exact </code>regional_value<code> constants per country — calibrate during implementation</td><td>Open</td></tr>
+<tr><td>OQ-2</td><td>Anomaly decisions for Philippines, Turkey, Thailand, UK, Pakistan, Myanmar, Spain</td><td>Open — needs user input</td></tr>
+<tr><td>OQ-3</td><td>Should microstates (Vatican, Monaco, San Marino, etc.) have explorer_ceiling = 0, or a flat small bonus?</td><td>Open</td></tr>
+<tr><td>OQ-4</td><td>How are user-facing province codes displayed? (ISO 3166-2 where available?)</td><td>Open</td></tr>
+
+<hr>
+
+<h2>10. Implementation Sequence</h2>
+
+<p>1. Resolve anomaly decisions (OQ-2) 2. Write migrations for </code>provinces<code> and </code>user_provinces<code> 3. Seed province data for top 30 countries 4. Rewrite </code>points.js<code> with tiered formula 5. Calibrate </code>regional_value` constants (OQ-1) 6. New province API routes + tests 7. Update score/leaderboard endpoints 8. Frontend: province UI on CountryDetail 9. Frontend: dashboard exploration % update 10. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system</p>
+</body>
+</html>

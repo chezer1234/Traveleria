@@ -109,6 +109,51 @@ All points endpoints accept `?home_country=XX` (ISO 3166-1 alpha-2) to personali
 
 The country detail endpoint (`GET /api/countries/:code`) returns a `breakdown` object with human-readable explanations for the score transparency UI.
 
+## How We Build Features
+
+Every feature follows this workflow. Don't skip steps — Charlie (product owner) will want to see the plan before code gets written.
+
+### 1. Branch off main
+
+```bash
+git checkout main && git pull
+git checkout -b feature/your-feature-name
+```
+
+One branch per feature. Name it `feature/descriptive-name`.
+
+### 2. Write a feature doc first
+
+Create `docs/features/your-feature-name.md` before writing any code. This is the plan — not a spec that gathers dust, but a living doc that captures:
+
+- **What** the feature does and why it matters
+- **How** it works (data model, formulas, UI behaviour)
+- **Open questions** — things to discuss before committing to an approach
+
+### 3. Q&A to flesh it out
+
+Walk through the plan with Charlie. Ask questions, challenge assumptions, run the numbers. The points rebalance started with "Laos scores 3.8, that's wrong" and went through three rounds of "what about this edge case?" before a line of code was written.
+
+Good questions to ask:
+- Does this feel right for [specific country/scenario]?
+- What happens at the extremes?
+- Can a user understand this without reading the code?
+- Are there neighbours that would end up wildly different?
+
+### 4. Implement, test, verify in Chrome
+
+Write the code, update tests, then **always test UI changes in the browser** using the Chrome tab tools (`mcp__claude-in-chrome__*`). Read the page, check the actual rendered output matches expectations. Don't assume the frontend looks right from code alone — render it and read it.
+
+### 5. CI green, then PR
+
+Push, wait for CI to pass, create a PR with a clear summary. Link back to the feature doc.
+
+### 6. Update docs after merge
+
+Mark the feature doc status as complete. Update `points-system.md` or other evergreen docs if the feature changes how things work. Keep the feature doc around as history — future you will want to know *why* decisions were made.
+
+---
+
 ## Documentation
 
 | Doc | Purpose |

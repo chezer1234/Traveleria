@@ -275,13 +275,14 @@ UNIQUE(user_id, province_code)
 
 ## 10. Implementation Sequence
 
-1. Resolve anomaly decisions (OQ-2)
-2. Write migrations for `provinces` and `user_provinces`
-3. Seed province data for top 30 countries
-4. Rewrite `points.js` with tiered formula
-5. Calibrate `regional_value` constants (OQ-1)
-6. New province API routes + tests
-7. Update score/leaderboard endpoints
-8. Frontend: province UI on CountryDetail
-9. Frontend: dashboard exploration % update
-10. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system
+1. ✅ Resolve anomaly decisions (OQ-2)
+2. ✅ Write migrations for `provinces` and `user_provinces`
+3. ✅ Migrations run automatically in `index.js` on startup
+4. ⏳ Seed province data for top 30 countries (~900 rows)
+5. Rewrite `points.js` with tiered formula
+6. Calibrate `regional_value` constants (OQ-1)
+7. New province API routes + tests
+8. Update score/leaderboard endpoints
+9. Frontend: province UI on CountryDetail
+10. Frontend: dashboard exploration % update
+11. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system

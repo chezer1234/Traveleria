@@ -1,7 +1,11 @@
-.PHONY: up down logs migrate seed reset-db shell psql
+.PHONY: up down logs migrate seed reset-db shell psql dev-client
 
 up:
 	docker compose up -d --build
+
+dev-client:
+	docker compose stop client 2>/dev/null || true
+	cd client && npx vite --host 0.0.0.0 --port 5173
 
 down:
 	docker compose down

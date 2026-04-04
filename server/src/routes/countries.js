@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db/connection');
-const { getBaseline, getCityPercentage } = require('../lib/points');
+const { getBaseline, getCityPercentage, getCountryTier, getExplorerCeiling } = require('../lib/points');
 
 const router = express.Router();
 
@@ -45,8 +45,11 @@ router.get('/:code', async (req, res) => {
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
     const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
-    const cities = await db('cities').where({ country_code: country.code }).orderBy('population', 'desc');
+    const tier = getCountryTier(country.code);
+    const baseline = getBaseline(country, homeRegion, allCountries);
+    const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
 
+    const cities = await db('cities').where({ country_code: country.code }).orderBy('population', 'desc');
     const citiesWithPercentage = cities.map(city => ({
       id: city.id,
       name: city.name,
@@ -54,10 +57,28 @@ router.get('/:code', async (req, res) => {
       percentage: Math.round(getCityPercentage(city.population, country.population) * 10000) / 100,
     }));
 
+    // Include provinces for Tier 1 & 2 countries
+    let provinces = [];
+    if (tier === 1 || tier === 2) {
+      const rawProvinces = await db('provinces').where({ country_code: country.code }).orderBy('population', 'desc');
+      const nationalPop = Number(country.population) || 1;
+      provinces = rawProvinces.map(p => ({
+        code: p.code,
+        name: p.name,
+        population: p.population,
+        area_km2: p.area_km2,
+        disputed: p.disputed,
+        maxPoints: Math.round(((Number(p.population) / nationalPop) * explorerCeiling) * 100) / 100,
+      }));
+    }
+
     res.json({
       ...country,
-      baseline_points: Math.round(getBaseline(country, homeRegion, allCountries) * 100) / 100,
+      tier,
+      baseline_points: Math.round(baseline * 100) / 100,
+      explorer_ceiling: Math.round(explorerCeiling * 100) / 100,
       cities: citiesWithPercentage,
+      provinces,
     });
   } catch (err) {
     console.error('GET /countries/:code error:', err);

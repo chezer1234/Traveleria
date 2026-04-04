@@ -242,22 +242,23 @@ UNIQUE(user_id, province_code)
 
 ## 7. Backend Changes
 
-- [ ] New migration: `provinces` table
-- [ ] New migration: `user_provinces` table
-- [ ] Seed file: provinces for top 30 countries (post anomaly decisions)
-- [ ] Update `points.js`: new `calculateCountryPoints` handling all 3 tiers
-- [ ] New `regional_value` constants map (tunable, per country or region)
-- [ ] New routes: `POST /users/:id/provinces`, `DELETE /users/:id/provinces/:code`, `GET /users/:id/provinces`
-- [ ] Update score endpoint to use new formula
-- [ ] Update leaderboard to use new scores
+- [x] New migration: `provinces` table
+- [x] New migration: `user_provinces` table
+- [x] Seed file: provinces for top 30 countries (post anomaly decisions)
+- [x] Update `points.js`: new `calculateCountryPoints` handling all 3 tiers
+- [x] New `regional_value` constants — computed algorithmically from region avg population, Europe anchored at ~50K
+- [x] New routes: `POST /users/:id/provinces`, `DELETE /users/:id/provinces/:code`, `GET /users/:id/provinces`
+- [x] Update score endpoint to use new formula
+- [x] Update leaderboard to use new scores
 
 ---
 
 ## 8. Frontend Changes
 
-- [ ] Add Province UI to `CountryDetail.jsx` — list provinces, mark visited
-- [ ] Show province exploration % bar (replacing or alongside city bar for tier 1/2)
-- [ ] Dashboard — update explored % to reflect province system
+- [x] Add Province UI to `CountryDetail.jsx` — list provinces, mark visited
+- [x] Show province exploration % bar (replacing or alongside city bar for tier 1/2)
+- [x] Dashboard — update explored % to reflect province system, shows province counts
+- [x] Interactive province map on CountryDetail — d3-geo SVG with click-to-toggle, tooltip, overseas territory insets
 - [ ] Add Countries page — consider whether province logging happens here or on country detail
 
 ---
@@ -266,7 +267,7 @@ UNIQUE(user_id, province_code)
 
 | # | Question | Status |
 |---|----------|--------|
-| OQ-1 | `regional_value` derived from UN subregion average population (inversely proportional) — implement algorithmically, calibrate during implementation | In progress |
+| OQ-1 | `regional_value` derived from region average population — computed algorithmically, Europe anchored at ~50K | ✅ Implemented |
 | OQ-2 | Anomaly decisions — see section 5 | ✅ All resolved |
 | OQ-3 | Microstate flat point tiers | ✅ Resolved — see below |
 | OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | Open |
@@ -278,11 +279,12 @@ UNIQUE(user_id, province_code)
 1. ✅ Resolve anomaly decisions (OQ-2)
 2. ✅ Write migrations for `provinces` and `user_provinces`
 3. ✅ Migrations run automatically in `index.js` on startup
-4. ⏳ Seed province data for top 30 countries (~900 rows)
-5. Rewrite `points.js` with tiered formula
-6. Calibrate `regional_value` constants (OQ-1)
-7. New province API routes + tests
-8. Update score/leaderboard endpoints
-9. Frontend: province UI on CountryDetail
-10. Frontend: dashboard exploration % update
-11. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system
+4. ✅ Seed province data for top 30 countries (~960 rows, all 30 countries)
+5. ✅ Rewrite `points.js` with tiered formula (T1/T2 province, T3 city, microstate flat)
+6. ✅ Calibrate `regional_value` constants (OQ-1) — computed algorithmically from region avg population, Europe anchored at ~50K
+7. ✅ New province API routes (POST/DELETE/GET /users/:id/provinces) + updated score/leaderboard
+8. ✅ Update score/leaderboard endpoints to pass province data
+9. ✅ Frontend: province UI on CountryDetail (tier badge, province checkboxes, explorer ceiling, progress bar)
+10. ✅ Frontend: dashboard exploration % update (province counts, exploration bar reflects provinces)
+11. ✅ Frontend: interactive province map with d3-geo SVG, click-to-toggle, tooltips, overseas territory insets
+12. Migration script: orphan Tier 2 city data, map Tier 1 city visits to bonus system (deferred — not blocking)

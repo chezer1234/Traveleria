@@ -130,6 +130,9 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>{Math.round(c.total * 10) / 10} pts</span>
                     <span className="hidden sm:inline">Baseline: {Math.round(c.baseline * 10) / 10}</span>
+                    {c.provinces_visited > 0 && (
+                      <span>{c.provinces_visited} {c.provinces_visited === 1 ? 'province' : 'provinces'}</span>
+                    )}
                     <span>{c.cities_visited} {c.cities_visited === 1 ? 'city' : 'cities'}</span>
                   </div>
                   {/* Exploration bar */}

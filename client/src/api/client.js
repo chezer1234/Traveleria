@@ -77,6 +77,22 @@ export function removeUserCity(userId, cityId) {
   return request(`/users/${userId}/cities/${cityId}`, { method: 'DELETE' });
 }
 
+// User Province Log
+export function getUserProvinces(userId) {
+  return request(`/users/${userId}/provinces`);
+}
+
+export function addUserProvince(userId, provinceCode) {
+  return request(`/users/${userId}/provinces`, {
+    method: 'POST',
+    body: JSON.stringify({ province_code: provinceCode }),
+  });
+}
+
+export function removeUserProvince(userId, provinceCode) {
+  return request(`/users/${userId}/provinces/${provinceCode}`, { method: 'DELETE' });
+}
+
 export function getUserScore(userId, homeCountry) {
   const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
   return request(`/users/${userId}/score${qs}`);

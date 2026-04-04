@@ -176,7 +176,7 @@ Provinces will be seeded manually for the top 30 countries. The `provinces` tabl
 | Turkey | Statistical regions (NUTS-1) | 12 | Using 12 NUTS-1 statistical regions. ✅ Confirmed. |
 | Iran | Provinces | 31 | Standard. |
 | Germany | Federal states (Länder) | 16 | Clean. |
-| Thailand | **Groups / super-regions** | ~6 | ⚠️ **STILL OPEN: grouping into ~6 geographic regions recommended (North, Northeast, Central, East, West, South) — exact boundaries and count need confirmation.** |
+| Thailand | Geographic groups | 6 | North, Northeast, Central, East, West, South. ✅ Confirmed. |
 | United Kingdom | Nations + Crown Dependencies | 4 + 3 | England, Scotland, Wales, Northern Ireland as 4 units. ✅ Confirmed. Crown Dependencies (Isle of Man, Jersey, Guernsey) each award 1 flat point — they are not provinces but have their own fixed value. |
 | France | Regions (metropolitan + overseas) | 18 | Standard. Includes overseas regions (Guadeloupe, Martinique, etc.). |
 | Italy | Regions | 20 | Standard. |
@@ -192,7 +192,7 @@ Provinces will be seeded manually for the top 30 countries. The `provinces` tabl
 
 - [x] **Philippines** — 82 provinces ✅
 - [x] **Turkey** — 12 NUTS-1 statistical regions ✅
-- [ ] **Thailand** — ⚠️ **STILL OPEN** — ~6 geographic groups recommended, exact list and boundaries need confirmation
+- [x] **Thailand** — 6 geographic groups: North, Northeast, Central, East, West, South ✅
 - [x] **United Kingdom** — 4 nations; Crown Dependencies (Isle of Man, Jersey, Guernsey) each give 1 flat point, not treated as provinces ✅
 - [x] **Pakistan** — AJK and Gilgit-Baltistan included, flagged `disputed = true` in DB ✅
 - [x] **Myanmar** — 15-unit structure (14 states+regions + Nay Pyi Taw), self-administered zones ignored ✅
@@ -255,7 +255,7 @@ UNIQUE(user_id, province_code)
 | # | Question | Status |
 |---|----------|--------|
 | OQ-1 | `regional_value` derived from UN subregion average population (inversely proportional) — implement algorithmically, calibrate during implementation | In progress |
-| OQ-2 | Anomaly decisions — see section 5 | 6/7 resolved — **Thailand still open** |
+| OQ-2 | Anomaly decisions — see section 5 | ✅ All resolved |
 | OQ-3 | Should microstates (Vatican, Monaco, San Marino, etc.) have explorer_ceiling = 0, or a flat small bonus? | Open |
 | OQ-4 | How are user-facing province codes displayed? (ISO 3166-2 where available?) | Open |
 

@@ -37,6 +37,8 @@ describe('Seed Data — Countries', () => {
       expect(parseInt(c.population, 10)).toBeGreaterThan(0);
       expect(parseInt(c.annual_tourists, 10)).toBeGreaterThan(0);
       expect(c.area_km2).toBeGreaterThan(0);
+      expect(c.lat).not.toBeNull();
+      expect(c.lng).not.toBeNull();
     }
   });
 

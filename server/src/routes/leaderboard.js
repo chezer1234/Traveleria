@@ -6,8 +6,7 @@ const router = express.Router();
 
 // Helper: load user travel data for points calculation
 async function getUserTravelData(userId, homeCountryCode, allCountries, allProvincesMap) {
-  const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase());
-  const homeRegion = homeCountry ? homeCountry.region : 'Europe';
+  const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase()) || null;
 
   const visitedRecords = await db('user_countries').where({ user_id: userId });
 
@@ -40,7 +39,7 @@ async function getUserTravelData(userId, homeCountryCode, allCountries, allProvi
     visitedCountries.push({ country, visitedCities, visitedProvinces, allProvinces, allCities });
   }
 
-  return { homeRegion, visitedCountries };
+  return { homeCountry, visitedCountries };
 }
 
 // GET /api/leaderboard — top 50 users ranked by total Travel Points
@@ -61,8 +60,8 @@ router.get('/', async (req, res) => {
 
     const entries = [];
     for (const u of users) {
-      const { homeRegion, visitedCountries } = await getUserTravelData(u.id, u.home_country, allCountries, allProvincesMap);
-      const result = calculateTotalTravelPoints(homeRegion, allCountries, visitedCountries);
+      const { homeCountry, visitedCountries } = await getUserTravelData(u.id, u.home_country, allCountries, allProvincesMap);
+      const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
 
       entries.push({
         user_id: u.id,

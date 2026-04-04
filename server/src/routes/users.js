@@ -75,7 +75,8 @@ router.get('/:id', async (req, res) => {
 async function getUserTravelData(userId, homeCountryCode) {
   const allCountries = await db('countries');
   const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase());
-  const homeRegion = homeCountry ? homeCountry.region : 'Europe';
+  // Pass the full home country object for distance-based calculation
+  // Falls back to null if not found (points.js handles this with a default multiplier)
 
   // Pre-fetch all provinces (only ~900 rows, cheaper than per-country queries)
   const allProvincesRaw = await db('provinces');
@@ -127,7 +128,7 @@ async function getUserTravelData(userId, homeCountryCode) {
     });
   }
 
-  return { homeRegion, allCountries, visitedCountries };
+  return { homeCountry, allCountries, visitedCountries };
 }
 
 // POST /api/users/:id/countries — add a visited country
@@ -208,10 +209,10 @@ router.get('/:id/countries', async (req, res) => {
     const { id } = req.params;
 
     const data = await getUserTravelData(id, req.query.home_country);
-    const { homeRegion, allCountries, visitedCountries } = data;
+    const { homeCountry, allCountries, visitedCountries } = data;
 
     const result = visitedCountries.map(({ country, visitedCities, visitedProvinces, allProvinces, allCities, visited_at }) => {
-      const pts = calculateCountryPoints(country, homeRegion, allCountries, {
+      const pts = calculateCountryPoints(country, homeCountry, allCountries, {
         visitedProvinces,
         visitedCities,
         allProvinces,
@@ -386,8 +387,8 @@ router.get('/:id/score', async (req, res) => {
     const { id } = req.params;
 
     const data = await getUserTravelData(id, req.query.home_country);
-    const { homeRegion, allCountries, visitedCountries } = data;
-    const result = calculateTotalTravelPoints(homeRegion, allCountries, visitedCountries);
+    const { homeCountry, allCountries, visitedCountries } = data;
+    const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
 
     res.json({
       user_id: id,

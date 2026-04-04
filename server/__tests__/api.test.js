@@ -50,15 +50,18 @@ describe('Countries Data', () => {
     expect(parseInt(count.cnt)).toBeGreaterThanOrEqual(200);
   });
 
-  test('baseline points are personalised based on home region', async () => {
+  test('baseline points are personalised based on home country distance', async () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
+    const homeGB = allCountries.find(c => c.code === 'GB');
+    const homeAU = allCountries.find(c => c.code === 'AU');
 
-    const baselineFromEurope = getBaseline(france, 'Europe', allCountries);
-    const baselineFromOceania = getBaseline(france, 'Oceania', allCountries);
+    const baselineFromGB = getBaseline(france, homeGB, allCountries);
+    const baselineFromAU = getBaseline(france, homeAU, allCountries);
 
-    // Oceania→Europe has 4x multiplier, so baseline should differ
-    expect(baselineFromOceania).not.toEqual(baselineFromEurope);
+    // Australia is much further from France than GB, so baseline should differ
+    expect(baselineFromAU).not.toEqual(baselineFromGB);
+    expect(baselineFromAU).toBeGreaterThan(baselineFromGB);
   });
 });
 
@@ -150,8 +153,9 @@ describe('Points Calculation — Integration', () => {
   test('visiting France from GB gives correct points structure', async () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
+    const homeGB = allCountries.find(c => c.code === 'GB');
 
-    const pts = calculateCountryPoints(france, 'Europe', allCountries, {});
+    const pts = calculateCountryPoints(france, homeGB, allCountries, {});
     expect(pts.tier).toBe(2);
     expect(pts.baseline).toBeGreaterThan(0);
     expect(pts.explorationPoints).toBe(0);
@@ -161,10 +165,11 @@ describe('Points Calculation — Integration', () => {
   test('visiting France with a province gives exploration points', async () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
+    const homeGB = allCountries.find(c => c.code === 'GB');
     const allProvinces = await db('provinces').where({ country_code: 'FR' });
     const idf = allProvinces.find(p => p.code === 'FR-IDF');
 
-    const pts = calculateCountryPoints(france, 'Europe', allCountries, {
+    const pts = calculateCountryPoints(france, homeGB, allCountries, {
       allProvinces,
       visitedProvinces: [{ code: idf.code }],
     });
@@ -178,13 +183,14 @@ describe('Points Calculation — Integration', () => {
     const allCountries = await db('countries');
     const france = allCountries.find(c => c.code === 'FR');
     const japan = allCountries.find(c => c.code === 'JP');
+    const homeGB = allCountries.find(c => c.code === 'GB');
 
     const visited = [
       { country: france },
       { country: japan },
     ];
 
-    const result = calculateTotalTravelPoints('Europe', allCountries, visited);
+    const result = calculateTotalTravelPoints(homeGB, allCountries, visited);
     expect(result.countries).toHaveLength(2);
     expect(result.totalPoints).toBeGreaterThan(0);
 
@@ -193,21 +199,21 @@ describe('Points Calculation — Integration', () => {
     expect(result.totalPoints).toBeCloseTo(expectedSum, 1);
   });
 
-  test('outlier countries (Vatican, North Korea) get corrected baselines', async () => {
+  test('Vatican is microstate, North Korea has high baseline', async () => {
     const allCountries = await db('countries');
     const vatican = allCountries.find(c => c.code === 'VA');
     const nk = allCountries.find(c => c.code === 'KP');
+    const homeGB = allCountries.find(c => c.code === 'GB');
 
     if (vatican) {
-      const vaticanBaseline = getBaseline(vatican, 'Europe', allCountries);
-      expect(vaticanBaseline).toBeGreaterThanOrEqual(2);
-      expect(vaticanBaseline).toBeLessThanOrEqual(500);
+      const vaticanBaseline = getBaseline(vatican, homeGB, allCountries);
+      expect(vaticanBaseline).toBe(1); // Microstate flat points
     }
 
     if (nk) {
-      const nkBaseline = getBaseline(nk, 'Europe', allCountries);
-      expect(nkBaseline).toBeGreaterThanOrEqual(2);
-      expect(nkBaseline).toBeLessThanOrEqual(500);
+      const nkBaseline = getBaseline(nk, homeGB, allCountries);
+      expect(nkBaseline).toBeGreaterThan(50); // Hard to visit, far away
+      expect(nkBaseline).toBeLessThanOrEqual(200); // Capped
     }
   });
 });

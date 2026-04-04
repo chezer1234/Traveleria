@@ -1,6 +1,13 @@
 const express = require('express');
 const db = require('../db/connection');
-const { getBaseline, getCityPercentage, getCountryTier, getExplorerCeiling } = require('../lib/points');
+const {
+  getBaseline,
+  getCityPercentage,
+  getCountryTier,
+  getExplorerCeiling,
+  getScoreBreakdown,
+  getDistanceKm,
+} = require('../lib/points');
 
 const router = express.Router();
 
@@ -11,7 +18,6 @@ router.get('/', async (req, res) => {
 
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
-    const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
     const result = allCountries.map(country => ({
       code: country.code,
@@ -20,7 +26,7 @@ router.get('/', async (req, res) => {
       population: country.population,
       annual_tourists: country.annual_tourists,
       area_km2: country.area_km2,
-      baseline_points: Math.round(getBaseline(country, homeRegion, allCountries) * 100) / 100,
+      baseline_points: Math.round(getBaseline(country, homeCountry, allCountries) * 100) / 100,
     }));
 
     res.json(result);
@@ -30,7 +36,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/countries/:code?home_country=XX — single country detail with cities
+// GET /api/countries/:code?home_country=XX — single country detail with cities + breakdown
 router.get('/:code', async (req, res) => {
   try {
     const { code } = req.params;
@@ -43,10 +49,9 @@ router.get('/:code', async (req, res) => {
     const allCountries = await db('countries');
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
-    const homeRegion = homeCountry ? homeCountry.region : 'Europe';
 
     const tier = getCountryTier(country.code);
-    const baseline = getBaseline(country, homeRegion, allCountries);
+    const baseline = getBaseline(country, homeCountry, allCountries);
     const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
 
     const cities = await db('cities').where({ country_code: country.code }).orderBy('population', 'desc');
@@ -72,6 +77,21 @@ router.get('/:code', async (req, res) => {
       }));
     }
 
+    // Score breakdown for transparency UI
+    const explorationDetail = {};
+    if (tier === 1 || tier === 2) {
+      explorationDetail.total = provinces.length;
+      explorationDetail.visited = 0; // Will be populated per-user on the frontend
+    } else if (tier !== 'microstate') {
+      explorationDetail.total = Math.min(cities.length, 15);
+      explorationDetail.visited = 0;
+    }
+
+    const breakdown = getScoreBreakdown(
+      country, homeCountry, allCountries,
+      explorerCeiling, 0, explorationDetail,
+    );
+
     res.json({
       ...country,
       tier,
@@ -79,6 +99,7 @@ router.get('/:code', async (req, res) => {
       explorer_ceiling: Math.round(explorerCeiling * 100) / 100,
       cities: citiesWithPercentage,
       provinces,
+      breakdown,
     });
   } catch (err) {
     console.error('GET /countries/:code error:', err);

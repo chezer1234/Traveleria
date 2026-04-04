@@ -2,9 +2,27 @@
 
 Context for AI assistants working on the TravelPoints codebase.
 
+## The Vibe
+
+This app is built around one of the best things humans do: go places. TravelPoints exists because exploring the world — whether it's a weekend ferry to France or a 22-hour odyssey to Papua New Guinea — should feel like an achievement. And it should be scored fairly.
+
+Charlie (15, product owner) and Lewis (dad, technical lead) are building this together. Charlie has strong opinions about what feels right. If Laos scores fewer points than Belgium, something is broken. If the user can't understand *why* a country scores what it does, the transparency isn't there yet.
+
+**Guiding principles for anyone working on this codebase:**
+
+1. **Grounded in real data.** Population figures come from the World Bank. Tourist numbers from UNWTO. Areas from the CIA World Factbook. Coordinates are real capital-city lat/lng. If a number goes into the scoring engine, it should be traceable to a credible source — not vibes.
+
+2. **Transparent to the user.** Every score breakdown explains itself in plain English. No hidden multipliers, no unexplained numbers. A 15-year-old should be able to read the country detail page and understand exactly why Mongolia scores higher than Malta.
+
+3. **Fun but fair.** The system rewards adventurous travel — visiting Turkmenistan should absolutely be worth more than visiting Spain. But it shouldn't be *absurd*. Neighbours with similar travel difficulty shouldn't be 10x apart. The log scaling, caps, and floors exist specifically to keep things competitive without being silly.
+
+4. **Every country matters.** There are 195 countries in this app and each one is somebody's dream trip. Don't treat small nations as rounding errors. The floor of 5 points exists because if you got on a plane, cleared customs, and explored somewhere new — that counts.
+
+---
+
 ## Project Overview
 
-TravelPoints is a web app where users log countries they've visited and earn points based on distance, tourism difficulty, and country size. Built by Lewis (dad) and Charlie (15, learning to code).
+TravelPoints is a web app where users log countries they've visited and earn points based on distance, tourism difficulty, and country size. Points increase further by exploring provinces or major cities within each country.
 
 ## Tech Stack
 
@@ -51,8 +69,8 @@ Full docs: [docs/points-system.md](docs/points-system.md)
 
 **Base points** = `distance_multiplier x (tourism_score + size_score)`, floor 5, cap 200.
 
-- Distance: `1 + log2(km / 1000 + 1)` — continuous, from lat/lng via haversine
-- Tourism: `min(20, log2(pop/tourists + 1) x 3)` — capped to prevent dominance
+- Distance: `1 + log2(km / 1000 + 1)` — continuous, from real lat/lng via haversine
+- Tourism: `min(20, log2(pop/tourists + 1) x 3)` — capped to prevent single-country dominance
 - Size: `log10(area/1000 + 1) x 2`
 
 **Explorer ceiling** = `base x log10(area / regional_value + 1)` — log-scaled to prevent explosion.
@@ -62,6 +80,16 @@ Regional values are inversely proportional to average regional population (Asia=
 **Tiers:** Top 10 by pop = Tier 1 (provinces), 11-30 = Tier 2 (provinces), rest = Tier 3 (cities), 6 microstates = flat points.
 
 Constants are at the top of `points.js`: `TOURISM_WEIGHT`, `TOURISM_CAP`, `SIZE_WEIGHT`, `FLOOR`, `BASE_CAP`, `EUROPE_ANCHOR`.
+
+### Data Quality
+
+Country data in `01_countries.js` comes from:
+- **Population:** World Bank (2020 estimates)
+- **Annual tourists:** UNWTO international arrivals data
+- **Area:** CIA World Factbook
+- **Coordinates:** Capital city lat/lng (standard geographic reference points)
+
+If you're updating or adding data, stick to these sources. Don't estimate tourist numbers — countries with genuinely no data should use conservative figures and get flagged with a comment. The scoring engine handles extremes gracefully (log scaling + caps), but garbage data in means garbage scores out.
 
 ## Database Schema
 
@@ -73,7 +101,7 @@ Managed via Knex migrations in `server/src/db/migrations/`. Key tables:
 - `users` (id UUID, username, home_country FK, google_id)
 - `user_countries`, `user_cities`, `user_provinces` (visit tracking, cascade on user delete)
 
-Seeds are idempotent — they skip if data exists, but will patch missing fields (e.g. lat/lng).
+Seeds are idempotent — they skip if data exists, but will patch missing fields (e.g. lat/lng on existing rows).
 
 ## API Pattern
 

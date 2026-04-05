@@ -76,3 +76,48 @@ jobs:
           curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
           echo "Server health check OK"
           kill $SERVER_PID
+
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy API service
+        if: env.RENDER_API_DEPLOY_HOOK != ''
+        env:
+          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+        run: |
+          echo "Triggering API deploy..."
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST "$RENDER_API_DEPLOY_HOOK")
+          if [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 201 ]; then
+            echo "API deploy triggered successfully (HTTP $STATUS)"
+          else
+            echo "API deploy trigger failed (HTTP $STATUS)"
+            exit 1
+          fi
+
+      - name: Deploy Web service
+        if: env.RENDER_WEB_DEPLOY_HOOK != ''
+        env:
+          RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+        run: |
+          echo "Triggering Web deploy..."
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST "$RENDER_WEB_DEPLOY_HOOK")
+          if [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 201 ]; then
+            echo "Web deploy triggered successfully (HTTP $STATUS)"
+          else
+            echo "Web deploy trigger failed (HTTP $STATUS)"
+            exit 1
+          fi
+
+      - name: Deploy status
+        if: env.RENDER_API_DEPLOY_HOOK == '' && env.RENDER_WEB_DEPLOY_HOOK == ''
+        env:
+          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+          RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+        run: |
+          echo "No deploy hooks configured — skipping deploy."
+          echo "Add RENDER_API_DEPLOY_HOOK and RENDER_WEB_DEPLOY_HOOK secrets to enable auto-deploy."
+          echo "See docs/deployment.md for setup instructions."

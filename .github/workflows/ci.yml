@@ -11,21 +11,6 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: travelpoints_test
-          POSTGRES_USER: travelpoints
-          POSTGRES_PASSWORD: travelpoints
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U travelpoints -d travelpoints_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
 
@@ -42,36 +27,25 @@ jobs:
         working-directory: server
         run: npm ci
 
+      - name: Create data directory
+        working-directory: server
+        run: mkdir -p data
+
       - name: Run migrations
         working-directory: server
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: travelpoints_test
-          DB_USER: travelpoints
-          DB_PASSWORD: travelpoints
           NODE_ENV: test
         run: npx knex migrate:latest --knexfile src/db/knexfile.js
 
       - name: Run seeds
         working-directory: server
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: travelpoints_test
-          DB_USER: travelpoints
-          DB_PASSWORD: travelpoints
           NODE_ENV: test
         run: npx knex seed:run --knexfile src/db/knexfile.js
 
       - name: Run server tests
         working-directory: server
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: travelpoints_test
-          DB_USER: travelpoints
-          DB_PASSWORD: travelpoints
           NODE_ENV: test
         run: npm test
 
@@ -93,11 +67,6 @@ jobs:
       - name: Verify API health endpoint
         working-directory: server
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: travelpoints_test
-          DB_USER: travelpoints
-          DB_PASSWORD: travelpoints
           NODE_ENV: test
           PORT: 3000
         run: |

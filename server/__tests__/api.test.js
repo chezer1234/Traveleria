@@ -68,7 +68,7 @@ describe('Countries Data', () => {
 describe('User Travel Log — Add/Remove Countries', () => {
   test('add a country to visited list', async () => {
     const [record] = await db('user_countries')
-      .insert({ user_id: testUser.id, country_code: 'FR' })
+      .insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' })
       .returning('*');
 
     expect(record.user_id).toBe(testUser.id);
@@ -76,15 +76,15 @@ describe('User Travel Log — Add/Remove Countries', () => {
   });
 
   test('duplicate country is prevented by unique constraint', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' });
 
     await expect(
-      db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' })
+      db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' })
     ).rejects.toThrow();
   });
 
   test('remove a country also allows re-adding', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' });
     await db('user_countries').where({ user_id: testUser.id, country_code: 'FR' }).del();
 
     const remaining = await db('user_countries').where({ user_id: testUser.id, country_code: 'FR' });
@@ -92,16 +92,16 @@ describe('User Travel Log — Add/Remove Countries', () => {
 
     // Can re-add
     const [record] = await db('user_countries')
-      .insert({ user_id: testUser.id, country_code: 'FR' })
+      .insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' })
       .returning('*');
     expect(record.country_code).toBe('FR');
   });
 
   test('removing a country cascades to remove city visits', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'GB' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'GB' });
 
     const city = await db('cities').where({ country_code: 'GB' }).first();
-    await db('user_cities').insert({ user_id: testUser.id, city_id: city.id });
+    await db('user_cities').insert({ id: crypto.randomUUID(), user_id: testUser.id, city_id: city.id });
 
     // Remove the country (manually cascade city visits first)
     const cityIds = await db('cities').where({ country_code: 'GB' }).pluck('id');
@@ -115,11 +115,11 @@ describe('User Travel Log — Add/Remove Countries', () => {
 
 describe('User Travel Log — City Visits', () => {
   test('add a city visit', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' });
     const city = await db('cities').where({ country_code: 'FR' }).first();
 
     const [record] = await db('user_cities')
-      .insert({ user_id: testUser.id, city_id: city.id })
+      .insert({ id: crypto.randomUUID(), user_id: testUser.id, city_id: city.id })
       .returning('*');
 
     expect(record.user_id).toBe(testUser.id);
@@ -127,20 +127,20 @@ describe('User Travel Log — City Visits', () => {
   });
 
   test('duplicate city visit is prevented', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' });
     const city = await db('cities').where({ country_code: 'FR' }).first();
 
-    await db('user_cities').insert({ user_id: testUser.id, city_id: city.id });
+    await db('user_cities').insert({ id: crypto.randomUUID(), user_id: testUser.id, city_id: city.id });
 
     await expect(
-      db('user_cities').insert({ user_id: testUser.id, city_id: city.id })
+      db('user_cities').insert({ id: crypto.randomUUID(), user_id: testUser.id, city_id: city.id })
     ).rejects.toThrow();
   });
 
   test('remove a city visit', async () => {
-    await db('user_countries').insert({ user_id: testUser.id, country_code: 'FR' });
+    await db('user_countries').insert({ id: crypto.randomUUID(), user_id: testUser.id, country_code: 'FR' });
     const city = await db('cities').where({ country_code: 'FR' }).first();
-    await db('user_cities').insert({ user_id: testUser.id, city_id: city.id });
+    await db('user_cities').insert({ id: crypto.randomUUID(), user_id: testUser.id, city_id: city.id });
 
     await db('user_cities').where({ user_id: testUser.id, city_id: city.id }).del();
 

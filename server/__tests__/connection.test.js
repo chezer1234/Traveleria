@@ -20,12 +20,12 @@ afterAll(async () => {
 describe('Database Connection', () => {
   test('can connect to the test database', async () => {
     const result = await db.raw('SELECT 1 + 1 AS result');
-    expect(result.rows[0].result).toBe(2);
+    expect(result[0].result).toBe(2);
   });
 
-  test('database is PostgreSQL', async () => {
-    const result = await db.raw('SELECT version()');
-    expect(result.rows[0].version).toMatch(/PostgreSQL/);
+  test('database is SQLite/libSQL', async () => {
+    const result = await db.raw('SELECT sqlite_version() AS version');
+    expect(result[0].version).toBeDefined();
   });
 
   test('knexfile has all environments configured', () => {
@@ -34,17 +34,18 @@ describe('Database Connection', () => {
     expect(knexfile).toHaveProperty('production');
   });
 
-  test('test environment uses the test database', () => {
-    expect(knexfile.test.connection.database).toBe('travelpoints_test');
+  test('test environment uses a file-based connection', () => {
+    expect(knexfile.test.connection.filename).toContain('test.sqlite3');
   });
 
-  test('development environment has a database configured', () => {
-    expect(knexfile.development.connection.database).toBeDefined();
+  test('development environment has a connection configured', () => {
+    expect(knexfile.development.connection.filename).toBeDefined();
   });
 
-  test('all environments use PostgreSQL client', () => {
-    expect(knexfile.development.client).toBe('pg');
-    expect(knexfile.test.client).toBe('pg');
-    expect(knexfile.production.client).toBe('pg');
+  test('all environments use libSQL client', () => {
+    const Client_Libsql = require('@libsql/knex-libsql');
+    expect(knexfile.development.client).toBe(Client_Libsql);
+    expect(knexfile.test.client).toBe(Client_Libsql);
+    expect(knexfile.production.client).toBe(Client_Libsql);
   });
 });

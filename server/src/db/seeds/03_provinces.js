@@ -967,16 +967,21 @@ const provinces = [
  * @param {import('knex').Knex} knex
  */
 exports.seed = async function (knex) {
+  const crypto = require('crypto');
+
   const existing = await knex('provinces').count('* as count').first();
   if (parseInt(existing.count, 10) > 0) {
     console.log('Provinces already seeded, skipping.');
     return;
   }
 
+  // Generate UUIDs for each province (SQLite has no built-in uuid())
+  const provincesWithIds = provinces.map(p => ({ id: crypto.randomUUID(), ...p }));
+
   // Insert in batches to avoid hitting parameter limits
   const batchSize = 50;
-  for (let i = 0; i < provinces.length; i += batchSize) {
-    await knex('provinces').insert(provinces.slice(i, i + batchSize));
+  for (let i = 0; i < provincesWithIds.length; i += batchSize) {
+    await knex('provinces').insert(provincesWithIds.slice(i, i + batchSize));
   }
 
   console.log(`Seeded ${provinces.length} provinces across 30 countries.`);

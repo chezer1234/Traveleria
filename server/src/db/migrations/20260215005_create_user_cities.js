@@ -3,15 +3,15 @@
  */
 exports.up = function (knex) {
   return knex.schema.createTable('user_cities', (table) => {
-    table.uuid('id').primary().defaultTo(knex.fn.uuid());
+    table.text('id').primary();
     table
-      .uuid('user_id')
+      .text('user_id')
       .notNullable()
       .references('id')
       .inTable('users')
       .onDelete('CASCADE');
     table
-      .uuid('city_id')
+      .text('city_id')
       .notNullable()
       .references('id')
       .inTable('cities')

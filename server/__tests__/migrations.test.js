@@ -2,6 +2,7 @@
  * Tests that all database migrations create the correct tables and columns.
  */
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const knex = require('knex');
@@ -113,6 +114,7 @@ describe('Database Migrations', () => {
     // Attempt to insert a city with non-existent country_code — should fail
     await expect(
       db('cities').insert({
+        id: crypto.randomUUID(),
         country_code: 'QQ',
         name: 'Ghost City',
         population: 1000,
@@ -134,6 +136,7 @@ describe('Database Migrations', () => {
     // Insert user with valid home_country
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'testuser_fk',
         email: 'testfk@example.com',
         password_hash: 'hash',
@@ -145,6 +148,7 @@ describe('Database Migrations', () => {
     // Insert user with invalid home_country — should fail
     await expect(
       db('users').insert({
+        id: crypto.randomUUID(),
         username: 'baduser',
         email: 'bad@example.com',
         password_hash: 'hash',
@@ -169,6 +173,7 @@ describe('Database Migrations', () => {
     });
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'uniquetest',
         email: 'unique@example.com',
         password_hash: 'hash',
@@ -178,6 +183,7 @@ describe('Database Migrations', () => {
 
     // First insert should succeed
     await db('user_countries').insert({
+      id: crypto.randomUUID(),
       user_id: user.id,
       country_code: 'ZZ',
     });
@@ -185,6 +191,7 @@ describe('Database Migrations', () => {
     // Duplicate should fail
     await expect(
       db('user_countries').insert({
+        id: crypto.randomUUID(),
         user_id: user.id,
         country_code: 'ZZ',
       })

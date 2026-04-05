@@ -313,6 +313,8 @@ const cities = [
  * @param {import('knex').Knex} knex
  */
 exports.seed = async function (knex) {
+  const crypto = require('crypto');
+
   // Only seed if cities table is empty (idempotent — won't wipe user data on restart)
   const existing = await knex('cities').count('* as count').first();
   if (parseInt(existing.count, 10) > 0) {
@@ -320,9 +322,12 @@ exports.seed = async function (knex) {
     return;
   }
 
+  // Generate UUIDs for each city (SQLite has no built-in uuid())
+  const citiesWithIds = cities.map(c => ({ id: crypto.randomUUID(), ...c }));
+
   const batchSize = 50;
-  for (let i = 0; i < cities.length; i += batchSize) {
-    await knex('cities').insert(cities.slice(i, i + batchSize));
+  for (let i = 0; i < citiesWithIds.length; i += batchSize) {
+    await knex('cities').insert(citiesWithIds.slice(i, i + batchSize));
   }
 };
 

@@ -2,6 +2,7 @@
  * Tests that seed data loads correctly and contains expected values.
  */
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const knex = require('knex');
@@ -161,6 +162,7 @@ describe('Seed Data — Referential Integrity', () => {
   test('can insert a user with a seeded home_country', async () => {
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'seedtest',
         email: 'seedtest@example.com',
         password_hash: 'hash',
@@ -177,6 +179,7 @@ describe('Seed Data — Referential Integrity', () => {
   test('can insert a user_country visit with seeded data', async () => {
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'visittest',
         email: 'visittest@example.com',
         password_hash: 'hash',
@@ -186,6 +189,7 @@ describe('Seed Data — Referential Integrity', () => {
 
     const [visit] = await db('user_countries')
       .insert({
+        id: crypto.randomUUID(),
         user_id: user.id,
         country_code: 'FR',
         visited_at: '2025-06-15',
@@ -202,6 +206,7 @@ describe('Seed Data — Referential Integrity', () => {
   test('can insert a user_city visit with seeded data', async () => {
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'cityvisit',
         email: 'cityvisit@example.com',
         password_hash: 'hash',
@@ -211,6 +216,7 @@ describe('Seed Data — Referential Integrity', () => {
 
     // Log a visit to France first
     await db('user_countries').insert({
+      id: crypto.randomUUID(),
       user_id: user.id,
       country_code: 'FR',
     });
@@ -220,6 +226,7 @@ describe('Seed Data — Referential Integrity', () => {
 
     const [cityVisit] = await db('user_cities')
       .insert({
+        id: crypto.randomUUID(),
         user_id: user.id,
         city_id: paris.id,
         visited_at: '2025-07-01',
@@ -238,6 +245,7 @@ describe('Seed Data — Referential Integrity', () => {
   test('cascade delete: removing a user removes their country and city visits', async () => {
     const [user] = await db('users')
       .insert({
+        id: crypto.randomUUID(),
         username: 'cascadetest',
         email: 'cascade@example.com',
         password_hash: 'hash',
@@ -246,12 +254,14 @@ describe('Seed Data — Referential Integrity', () => {
       .returning('*');
 
     await db('user_countries').insert({
+      id: crypto.randomUUID(),
       user_id: user.id,
       country_code: 'JP',
     });
 
     const tokyo = await db('cities').where({ name: 'Tokyo', country_code: 'JP' }).first();
     await db('user_cities').insert({
+      id: crypto.randomUUID(),
       user_id: user.id,
       city_id: tokyo.id,
     });

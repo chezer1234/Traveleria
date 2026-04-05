@@ -9,15 +9,15 @@
 ## Progress Checklist
 
 ### Phase 0 — Docker & Local Dev
-- [x] `docker-compose.yml` with PostgreSQL, server, client services
+- [x] `docker-compose.yml` with server + client services (SQLite embedded)
 - [x] `server/Dockerfile` with Node 20, file watching
 - [x] `client/Dockerfile` with Vite dev server
-- [x] `Makefile` with up/down/logs/migrate/seed/reset-db/shell/psql
+- [x] `Makefile` with up/down/logs/migrate/seed/reset-db/shell
 - [x] `.env` with working defaults (no manual setup needed)
-- [x] `server/entrypoint.sh` — wait for PG, migrate, seed, start
+- [x] `server/entrypoint.sh` — migrate, seed, start
 - [x] Verify: `make up` → app at http://localhost:5173
 - [x] Idempotent seeds (don't wipe user data on restart)
-- [x] Persistent PostgreSQL volume (data survives restarts, `make reset-db` to wipe)
+- [x] Persistent SQLite data volume (data survives restarts, `make reset-db` to wipe)
 
 ### Phase 1 — Fix Authentication
 - [x] Remove JWT, bcrypt, passport dependencies and code
@@ -50,12 +50,13 @@
 
 ### Phase 5 — Production Deployment
 - [x] Express serves built React in production mode
-- [ ] Railway/Render project with PostgreSQL (needs account setup)
+- [x] Migrated from PostgreSQL to Turso/SQLite (PR #17)
 - [x] GitHub Actions CI workflow: build, test, smoke test on push to main/PR
-- [x] railway.json config for build/deploy
-- [ ] Connect Railway to GitHub repo (enable "Wait for CI")
+- [ ] Create Turso account + database (needs account setup)
+- [ ] Create Render account + services (static site + web service)
+- [ ] Add deploy step to CI (Render deploy hook)
 - [ ] Seed production database
-- [ ] Verify deployment via `gh` CLI (check workflow run status)
+- [ ] Verify deployment live
 
 ### Phase 6 — Browser Testing (completed during development)
 - [x] Smoke test via Chrome: welcome flow works
@@ -70,7 +71,7 @@
 The app has solid bones but doesn't run:
 - Express API with routes for countries, users, cities, and a good points engine
 - React + Vite + Tailwind frontend with dashboard, add-countries, and country-detail pages
-- PostgreSQL schema with migrations and seed data (195 countries + cities)
+- SQLite/Turso schema with migrations and seed data (195 countries + cities)
 - **BUT**: No Docker/local dev setup, fake auth (random UUIDs), frontend and backend auth don't match, no way to create a user through the UI
 
 ## Architecture Decisions
@@ -78,7 +79,7 @@ The app has solid bones but doesn't run:
 ### Keep
 - **React + Vite + TailwindCSS** frontend — already built, works
 - **Express + Knex** backend — already built, works
-- **PostgreSQL** — right choice for relational data
+- **SQLite/Turso** — lightweight, free hosting, embedded for dev
 - **Points calculation engine** (`server/src/lib/points.js`) — genuinely good, don't touch it
 - **Seed data** — 195 countries and cities, already done
 
@@ -89,7 +90,7 @@ The app has solid bones but doesn't run:
 - **Auth middleware** (`requireAuth`) — not needed without JWT
 
 ### Add
-- **Docker Compose** — PostgreSQL + backend + frontend, one command
+- **Docker Compose** — backend + frontend, one command (SQLite embedded, no external DB)
 - **Makefile** — `make up`, `make down`, `make migrate`, `make seed`, `make logs`
 - **Simple auth flow** — "What's your name?" + "Where are you from?" → creates user, stores ID in localStorage
 - **Leaderboard** — the fun social feature that makes people care
@@ -105,8 +106,7 @@ The app has solid bones but doesn't run:
 > **Goal:** Anyone can clone and run the app with one command on any OS.
 
 ### 0.1 Create `docker-compose.yml`
-- **PostgreSQL** service: port 5432, volume for data persistence, healthcheck
-- **Server** service: Node.js, port 3000, depends on postgres, auto-runs migrations + seeds on startup
+- **Server** service: Node.js, port 3000, auto-runs migrations + seeds on startup (SQLite embedded)
 - **Client** service: Vite dev server, port 5173, depends on server
 
 ### 0.2 Create Dockerfiles
@@ -122,7 +122,6 @@ make migrate   — run knex migrations inside server container
 make seed      — run knex seeds inside server container
 make reset-db  — drop and recreate database, run migrations + seeds
 make shell     — open a bash shell in the server container
-make psql      — connect to the database
 ```
 
 ### 0.4 Create `.env` from `.env.example` defaults
@@ -130,7 +129,6 @@ make psql      — connect to the database
 - Docker compose should pass env vars to services
 
 ### 0.5 Create `server/entrypoint.sh`
-- Wait for PostgreSQL to be ready
 - Run migrations
 - Run seeds (idempotent — skip if data exists)
 - Start the dev server
@@ -262,9 +260,9 @@ make psql      — connect to the database
 > **Goal:** The app is live on the internet, auto-deploys from `main`.
 
 ### 5.1 Choose and set up hosting
-- **Recommended: Railway** — free tier, deploys from GitHub, has managed PostgreSQL
-- Alternative: Render (also free tier, also deploys from GitHub)
-- Create a Railway project with two services: web (Express serving built React) + PostgreSQL
+- **Database: Turso** — free tier (9 GB, no sleep, no credit card)
+- **Hosting: Render** ��� free tier for static site (React) + web service (Express)
+- Create a Turso database + Render services
 
 ### 5.2 Production build setup
 - Backend serves the built React frontend in production (`express.static`)
@@ -273,18 +271,15 @@ make psql      — connect to the database
 - Single `Procfile` or `railway.json` that builds + starts
 
 ### 5.3 Production configuration
-- `DATABASE_URL` env var (provided by Railway)
+- `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` env vars (from Turso CLI)
 - `NODE_ENV=production`
 - Auto-run migrations on deploy (but NOT seeds in prod — seed once manually)
 - CORS set to production domain
 
 ### 5.4 CI/CD with GitHub Actions
-- GitHub Actions workflow (`.github/workflows/deploy.yml`):
-  - Trigger: push to `main`
-  - Steps: install deps → build client → run tests → deploy to Railway
-  - Railway deploy via `railway up` CLI or Railway GitHub integration
-- Add `RAILWAY_TOKEN` to GitHub repo secrets
-- Workflow should report status clearly so we can verify with `gh run list` and `gh run view`
+- GitHub Actions workflow already runs tests on push to main/PR
+- Add deploy step: curl Render deploy hook on push to main
+- Add `RENDER_DEPLOY_HOOK_URL` to GitHub repo secrets
 
 ### 5.5 Seed production database
 - Run seed script once against production DB
@@ -295,7 +290,7 @@ make psql      — connect to the database
 - Run `gh run view <id>` to confirm steps passed
 - Verify the deployed app loads in browser
 
-**Acceptance:** Push to `main` → GitHub Actions runs → deploys to Railway → app live → `gh run list` shows green
+**Acceptance:** Push to `main` → GitHub Actions runs → deploys to Render → app live
 
 ---
 

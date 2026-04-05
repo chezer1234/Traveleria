@@ -1,6 +1,6 @@
 # Feature: Migrate from PostgreSQL to Turso (SQLite)
 
-**Status:** In progress
+**Status:** Complete (merged PR #17)
 **Branch:** `feature/turso-migration`
 **Date:** 2026-04-05
 
@@ -15,11 +15,11 @@ Combined with Render's free tier (static site + web service), we get zero-cost h
 
 ## What changes
 
-Swap PostgreSQL for SQLite everywhere:
-- **Local dev/test:** `better-sqlite3` (Knex built-in support, fast, no external DB)
-- **Production:** Turso via `@the-forgebase/knex-libsql` (libSQL over HTTP)
+Swap PostgreSQL for SQLite everywhere using `@libsql/knex-libsql`:
+- **Local dev/test:** local SQLite file via `file:` URL
+- **Production:** Turso cloud via `libsql://` URL
 
-Both speak the same SQL dialect, so migrations and queries work identically.
+All environments use the same Knex adapter and SQL dialect.
 
 ## Migration scope
 
@@ -27,9 +27,9 @@ Both speak the same SQL dialect, so migrations and queries work identically.
 
 | Environment | Before | After |
 |-------------|--------|-------|
-| development | `pg` + TCP to Docker postgres | `better-sqlite3` + local file `./data/dev.sqlite3` |
-| test | `pg` + TCP to Docker postgres | `better-sqlite3` + `:memory:` (fast, disposable) |
-| production | `pg` + `DATABASE_URL` | `@the-forgebase/knex-libsql` + `TURSO_DATABASE_URL` |
+| development | `pg` + TCP to Docker postgres | `@libsql/knex-libsql` + local file `./data/dev.sqlite3` |
+| test | `pg` + TCP to Docker postgres | `@libsql/knex-libsql` + local file `./data/test.sqlite3` |
+| production | `pg` + `DATABASE_URL` | `@libsql/knex-libsql` + `TURSO_DATABASE_URL` |
 
 All environments need `useNullAsDefault: true` and `PRAGMA foreign_keys = ON`.
 
@@ -78,8 +78,8 @@ Already batch inserts at 50 rows (under SQLite's 999 variable limit). No PG-spec
 
 | Remove | Add |
 |--------|-----|
-| `pg` | `better-sqlite3` |
-| | `@the-forgebase/knex-libsql` |
+| `pg` | `better-sqlite3` (dependency of knex-libsql) |
+| | `@libsql/knex-libsql` |
 
 ### 8. Makefile
 

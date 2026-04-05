@@ -1,64 +1,51 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
+const Client_Libsql = require('@libsql/knex-libsql');
+
+const migrationsDir = path.resolve(__dirname, 'migrations');
+const seedsDir = path.resolve(__dirname, 'seeds');
+
+// Enable foreign keys after each connection is created (SQLite doesn't enforce by default)
+const pool = {
+  afterCreate(conn, done) {
+    conn.run('PRAGMA foreign_keys = ON', done);
+  },
+};
+
 module.exports = {
   development: {
-    client: 'pg',
+    client: Client_Libsql,
     connection: {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      database: process.env.DB_NAME || 'travelpoints',
-      user: process.env.DB_USER || 'travelpoints',
-      password: process.env.DB_PASSWORD || 'travelpoints',
+      filename: process.env.TURSO_DATABASE_URL || `file:${path.resolve(__dirname, '../../data/dev.sqlite3')}`,
     },
-    migrations: {
-      directory: path.resolve(__dirname, 'migrations'),
-    },
-    seeds: {
-      directory: path.resolve(__dirname, 'seeds'),
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
+    useNullAsDefault: true,
+    migrations: { directory: migrationsDir },
+    seeds: { directory: seedsDir },
+    pool,
   },
 
   test: {
-    client: 'pg',
+    client: Client_Libsql,
     connection: {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      database: process.env.DB_TEST_NAME || 'travelpoints_test',
-      user: process.env.DB_USER || 'travelpoints',
-      password: process.env.DB_PASSWORD || 'travelpoints',
+      filename: `file:${path.resolve(__dirname, '../../data/test.sqlite3')}`,
     },
-    migrations: {
-      directory: path.resolve(__dirname, 'migrations'),
-    },
-    seeds: {
-      directory: path.resolve(__dirname, 'seeds'),
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
+    useNullAsDefault: true,
+    migrations: { directory: migrationsDir },
+    seeds: { directory: seedsDir },
+    pool,
   },
 
   production: {
-    client: 'pg',
+    client: Client_Libsql,
     connection: {
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      filename: process.env.TURSO_DATABASE_URL
+        ? `${process.env.TURSO_DATABASE_URL}?authToken=${process.env.TURSO_AUTH_TOKEN}`
+        : `file:${path.resolve(__dirname, '../../data/prod.sqlite3')}`,
     },
-    migrations: {
-      directory: path.resolve(__dirname, 'migrations'),
-    },
-    seeds: {
-      directory: path.resolve(__dirname, 'seeds'),
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
+    useNullAsDefault: true,
+    migrations: { directory: migrationsDir },
+    seeds: { directory: seedsDir },
+    pool,
   },
 };

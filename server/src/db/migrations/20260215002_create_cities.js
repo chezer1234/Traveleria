@@ -3,7 +3,7 @@
  */
 exports.up = function (knex) {
   return knex.schema.createTable('cities', (table) => {
-    table.uuid('id').primary().defaultTo(knex.fn.uuid());
+    table.text('id').primary();
     table
       .string('country_code', 2)
       .notNullable()

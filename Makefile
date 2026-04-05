@@ -1,4 +1,4 @@
-.PHONY: up down logs migrate seed reset-db shell psql dev-client
+.PHONY: up down logs migrate seed reset-db shell dev-client
 
 up:
 	docker compose up -d --build
@@ -20,11 +20,9 @@ seed:
 	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.js
 
 reset-db:
-	docker compose down -v
-	docker compose up -d --build
+	docker compose exec server rm -f /app/data/dev.sqlite3
+	docker compose exec server npx knex migrate:latest --knexfile src/db/knexfile.js
+	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.js
 
 shell:
 	docker compose exec server sh
-
-psql:
-	docker compose exec postgres psql -U travelpoints -d travelpoints

@@ -1,36 +1,13 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: travelpoints
-      POSTGRES_USER: travelpoints
-      POSTGRES_PASSWORD: travelpoints
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U travelpoints -d travelpoints"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   server:
     build: ./server
     ports:
       - "3000:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./server:/app
       - /app/node_modules
+      - server-data:/app/data
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: travelpoints
-      DB_USER: travelpoints
-      DB_PASSWORD: travelpoints
       PORT: 3000
       NODE_ENV: development
     entrypoint: ["/app/entrypoint.sh"]
@@ -48,4 +25,4 @@ services:
       API_TARGET: http://server:3000
 
 volumes:
-  pgdata:
+  server-data:

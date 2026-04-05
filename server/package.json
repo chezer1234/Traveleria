@@ -16,11 +16,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@libsql/knex-libsql": "^0.1.0",
+    "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "knex": "^3.1.0",
-    "pg": "^8.18.0"
+    "knex": "^3.1.0"
   },
   "jest": {
     "testPathIgnorePatterns": [

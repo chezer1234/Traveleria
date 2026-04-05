@@ -155,6 +155,7 @@ router.post('/:id/countries', async (req, res) => {
 
     const [record] = await db('user_countries')
       .insert({
+        id: crypto.randomUUID(),
         user_id: id,
         country_code: country.code,
         visited_at: visited_at || null,
@@ -267,6 +268,7 @@ router.post('/:id/cities', async (req, res) => {
 
     const [record] = await db('user_cities')
       .insert({
+        id: crypto.randomUUID(),
         user_id: id,
         city_id,
         visited_at: visited_at || null,
@@ -331,6 +333,7 @@ router.post('/:id/provinces', async (req, res) => {
 
     const [record] = await db('user_provinces')
       .insert({
+        id: crypto.randomUUID(),
         user_id: id,
         province_code,
         visited_at: visited_at || null,

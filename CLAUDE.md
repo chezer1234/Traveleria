@@ -28,8 +28,8 @@ TravelPoints is a web app where users log countries they've visited and earn poi
 
 - **Frontend:** React 19 + Vite 7 + Tailwind CSS 4 + React Router 7 + react-simple-maps
 - **Backend:** Node.js + Express + Knex.js (query builder, not ORM)
-- **Database:** PostgreSQL 16 (runs in Docker)
-- **Dev environment:** Docker Compose (postgres + server + client)
+- **Database:** SQLite via Turso/libSQL (local file for dev/test, Turso cloud for production)
+- **Dev environment:** Docker Compose (server + client, SQLite embedded — no external DB)
 - **CI:** GitHub Actions (`.github/workflows/ci.yml`) — runs migrations, seeds, Jest tests, client build
 
 ## Running Locally
@@ -37,7 +37,8 @@ TravelPoints is a web app where users log countries they've visited and earn poi
 ```bash
 docker compose up -d --build    # start everything
 # App at http://localhost:5173, API at http://localhost:3000
-docker compose down -v          # wipe DB for fresh start
+docker compose down              # stop everything
+make reset-db                    # wipe SQLite DB and re-seed
 ```
 
 ## Running Tests
@@ -45,7 +46,7 @@ docker compose down -v          # wipe DB for fresh start
 ```bash
 cd server
 npx jest __tests__/points.test.js    # unit tests (no DB needed)
-npm test                              # all tests (needs PostgreSQL)
+npm test                              # all tests (uses local SQLite — no external DB needed)
 ```
 
 ## Key Files
@@ -162,3 +163,4 @@ Mark the feature doc status as complete. Update `points-system.md` or other ever
 | [docs/features/province-exploration.md](docs/features/province-exploration.md) | Province/city exploration system |
 | [docs/features/world-map.md](docs/features/world-map.md) | World map feature |
 | [docs/points-rebalance-plan.md](docs/points-rebalance-plan.md) | Historical analysis behind the April 2026 rebalance |
+| [docs/features/turso-migration.md](docs/features/turso-migration.md) | Migration from PostgreSQL to Turso/SQLite |

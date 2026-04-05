@@ -110,9 +110,9 @@
 | Routing | React Router v6 |
 | State Management | Zustand or React Context |
 | Backend | Node.js + Express (REST API) or Next.js (full-stack) |
-| Database | PostgreSQL (via Supabase or Railway) |
-| Auth | Supabase Auth or Auth.js |
-| Hosting | Vercel (frontend) + Railway/Supabase (backend/DB) |
+| Database | SQLite via Turso (libSQL) |
+| Auth | Simple username flow (localStorage) |
+| Hosting | Render (frontend + backend) + Turso (database) |
 | Map Visualisation | react-simple-maps or Leaflet.js |
 
 ---

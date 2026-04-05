@@ -11,7 +11,7 @@ You need two things installed:
 1. **Git** — https://git-scm.com/download/win (Windows) or `brew install git` (Mac)
 2. **Docker Desktop** — https://www.docker.com/products/docker-desktop/
 
-That's it. No Node.js, no PostgreSQL, no other installs needed.
+That's it. No Node.js, no database installs needed — SQLite is embedded.
 
 ### Clone and run
 
@@ -32,7 +32,7 @@ Wait for it to finish (first time takes a few minutes to download images and ins
 | `docker compose logs -f` | Watch live logs |
 | `docker compose logs -f server` | Watch server logs only |
 | `docker compose restart server` | Restart the backend |
-| `docker compose down -v` | Stop and wipe database (fresh start) |
+| `docker compose down` | Stop everything |
 
 If you have `make` installed (Mac has it, Windows: `winget install GnuWin32.Make`):
 
@@ -41,8 +41,7 @@ If you have `make` installed (Mac has it, Windows: `winget install GnuWin32.Make
 | `make up` | Start everything |
 | `make down` | Stop everything |
 | `make logs` | Watch live logs |
-| `make reset-db` | Wipe database and restart fresh |
-| `make psql` | Open a database shell |
+| `make reset-db` | Wipe SQLite database and re-seed |
 
 ---
 
@@ -62,12 +61,13 @@ server/          Express API + Knex.js
   src/lib/         points.js (scoring engine)
   src/db/          migrations, seeds, connection
 
-docker-compose.yml   PostgreSQL + Express + Vite dev server
+docker-compose.yml   Express + Vite dev server (SQLite embedded)
 ```
 
-- **PostgreSQL** runs in Docker on port 5432 (data persists between restarts)
+- **SQLite** runs inside the server container (no external database needed)
 - **Express API** runs on port 3000 (auto-reloads when you edit server code)
 - **Vite dev server** runs on port 5173 (auto-reloads when you edit client code)
+- **Production** uses Turso (hosted SQLite) for the database
 
 Edit any file in `server/` or `client/` and the changes appear immediately.
 
@@ -85,7 +85,7 @@ See [docs/points-system.md](docs/points-system.md) for the full formula and exam
 
 ### Database
 
-PostgreSQL with Knex.js migrations. Key tables:
+SQLite (via Turso/libSQL) with Knex.js migrations. Key tables:
 
 | Table | Purpose |
 |-------|---------|
@@ -121,7 +121,7 @@ All points endpoints accept `?home_country=XX` to personalise scores based on di
 # Unit tests (no database needed)
 cd server && npx jest __tests__/points.test.js
 
-# All tests (needs PostgreSQL — run via Docker or CI)
+# All tests (uses local SQLite — no external DB needed)
 cd server && npm test
 ```
 
@@ -135,3 +135,4 @@ cd server && npm test
 | [Province Exploration](docs/features/province-exploration.md) | Province/city exploration system and tier classification |
 | [World Map](docs/features/world-map.md) | Interactive map feature |
 | [Points Rebalance](docs/points-rebalance-plan.md) | Historical: the analysis and plan behind the April 2026 rebalance |
+| [Turso Migration](docs/features/turso-migration.md) | Migration from PostgreSQL to Turso/SQLite |

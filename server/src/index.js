@@ -27,15 +27,18 @@ app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
-// In production, serve the built React frontend
+// In production, serve the built React frontend if available
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
+  const fs = require('fs');
   const clientDist = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
-  // All non-API routes serve the React app (client-side routing)
-  app.get('/{*path}', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-  });
+  const indexHtml = path.join(clientDist, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    app.use(express.static(clientDist));
+    app.get('/{*path}', (req, res) => {
+      res.sendFile(indexHtml);
+    });
+  }
 }
 
 async function start() {

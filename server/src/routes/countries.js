@@ -12,6 +12,7 @@ const {
 const router = express.Router();
 
 // GET /api/countries?home_country=XX — all countries with baseline points
+// Without home_country, returns just the country list (fast, no scoring)
 router.get('/', async (req, res) => {
   try {
     const allCountries = await db('countries').orderBy('name');
@@ -26,7 +27,9 @@ router.get('/', async (req, res) => {
       population: country.population,
       annual_tourists: country.annual_tourists,
       area_km2: country.area_km2,
-      baseline_points: Math.round(getBaseline(country, homeCountry, allCountries) * 100) / 100,
+      baseline_points: homeCountry
+        ? Math.round(getBaseline(country, homeCountry, allCountries) * 100) / 100
+        : 0,
     }));
 
     res.json(result);

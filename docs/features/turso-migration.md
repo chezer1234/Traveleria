@@ -1,6 +1,6 @@
 # Feature: Migrate from PostgreSQL to Turso (SQLite)
 
-**Status:** Complete (merged PR #17)
+**Status:** Complete (merged PR #17, custom dialect added 2026-04-06)
 **Branch:** `feature/turso-migration`
 **Date:** 2026-04-05
 
@@ -15,11 +15,14 @@ Combined with Render's free tier (static site + web service), we get zero-cost h
 
 ## What changes
 
-Swap PostgreSQL for SQLite everywhere using `@libsql/knex-libsql`:
-- **Local dev/test:** local SQLite file via `file:` URL
+Swap PostgreSQL for SQLite everywhere using a custom Knex dialect (`server/src/db/libsql-dialect.js`) built on `@libsql/client`:
+- **Local dev (Docker):** sqld container via `libsql://sqld:8080?tls=0`
+- **CI/tests:** local SQLite file via `file:` URL
 - **Production:** Turso cloud via `libsql://` URL
 
-All environments use the same Knex adapter and SQL dialect.
+All environments use the same custom dialect and `@libsql/client` library — only the URL differs.
+
+**Why a custom dialect?** The official `@libsql/knex-libsql` package didn't handle `.returning()` correctly for INSERT/UPDATE/DELETE queries over HTTP connections, causing user creation to return wrong data. The custom dialect extends Knex's built-in SQLite3 client and uses `@libsql/client` directly for all connections.
 
 ## Migration scope
 
@@ -78,8 +81,9 @@ Already batch inserts at 50 rows (under SQLite's 999 variable limit). No PG-spec
 
 | Remove | Add |
 |--------|-----|
-| `pg` | `better-sqlite3` (dependency of knex-libsql) |
-| | `@libsql/knex-libsql` |
+| `pg` | `@libsql/client` (used by custom dialect) |
+| `better-sqlite3` | |
+| `@libsql/knex-libsql` | |
 
 ### 8. Makefile
 

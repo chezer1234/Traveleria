@@ -1,28 +1,37 @@
 services:
+  sqld:
+    image: ghcr.io/tursodatabase/libsql-server:latest
+    environment:
+      SQLD_NODE: primary
+    volumes:
+      - sqld-data:/var/lib/sqld
+
   server:
     build: ./server
     ports:
-      - "3000:3000"
+      - "3001:3001"
+    depends_on:
+      - sqld
     volumes:
       - ./server:/app
       - /app/node_modules
-      - server-data:/app/data
     environment:
-      PORT: 3000
+      TURSO_DATABASE_URL: libsql://sqld:8080?tls=0
+      PORT: 3001
       NODE_ENV: development
     entrypoint: ["/app/entrypoint.sh"]
 
   client:
     build: ./client
     ports:
-      - "5173:5173"
+      - "3000:3000"
     depends_on:
       - server
     volumes:
       - ./client:/app
       - /app/node_modules
     environment:
-      API_TARGET: http://server:3000
+      API_TARGET: http://server:3001
 
 volumes:
-  server-data:
+  sqld-data:

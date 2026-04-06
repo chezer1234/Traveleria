@@ -43,7 +43,7 @@ describe('Database Connection', () => {
   });
 
   test('all environments use libSQL client', () => {
-    const Client_Libsql = require('@libsql/knex-libsql');
+    const Client_Libsql = require('../src/db/libsql-dialect');
     expect(knexfile.development.client).toBe(Client_Libsql);
     expect(knexfile.test.client).toBe(Client_Libsql);
     expect(knexfile.production.client).toBe(Client_Libsql);

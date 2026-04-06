@@ -16,8 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@libsql/knex-libsql": "^0.1.0",
-    "better-sqlite3": "^12.8.0",
+    "@libsql/client": "^0.17.2",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",

@@ -5,7 +5,7 @@ up:
 
 dev-client:
 	docker compose stop client 2>/dev/null || true
-	cd client && npx vite --host 0.0.0.0 --port 5173
+	cd client && npx vite --host 0.0.0.0 --port 3000
 
 down:
 	docker compose down
@@ -20,9 +20,8 @@ seed:
 	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.js
 
 reset-db:
-	docker compose exec server rm -f /app/data/dev.sqlite3
-	docker compose exec server npx knex migrate:latest --knexfile src/db/knexfile.js
-	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.js
+	docker compose down -v
+	docker compose up -d --build
 
 shell:
 	docker compose exec server sh

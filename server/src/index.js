@@ -19,8 +19,29 @@ app.use(cors({
 app.options('/{*path}', cors());
 app.use(express.json());
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  const info = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.round(process.uptime()),
+    node: process.version,
+    env: process.env.NODE_ENV || 'development',
+    db: 'unknown',
+  };
+
+  // Test DB connectivity
+  try {
+    const start = Date.now();
+    const result = await db('countries').count('* as count').first();
+    info.db = 'connected';
+    info.dbLatency = Date.now() - start + 'ms';
+    info.countries = parseInt(result.count, 10);
+  } catch (err) {
+    info.db = 'error';
+    info.dbError = err.message;
+  }
+
+  res.json(info);
 });
 
 app.use('/api/countries', countriesRoutes);

@@ -104,39 +104,39 @@ jobs:
           AUTH="Authorization: Bearer ${RENDER_API_KEY}"
 
           # Fetch and print recent service logs from Render
-          # Usage: fetch_logs <service_id> <label>
+          # Usage: fetch_logs <service_id> <label> [deploy_id]
           fetch_logs() {
             local SVC_ID="$1"
             local LABEL="$2"
-            local END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            local START_TIME=$(date -u -d "5 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
-              || date -u -v-5M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
-              || echo "")
+            local DEPLOY_ID="${3:-}"
 
             echo ""
             echo "========================================="
-            echo " ${LABEL} — Render Logs"
+            echo " ${LABEL} — Render Deploy + Service Logs"
             echo "========================================="
 
-            local URL="${RENDER_API}/logs?resource%5B%5D=${SVC_ID}&limit=100"
-            if [ -n "$START_TIME" ]; then
-              URL="${URL}&startTime=${START_TIME}&endTime=${END_TIME}"
+            # 1. Get recent deploys to show status history
+            echo "--- Recent deploys ---"
+            DEPLOYS=$(curl -s "${RENDER_API}/services/${SVC_ID}/deploys?limit=3" \
+              -H "${AUTH}" 2>/dev/null || echo "[]")
+            echo "$DEPLOYS" | jq -r '.[]? | "\(.id) \(.status) \(.createdAt // "")"' 2>/dev/null || echo "$DEPLOYS"
+
+            # 2. Get the specific deploy details if we have an ID
+            if [ -n "$DEPLOY_ID" ]; then
+              echo ""
+              echo "--- Deploy ${DEPLOY_ID} details ---"
+              DEPLOY_DETAIL=$(curl -s "${RENDER_API}/services/${SVC_ID}/deploys/${DEPLOY_ID}" \
+                -H "${AUTH}" 2>/dev/null || echo "{}")
+              echo "$DEPLOY_DETAIL" | jq '{status, createdAt, updatedAt, finishedAt, trigger}' 2>/dev/null || echo "$DEPLOY_DETAIL"
             fi
 
-            LOGS=$(curl -s "${URL}" -H "${AUTH}" 2>/dev/null || echo "")
+            # 3. Get service events (includes start/stop/crash info)
+            echo ""
+            echo "--- Service events ---"
+            EVENTS=$(curl -s "${RENDER_API}/services/${SVC_ID}/events?limit=15" \
+              -H "${AUTH}" 2>/dev/null || echo "[]")
+            echo "$EVENTS" | jq -r '.[]? | .event? // . | "\(.timestamp // .createdAt // "") \(.type // .reason // "event") \(.details // .message // "")"' 2>/dev/null || echo "$EVENTS"
 
-            if [ -z "$LOGS" ]; then
-              echo "(no response from logs API)"
-            else
-              # Try to parse as JSON array of log entries
-              PARSED=$(echo "$LOGS" | jq -r '.logs[]? | "\(.timestamp) [\(.level // "info")] \(.message)"' 2>/dev/null)
-              if [ -n "$PARSED" ]; then
-                echo "$PARSED"
-              else
-                # Fall back to raw output
-                echo "$LOGS" | jq '.' 2>/dev/null || echo "$LOGS"
-              fi
-            fi
             echo "========================================="
           }
 
@@ -189,12 +189,12 @@ jobs:
               case "$STATUS" in
                 live)
                   echo "${LABEL} deployed successfully!"
-                  fetch_logs "$SVC_ID" "$LABEL"
+                  fetch_logs "$SVC_ID" "$LABEL" "$DEPLOY_ID"
                   return 0
                   ;;
                 deactivated|canceled|build_failed|update_failed)
                   echo "::error::${LABEL} deploy failed with status: ${STATUS}"
-                  fetch_logs "$SVC_ID" "$LABEL"
+                  fetch_logs "$SVC_ID" "$LABEL" "$DEPLOY_ID"
                   return 1
                   ;;
                 created|build_in_progress|update_in_progress)
@@ -207,7 +207,7 @@ jobs:
             done
 
             echo "::warning::${LABEL} deploy still running after ${MAX_WAIT}s"
-            fetch_logs "$SVC_ID" "$LABEL"
+            fetch_logs "$SVC_ID" "$LABEL" "$DEPLOY_ID"
             return 0
           }
 

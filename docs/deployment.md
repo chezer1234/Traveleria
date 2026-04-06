@@ -101,24 +101,31 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
 
 These secrets let the CI pipeline trigger deploys automatically after tests pass.
 
-### Get your Render deploy hook URLs
+### Get your Render API key and service IDs
 
+**API Key:**
+1. Go to https://dashboard.render.com/u/settings#api-keys
+2. Click **Create API Key**, name it `github-ci`
+3. Copy the key
+
+**Service IDs:**
 1. Go to your **travelpoints-api** service on Render
-2. Click **Settings** > scroll to **Deploy Hook**
-3. Copy the URL — it looks like `https://api.render.com/deploy/srv-xxxxx?key=yyyyy`
-4. Do the same for **travelpoints-web**
+2. The URL looks like `https://dashboard.render.com/web/srv-XXXXX` — the `srv-XXXXX` part is the ID
+3. Do the same for **travelpoints-web**
 
 ### Add secrets to GitHub
 
-1. Go to https://github.com/chezer1234/Traveleria/settings/secrets/actions
-2. Click **New repository secret** for each:
+1. Go to https://github.com/chezer1234/Traveleria/settings/environments
+2. Click the **production** environment (create it if it doesn't exist)
+3. Add these **Environment secrets**:
 
 | Secret name | Where to get it |
 |------------|----------------|
-| `RENDER_API_DEPLOY_HOOK` | Render > travelpoints-api > Settings > Deploy Hook |
-| `RENDER_WEB_DEPLOY_HOOK` | Render > travelpoints-web > Settings > Deploy Hook |
+| `RENDER_API_KEY` | Render > Account Settings > API Keys |
+| `RENDER_API_SERVICE_ID` | From the API service URL: `srv-XXXXX` |
+| `RENDER_WEB_SERVICE_ID` | From the Web service URL: `srv-XXXXX` |
 
-That's it. Once these are set, every push to `main` that passes CI will automatically deploy.
+That's it. Once these are set, every push to `main` that passes CI will automatically deploy and show build status in the GitHub Actions log.
 
 ---
 
@@ -136,16 +143,16 @@ CI runs (GitHub Actions)
     |-- Smoke test API health endpoint
     |
     v (all green?)
-Deploy job triggers
-    |-- POST to Render API deploy hook
-    |-- POST to Render Web deploy hook
-    |-- Both services pull latest code from main and rebuild
+Deploy job triggers via Render API
+    |-- Trigger API service deploy → poll status every 15s
+    |-- Trigger Web service deploy → poll status every 15s
+    |-- Report success/failure with dashboard links
     |
     v
 Live at your Render URLs
 ```
 
-The deploy job **only runs on push to `main`** (not on PRs) and **only after tests pass**.
+The deploy job **only runs on push to `main`** (not on PRs) and **only after tests pass**. Deploy progress and results are visible directly in the GitHub Actions log — no need to check the Render dashboard.
 
 ---
 

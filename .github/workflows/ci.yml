@@ -85,40 +85,105 @@ jobs:
     environment: production
 
     steps:
-      - name: Deploy API service
-        if: env.RENDER_API_DEPLOY_HOOK != ''
+      - name: Deploy & monitor
         env:
-          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_SERVICE_ID: ${{ secrets.RENDER_API_SERVICE_ID }}
+          RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_WEB_SERVICE_ID }}
         run: |
-          echo "Triggering API deploy..."
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST "$RENDER_API_DEPLOY_HOOK")
-          if [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 201 ]; then
-            echo "API deploy triggered successfully (HTTP $STATUS)"
-          else
-            echo "API deploy trigger failed (HTTP $STATUS)"
+          set -euo pipefail
+
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "::warning::No RENDER_API_KEY configured — skipping deploy."
+            echo "Add RENDER_API_KEY, RENDER_API_SERVICE_ID, and RENDER_WEB_SERVICE_ID secrets to enable auto-deploy."
+            echo "See docs/deployment.md for setup instructions."
+            exit 0
+          fi
+
+          RENDER_API="https://api.render.com/v1"
+          AUTH="Authorization: Bearer ${RENDER_API_KEY}"
+
+          # Trigger a deploy and poll until it finishes
+          # Usage: deploy_service <service_id> <label>
+          deploy_service() {
+            local SVC_ID="$1"
+            local LABEL="$2"
+
+            if [ -z "$SVC_ID" ]; then
+              echo "::warning::No service ID for ${LABEL} — skipping."
+              return 0
+            fi
+
+            echo "--- ${LABEL} ---"
+            echo "Triggering deploy for ${LABEL} (${SVC_ID})..."
+
+            # Trigger deploy
+            RESPONSE=$(curl -sf -X POST "${RENDER_API}/services/${SVC_ID}/deploys" \
+              -H "${AUTH}" \
+              -H "Content-Type: application/json" \
+              -d '{}')
+
+            DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+            if [ -z "$DEPLOY_ID" ]; then
+              echo "::error::Failed to trigger deploy for ${LABEL}"
+              echo "Response: ${RESPONSE}"
+              return 1
+            fi
+
+            echo "Deploy triggered: ${DEPLOY_ID}"
+            echo "Dashboard: https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
+
+            # Poll for status (max 5 minutes)
+            local ELAPSED=0
+            local MAX_WAIT=300
+            local INTERVAL=15
+
+            while [ $ELAPSED -lt $MAX_WAIT ]; do
+              sleep $INTERVAL
+              ELAPSED=$((ELAPSED + INTERVAL))
+
+              STATUS_RESPONSE=$(curl -sf "${RENDER_API}/services/${SVC_ID}/deploys/${DEPLOY_ID}" \
+                -H "${AUTH}")
+              STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status // "unknown"')
+
+              echo "[${ELAPSED}s] ${LABEL}: ${STATUS}"
+
+              case "$STATUS" in
+                live)
+                  echo "${LABEL} deployed successfully!"
+                  return 0
+                  ;;
+                deactivated|canceled|build_failed|update_failed)
+                  echo "::error::${LABEL} deploy failed with status: ${STATUS}"
+                  echo "Check logs: https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
+                  return 1
+                  ;;
+                created|build_in_progress|update_in_progress)
+                  # Still going, keep polling
+                  ;;
+                *)
+                  echo "Unexpected status: ${STATUS} — continuing to poll..."
+                  ;;
+              esac
+            done
+
+            echo "::warning::${LABEL} deploy still running after ${MAX_WAIT}s — check Render dashboard."
+            echo "https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
+            return 0
+          }
+
+          # Deploy API first, then Web
+          deploy_service "$RENDER_API_SERVICE_ID" "API"
+          API_RESULT=$?
+
+          deploy_service "$RENDER_WEB_SERVICE_ID" "Web"
+          WEB_RESULT=$?
+
+          if [ $API_RESULT -ne 0 ] || [ $WEB_RESULT -ne 0 ]; then
+            echo ""
+            echo "::error::One or more deploys failed. Check the logs above."
             exit 1
           fi
 
-      - name: Deploy Web service
-        if: env.RENDER_WEB_DEPLOY_HOOK != ''
-        env:
-          RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
-        run: |
-          echo "Triggering Web deploy..."
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST "$RENDER_WEB_DEPLOY_HOOK")
-          if [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 201 ]; then
-            echo "Web deploy triggered successfully (HTTP $STATUS)"
-          else
-            echo "Web deploy trigger failed (HTTP $STATUS)"
-            exit 1
-          fi
-
-      - name: Deploy status
-        if: env.RENDER_API_DEPLOY_HOOK == '' && env.RENDER_WEB_DEPLOY_HOOK == ''
-        env:
-          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
-          RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
-        run: |
-          echo "No deploy hooks configured — skipping deploy."
-          echo "Add RENDER_API_DEPLOY_HOOK and RENDER_WEB_DEPLOY_HOOK secrets to enable auto-deploy."
-          echo "See docs/deployment.md for setup instructions."
+          echo ""
+          echo "All deploys completed successfully!"

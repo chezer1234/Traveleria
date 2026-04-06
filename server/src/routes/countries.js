@@ -14,8 +14,11 @@ const router = express.Router();
 // GET /api/countries?home_country=XX — all countries with baseline points
 // Without home_country, returns just the country list (fast, no scoring)
 router.get('/', async (req, res) => {
+  const t0 = Date.now();
   try {
+    console.log('[countries] Starting query...');
     const allCountries = await db('countries').orderBy('name');
+    console.log(`[countries] Query done: ${allCountries.length} rows in ${Date.now() - t0}ms`);
 
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
@@ -32,9 +35,11 @@ router.get('/', async (req, res) => {
         : 0,
     }));
 
+    console.log(`[countries] Sending ${result.length} countries (${Date.now() - t0}ms total)`);
     res.json(result);
+    console.log(`[countries] Response sent (${Date.now() - t0}ms)`);
   } catch (err) {
-    console.error('GET /countries error:', err);
+    console.error(`[countries] ERROR after ${Date.now() - t0}ms:`, err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

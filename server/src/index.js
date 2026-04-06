@@ -44,6 +44,53 @@ app.get('/api/health', async (req, res) => {
   res.json(info);
 });
 
+// Diagnostic endpoint — test different query types against Turso
+app.get('/api/debug/db', async (req, res) => {
+  const results = {};
+
+  try {
+    let start = Date.now();
+    const count = await db('countries').count('* as count').first();
+    results.count = { ok: true, ms: Date.now() - start, value: count.count };
+  } catch (e) {
+    results.count = { ok: false, error: e.message };
+  }
+
+  try {
+    let start = Date.now();
+    const one = await db('countries').where({ code: 'GB' }).first();
+    results.selectOne = { ok: true, ms: Date.now() - start, name: one?.name };
+  } catch (e) {
+    results.selectOne = { ok: false, error: e.message };
+  }
+
+  try {
+    let start = Date.now();
+    const five = await db('countries').limit(5);
+    results.selectFive = { ok: true, ms: Date.now() - start, count: five.length };
+  } catch (e) {
+    results.selectFive = { ok: false, error: e.message };
+  }
+
+  try {
+    let start = Date.now();
+    const all = await db('countries').select('code', 'name');
+    results.selectAll = { ok: true, ms: Date.now() - start, count: all.length };
+  } catch (e) {
+    results.selectAll = { ok: false, error: e.message };
+  }
+
+  try {
+    let start = Date.now();
+    const raw = await db.raw('SELECT code, name FROM countries LIMIT 3');
+    results.raw = { ok: true, ms: Date.now() - start, rows: raw };
+  } catch (e) {
+    results.raw = { ok: false, error: e.message };
+  }
+
+  res.json(results);
+});
+
 app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);

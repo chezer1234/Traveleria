@@ -94,6 +94,12 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
 4. Add **Environment Variable:**
    - `VITE_API_URL` = the URL of your API service (e.g. `https://travelpoints-api.onrender.com`)
 5. Click **Create Static Site**
+6. After creation, go to **Redirect/Rewrite Rules** in the service settings and add:
+   - **Source:** `/*`
+   - **Destination:** `/index.html`
+   - **Action:** Rewrite
+   
+   This is required for client-side routing — without it, hard reloads on any route (e.g. `/dashboard`) will return 404.
 
 ---
 

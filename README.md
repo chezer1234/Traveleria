@@ -136,3 +136,4 @@ cd server && npm test
 | [World Map](docs/features/world-map.md) | Interactive map feature |
 | [Points Rebalance](docs/points-rebalance-plan.md) | Historical: the analysis and plan behind the April 2026 rebalance |
 | [Turso Migration](docs/features/turso-migration.md) | Migration from PostgreSQL to Turso/SQLite |
+| [Deployment Guide](docs/deployment.md) | How to deploy to Render + Turso (step-by-step for Charlie) |

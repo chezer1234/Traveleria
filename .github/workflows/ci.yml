@@ -103,22 +103,39 @@ jobs:
           RENDER_API="https://api.render.com/v1"
           AUTH="Authorization: Bearer ${RENDER_API_KEY}"
 
-          # Fetch and print the last N lines of service logs
+          # Fetch and print recent service logs from Render
           # Usage: fetch_logs <service_id> <label>
           fetch_logs() {
             local SVC_ID="$1"
             local LABEL="$2"
+            local END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            local START_TIME=$(date -u -d "5 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+              || date -u -v-5M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+              || echo "")
+
             echo ""
             echo "========================================="
-            echo " ${LABEL} — Render Logs (last 50 lines)"
+            echo " ${LABEL} — Render Logs"
             echo "========================================="
-            LOGS=$(curl -sf "${RENDER_API}/services/${SVC_ID}/logs?limit=50" \
-              -H "${AUTH}" 2>/dev/null || echo "[]")
 
-            if [ "$LOGS" = "[]" ] || [ -z "$LOGS" ]; then
-              echo "(no logs available — service may still be starting)"
+            local URL="${RENDER_API}/logs?serviceId=${SVC_ID}&limit=100"
+            if [ -n "$START_TIME" ]; then
+              URL="${URL}&startTime=${START_TIME}&endTime=${END_TIME}"
+            fi
+
+            LOGS=$(curl -s "${URL}" -H "${AUTH}" 2>/dev/null || echo "")
+
+            if [ -z "$LOGS" ]; then
+              echo "(no response from logs API)"
             else
-              echo "$LOGS" | jq -r '.[] | "\(.timestamp) \(.message)"' 2>/dev/null || echo "$LOGS"
+              # Try to parse as JSON array of log entries
+              PARSED=$(echo "$LOGS" | jq -r '.logs[]? | "\(.timestamp) [\(.level // "info")] \(.message)"' 2>/dev/null)
+              if [ -n "$PARSED" ]; then
+                echo "$PARSED"
+              else
+                # Fall back to raw output
+                echo "$LOGS" | jq '.' 2>/dev/null || echo "$LOGS"
+              fi
             fi
             echo "========================================="
           }

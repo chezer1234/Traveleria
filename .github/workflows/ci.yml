@@ -91,7 +91,7 @@ jobs:
           RENDER_API_SERVICE_ID: ${{ secrets.RENDER_API_SERVICE_ID }}
           RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_WEB_SERVICE_ID }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           if [ -z "$RENDER_API_KEY" ]; then
             echo "::warning::No RENDER_API_KEY configured — skipping deploy."
@@ -103,7 +103,27 @@ jobs:
           RENDER_API="https://api.render.com/v1"
           AUTH="Authorization: Bearer ${RENDER_API_KEY}"
 
-          # Trigger a deploy and poll until it finishes
+          # Fetch and print the last N lines of service logs
+          # Usage: fetch_logs <service_id> <label>
+          fetch_logs() {
+            local SVC_ID="$1"
+            local LABEL="$2"
+            echo ""
+            echo "========================================="
+            echo " ${LABEL} — Render Logs (last 50 lines)"
+            echo "========================================="
+            LOGS=$(curl -sf "${RENDER_API}/services/${SVC_ID}/logs?limit=50" \
+              -H "${AUTH}" 2>/dev/null || echo "[]")
+
+            if [ "$LOGS" = "[]" ] || [ -z "$LOGS" ]; then
+              echo "(no logs available — service may still be starting)"
+            else
+              echo "$LOGS" | jq -r '.[] | "\(.timestamp) \(.message)"' 2>/dev/null || echo "$LOGS"
+            fi
+            echo "========================================="
+          }
+
+          # Trigger a deploy, poll until it finishes, then fetch logs
           # Usage: deploy_service <service_id> <label>
           deploy_service() {
             local SVC_ID="$1"
@@ -114,11 +134,12 @@ jobs:
               return 0
             fi
 
+            echo ""
             echo "--- ${LABEL} ---"
-            echo "Triggering deploy for ${LABEL} (${SVC_ID})..."
+            echo "Triggering deploy for ${LABEL}..."
 
             # Trigger deploy
-            RESPONSE=$(curl -sf -X POST "${RENDER_API}/services/${SVC_ID}/deploys" \
+            RESPONSE=$(curl -s -X POST "${RENDER_API}/services/${SVC_ID}/deploys" \
               -H "${AUTH}" \
               -H "Content-Type: application/json" \
               -d '{}')
@@ -127,11 +148,11 @@ jobs:
             if [ -z "$DEPLOY_ID" ]; then
               echo "::error::Failed to trigger deploy for ${LABEL}"
               echo "Response: ${RESPONSE}"
+              fetch_logs "$SVC_ID" "$LABEL"
               return 1
             fi
 
             echo "Deploy triggered: ${DEPLOY_ID}"
-            echo "Dashboard: https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
 
             # Poll for status (max 5 minutes)
             local ELAPSED=0
@@ -142,7 +163,7 @@ jobs:
               sleep $INTERVAL
               ELAPSED=$((ELAPSED + INTERVAL))
 
-              STATUS_RESPONSE=$(curl -sf "${RENDER_API}/services/${SVC_ID}/deploys/${DEPLOY_ID}" \
+              STATUS_RESPONSE=$(curl -s "${RENDER_API}/services/${SVC_ID}/deploys/${DEPLOY_ID}" \
                 -H "${AUTH}")
               STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status // "unknown"')
 
@@ -151,11 +172,12 @@ jobs:
               case "$STATUS" in
                 live)
                   echo "${LABEL} deployed successfully!"
+                  fetch_logs "$SVC_ID" "$LABEL"
                   return 0
                   ;;
                 deactivated|canceled|build_failed|update_failed)
                   echo "::error::${LABEL} deploy failed with status: ${STATUS}"
-                  echo "Check logs: https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
+                  fetch_logs "$SVC_ID" "$LABEL"
                   return 1
                   ;;
                 created|build_in_progress|update_in_progress)
@@ -167,8 +189,8 @@ jobs:
               esac
             done
 
-            echo "::warning::${LABEL} deploy still running after ${MAX_WAIT}s — check Render dashboard."
-            echo "https://dashboard.render.com/web/${SVC_ID}/deploys/${DEPLOY_ID}"
+            echo "::warning::${LABEL} deploy still running after ${MAX_WAIT}s"
+            fetch_logs "$SVC_ID" "$LABEL"
             return 0
           }
 

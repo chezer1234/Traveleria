@@ -6,12 +6,15 @@ const Client_Libsql = require('@libsql/knex-libsql');
 const migrationsDir = path.resolve(__dirname, 'migrations');
 const seedsDir = path.resolve(__dirname, 'seeds');
 
-// Enable foreign keys after each connection is created (SQLite doesn't enforce by default)
-const pool = {
-  afterCreate(conn, done) {
-    conn.run('PRAGMA foreign_keys = ON', done);
-  },
-};
+// Enable foreign keys for local file-based SQLite (Turso handles this server-side)
+const isRemote = (process.env.TURSO_DATABASE_URL || '').startsWith('libsql://');
+const pool = isRemote
+  ? {}
+  : {
+      afterCreate(conn, done) {
+        conn.run('PRAGMA foreign_keys = ON', done);
+      },
+    };
 
 module.exports = {
   development: {

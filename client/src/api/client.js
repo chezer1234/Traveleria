@@ -1,5 +1,11 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
+// Debug: log the resolved API base URL in production
+if (import.meta.env.PROD) {
+  console.log('[TravelPoints] API_BASE:', API_BASE);
+  console.log('[TravelPoints] VITE_API_URL:', import.meta.env.VITE_API_URL || '(not set)');
+}
+
 async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
 

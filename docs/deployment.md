@@ -72,7 +72,7 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
    - **Root Directory:** `server`
    - **Runtime:** Node
    - **Build Command:** `npm install`
-   - **Start Command:** `npx knex migrate:latest --knexfile src/db/knexfile.js && npx knex seed:run --knexfile src/db/knexfile.js && node src/index.js`
+   - **Start Command:** `node src/index.js` (migrations and seeds run automatically on startup)
    - **Instance Type:** Free
 4. Add **Environment Variables:**
    - `NODE_ENV` = `production`

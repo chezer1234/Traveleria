@@ -39,9 +39,18 @@ module.exports = {
   production: {
     client: Client_Libsql,
     connection: {
-      filename: process.env.TURSO_DATABASE_URL
-        ? `${process.env.TURSO_DATABASE_URL}?authToken=${process.env.TURSO_AUTH_TOKEN}`
-        : `file:${path.resolve(__dirname, '../../data/prod.sqlite3')}`,
+      filename: (() => {
+        if (process.env.TURSO_DATABASE_URL) {
+          const url = process.env.TURSO_DATABASE_URL;
+          const token = process.env.TURSO_AUTH_TOKEN;
+          if (!token) {
+            console.error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL is set');
+            process.exit(1);
+          }
+          return `${url}?authToken=${token}`;
+        }
+        return `file:${path.resolve(__dirname, '../../data/prod.sqlite3')}`;
+      })(),
     },
     useNullAsDefault: true,
     migrations: { directory: migrationsDir },

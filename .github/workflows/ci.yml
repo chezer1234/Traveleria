@@ -118,7 +118,7 @@ jobs:
             echo " ${LABEL} — Render Logs"
             echo "========================================="
 
-            local URL="${RENDER_API}/logs?serviceId=${SVC_ID}&limit=100"
+            local URL="${RENDER_API}/logs?resource%5B%5D=${SVC_ID}&limit=100"
             if [ -n "$START_TIME" ]; then
               URL="${URL}&startTime=${START_TIME}&endTime=${END_TIME}"
             fi

@@ -73,7 +73,8 @@ router.get('/:id', async (req, res) => {
 
 // Helper: load user travel data for points calculation
 async function getUserTravelData(userId, homeCountryCode) {
-  const allCountries = await db('countries');
+  const allCountries = await db('countries')
+    .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
   const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase());
   // Pass the full home country object for distance-based calculation
   // Falls back to null if not found (points.js handles this with a default multiplier)

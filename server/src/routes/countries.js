@@ -17,7 +17,9 @@ router.get('/', async (req, res) => {
   const t0 = Date.now();
   try {
     console.log('[countries] Starting query...');
-    const allCountries = await db('countries').orderBy('name');
+    const allCountries = await db('countries')
+      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng')
+      .orderBy('name');
     console.log(`[countries] Query done: ${allCountries.length} rows in ${Date.now() - t0}ms`);
 
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
@@ -54,7 +56,8 @@ router.get('/:code', async (req, res) => {
       return res.status(404).json({ error: 'Country not found' });
     }
 
-    const allCountries = await db('countries');
+    const allCountries = await db('countries')
+      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
 

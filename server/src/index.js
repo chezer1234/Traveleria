@@ -90,10 +90,12 @@ app.get('/api/debug/db', async (req, res) => {
 
   try {
     let start = Date.now();
-    const allCols = await db('countries').orderBy('name');
-    results.selectAllColumns = { ok: true, ms: Date.now() - start, count: allCols.length, sample: allCols[0] };
+    const allCols = await db('countries')
+      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng')
+      .orderBy('name');
+    results.selectExplicitCols = { ok: true, ms: Date.now() - start, count: allCols.length, sample: allCols[0] };
   } catch (e) {
-    results.selectAllColumns = { ok: false, error: e.message };
+    results.selectExplicitCols = { ok: false, error: e.message };
   }
 
   res.json(results);

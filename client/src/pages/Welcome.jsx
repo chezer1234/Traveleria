@@ -11,9 +11,16 @@ export default function Welcome() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log('[Welcome] Fetching countries...');
     getCountries()
-      .then((data) => setCountries(data))
-      .catch(() => setError('Failed to load countries. Is the server running?'));
+      .then((data) => {
+        console.log('[Welcome] Got', data.length, 'countries');
+        setCountries(data);
+      })
+      .catch((err) => {
+        console.error('[Welcome] Failed to load countries:', err);
+        setError('Failed to load countries. Is the server running?');
+      });
   }, []);
 
   async function handleSubmit(e) {

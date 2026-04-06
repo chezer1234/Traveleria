@@ -8,8 +8,13 @@ if (import.meta.env.PROD) {
 
 async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const url = `${API_BASE}${endpoint}`;
 
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  if (import.meta.env.PROD) {
+    console.log(`[API] ${options.method || 'GET'} ${url}`);
+  }
+
+  const res = await fetch(url, { ...options, headers });
 
   if (res.status === 204) return null;
 

@@ -88,6 +88,14 @@ app.get('/api/debug/db', async (req, res) => {
     results.raw = { ok: false, error: e.message };
   }
 
+  try {
+    let start = Date.now();
+    const allCols = await db('countries').orderBy('name');
+    results.selectAllColumns = { ok: true, ms: Date.now() - start, count: allCols.length, sample: allCols[0] };
+  } catch (e) {
+    results.selectAllColumns = { ok: false, error: e.message };
+  }
+
   res.json(results);
 });
 

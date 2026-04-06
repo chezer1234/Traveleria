@@ -9,7 +9,7 @@ const seedsDir = path.resolve(__dirname, 'seeds');
 // Enable foreign keys for local file-based SQLite (Turso handles this server-side)
 const isRemote = (process.env.TURSO_DATABASE_URL || '').startsWith('libsql://');
 const pool = isRemote
-  ? {}
+  ? { min: 0, max: 1, idleTimeoutMillis: 1000, acquireTimeoutMillis: 10000 }
   : {
       afterCreate(conn, done) {
         conn.run('PRAGMA foreign_keys = ON', done);

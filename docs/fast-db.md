@@ -50,7 +50,28 @@ Option A is simpler, cheaper, and the seed data almost never changes. Option B g
 
 **Recommendation:** start with A, reassess if the world dataset ever gets large (e.g. adding rich country metadata, images, descriptions).
 
-### 2. The **User DB** — per-user, read/write, bidirectional sync
+### 2. The **User writes** — single shared DB, token-scoped
+
+**Update (Charlie's suggestion, 2026-04-18):** we don't need a whole database per user. We need a *writable surface* per user. The simpler shape is one shared Turso DB where every user can only write their own rows, enforced by the token they're given.
+
+Two ways to express that, both on the table for evaluation:
+
+- **A) Shared table + row-level security.** A single `user_visits` table keyed by `user_id`. Turso mints tokens with a `user_id` claim, and an auth policy restricts INSERT/UPDATE/DELETE to rows where `user_id = auth.user_id`. Reads can be policy-scoped the same way or left open (leaderboard reads benefit from open reads).
+- **B) Table-per-user.** On signup, the API issues `CREATE TABLE user_<id>_visits (...)` and mints a token scoped to that table name. No RLS needed. Downside: leaderboard reads become a `UNION` across N tables or require a materialised summary.
+
+Option A is strictly nicer if Turso's RLS story is mature enough. Need to validate: (1) does libSQL expose `auth.<claim>` in SQL policies today? (2) can we mint per-user JWTs with those claims from a lightweight endpoint? (3) what's the sync story — does embedded-replica filter rows by token, or does the client pull the whole table?
+
+**Auth flow (both options):** user signs in → server session validates identity → server calls Turso admin API to mint a short-lived JWT with `{user_id: <uuid>}` → client gets the token + DB URL. Token refresh is a plain endpoint.
+
+**Client-side cache — simpler than embedded replica.** Because the writable dataset is tiny (< a few hundred rows per user), we don't actually need full-DB sync. The client can:
+
+1. On login, `SELECT * FROM user_visits WHERE user_id = me` once into local state (or an OPFS-backed sql.js cache).
+2. Treat writes as local-first: update local state, then `INSERT ... ON CONFLICT DO NOTHING` against Turso over HTTP. Fire-and-forget with a retry queue.
+3. On focus / reconnect, re-pull my rows to pick up anything from other devices.
+
+This kills the need for `@libsql/client-wasm`'s sync machinery entirely. We still use WASM SQLite for the **World DB** (to run the scoring engine against static data), but the user data can be plain JS state + HTTP round trips to Turso, which is trivially robust and well-supported today.
+
+### 2b. The **User DB** — per-user, read/write, bidirectional sync *(original proposal, kept for comparison)*
 
 One Turso database per signed-in user, containing that user's `user_countries`, `user_cities`, `user_provinces`, and a cached copy of their `users` row.
 
@@ -61,6 +82,8 @@ The browser opens it as a **libSQL embedded replica** via `@libsql/client-wasm`:
 - `db.sync()` is called on app load, on focus, and after each write (lazy, fire-and-forget).
 
 **Auth & isolation:** each user's DB URL + short-lived auth token comes from a tiny auth endpoint (`POST /api/sync-token`) that validates the session and issues a Turso group-scoped token. The browser never gets a long-lived admin key. Turso's "database per tenant" model is explicitly designed for this.
+
+**Why we're probably not doing this anymore:** the per-user DB model solves a problem we don't have (strong tenant isolation, per-tenant backups, per-tenant schema) at the cost of real operational complexity (provisioning, quota, per-DB migrations, cross-DB leaderboard). Option 2 above gets us 95% of the speed win with a fraction of the ops surface, *and* makes leaderboard a single SQL query instead of a fan-out.
 
 ### 3. The scoring engine moves to the client
 
@@ -96,42 +119,50 @@ The API client (`client/src/api/client.js`) shrinks to:
 
 Everything else goes away.
 
-## Leaderboard: the one thing that doesn't fit
+## Leaderboard
 
-The leaderboard needs a view across **all users' data**. You can't express "top 50 by points" from a single client's local DB.
+With the shared-table model (option 2A above) leaderboard is free:
 
-Three ways out:
+```sql
+SELECT user_id, SUM(points) AS total
+FROM user_visits
+-- optional: join users table for username
+GROUP BY user_id
+ORDER BY total DESC
+LIMIT 50;
+```
 
-1. **Server-side materialised leaderboard.** Each write publishes a pre-computed `total_points` summary to a shared "leaderboard" DB (or table in a shared Turso). Server recomputes on push, or client publishes its own score. Fast reads, minimal storage.
-2. **Scheduled snapshot.** A cron (Render cron job or similar) iterates all user DBs nightly and writes a `leaderboard` table into the shared World DB. Stale for 24h, but dead simple.
-3. **Keep the current server-side leaderboard endpoint.** It iterates per-user Turso DBs instead of joining a single DB. Slower. N+1. Only OK while user count stays small.
+If we want live scoring rather than storing a pre-computed `points` column, the leaderboard endpoint can pull the raw `user_visits` + shared seed data and run the existing scoring engine over it. For small user counts that's fine. For scale, store a denormalised `total_points` column written at visit-time and index on it.
 
-Option 1 is the right answer long term but needs a webhook or client-initiated publish step. Option 3 is fine for launch.
+No cross-DB fan-out, no cron, no materialisation layer needed on day one.
+
+*(If we go with the per-user DB model instead, the original three-option leaderboard plan from the earlier draft still applies: materialised snapshot, scheduled aggregation, or N+1 fan-out.)*
 
 ## The libSQL / Turso tech options (as of April 2026)
 
 | Tool | What it gives us | Catches |
 |------|------------------|---------|
-| `@libsql/client-wasm` | SQLite-in-browser with OPFS persistence and bidirectional sync to Turso | Still "experimental" branding; OPFS is Safari 17+, Chrome 108+, Firefox 111+ |
-| `@libsql/client` (HTTP) | Zero-install SQL over HTTPS | Every query is a network call — defeats the point |
+| `@libsql/client` (HTTP, browser) | Direct SQL from the browser to Turso with a scoped token — perfect for the user-writes path | Every query is a network call; fine for writes + occasional re-pull, not for live scoring |
+| sql.js / wa-sqlite | Pure-WASM SQLite, mature, runs the World DB | No sync needed for a static read-only asset |
+| `@libsql/client-wasm` | WASM SQLite with bidirectional sync to Turso | Only needed if we pick the per-user-DB path; still "experimental" branding |
 | `@libsql/client` (embedded replica, Node) | Same sync model server-side | Node-only, uses native bindings |
-| sql.js / wa-sqlite | Pure-WASM SQLite, mature | No sync protocol — we'd have to build our own |
-| Turso per-user DB | Cheap tenancy, free tier covers 500 DBs | Hard cap on free tier; needs provisioning flow |
+| Turso row-level security / scoped tokens | Per-user write isolation in a shared DB — unlocks the simple architecture | Need to validate maturity of RLS / JWT-claim support in libSQL today |
 
-`@libsql/client-wasm` is the key piece. If it doesn't meet our bar for reliability we fall back to sql.js for reads + a custom write queue that flushes to a server endpoint that talks to Turso over HTTP.
+The key tech validation this design needs: **can Turso mint per-user JWTs with claims referenced from SQL policies today?** If yes, we're done — single DB, scoped tokens, HTTP writes, WASM for seed reads. If no, we fall back to the table-per-user variant (API creates tables + issues table-scoped tokens) or to the per-user-DB approach (2b).
 
-## Migration path (if we do this)
+## Migration path (shared-DB flavour)
 
-1. **Carve `points.js` into a shared package** that both server and client can import. Verify server tests stay green.
-2. **Ship the World DB as a static asset.** Build step reads the seeds and emits `dist/world.db`. Client loads it into WASM SQLite on first run, caches in OPFS.
-3. **Wire the client to read countries/cities/provinces from the World DB.** `getCountries`, `getCountry`, `getCountryCities` become local reads. API endpoints stay as a fallback until we're confident.
-4. **Introduce per-user Turso provisioning.** New `POST /api/users` creates a user + a Turso DB for them + returns its URL. `POST /api/sync-token` returns a scoped token.
-5. **Switch writes to local-first.** `addUserCountry` / `removeUserCountry` / `addUserCity` / etc. write to the user DB, sync in background.
-6. **Replace server-side score endpoints** with client-side calls to the shared `points.js` against the two local DBs.
-7. **Keep the leaderboard endpoint** initially (option 3 above). Revisit once user count forces the issue.
-8. **Delete the Express CRUD routes** once nothing reads them.
+1. **Validate Turso RLS / scoped-token support.** Spike: can we mint a JWT with `{user_id}`, attach it to a libSQL connection, and have `INSERT`/`DELETE` on a shared table be constrained to rows matching that claim? If yes, proceed with option 2A. If no, fall back to table-per-user or per-user DB.
+2. **Carve `points.js` into a shared package** that both server and client can import. Verify server tests stay green.
+3. **Ship the World DB as a static asset.** Build step reads the seeds and emits `dist/world.db`. Client loads it into WASM SQLite on first run, caches in OPFS.
+4. **Wire the client to read countries/cities/provinces from the World DB.** `getCountries`, `getCountry`, `getCountryCities` become local reads. API endpoints stay as a fallback until we're confident.
+5. **Introduce the write-token endpoint.** New `POST /api/sync-token` validates session, mints a Turso JWT scoped to that user, returns it. Refresh before expiry.
+6. **Switch writes to token-scoped libSQL HTTP calls.** `addUserCountry` / `removeUserCountry` / `addUserCity` / `addUserProvince` write directly to the shared Turso DB from the browser. Local state updates immediately; the network call is fire-and-forget with a retry queue.
+7. **Replace server-side score endpoints** with client-side calls to the shared `points.js` against the World DB + the in-memory user rows.
+8. **Simplify the leaderboard endpoint** to a single SQL query against the shared table.
+9. **Delete the Express CRUD routes** once nothing reads them.
 
-Each step is independently shippable. We don't need a big-bang rewrite.
+Each step is independently shippable. The big validation gate is step 1 — everything else is low-risk refactoring.
 
 ## What gets easier
 
@@ -142,11 +173,13 @@ Each step is independently shippable. We don't need a big-bang rewrite.
 
 ## What gets harder
 
-- **Deployment topology** — we now have to provision Turso DBs per user. Needs error handling (quota, transient failures).
-- **Token management** — short-lived tokens, refresh flow, revoke-on-logout.
-- **Schema migrations across millions of little DBs** — each user DB needs to be migrated when schema changes. libSQL has per-DB migration primitives but it's still a new muscle to build.
+- **Token management** — short-lived JWTs, refresh flow, revoke-on-logout. Well-understood territory.
+- **RLS policy correctness** — a bug in the policy could expose writes between users. Needs tests that assert "token for user A cannot insert rows with user_id = B".
 - **Conflict resolution.** If I add "Spain" on my phone and my laptop at the same time, what wins? Probably doesn't matter here (our writes are essentially idempotent with a unique constraint) but worth thinking about.
-- **Browser storage quotas.** OPFS can be evicted under storage pressure. If the user DB is only in OPFS and Turso has the canonical copy, eviction is a sync-and-recover scenario, not data loss.
+- **Client never sees "server is down"** — if the network write queue backs up, we need a visible retry / sync indicator so a user doesn't lose work quietly.
+- **Browser storage quotas.** OPFS can be evicted under storage pressure. Since Turso has the canonical copy, eviction is a re-pull scenario, not data loss.
+
+*(The per-user-DB variant adds: per-DB provisioning, the 500-DB free-tier cap, per-DB schema migrations, and cross-DB leaderboard fan-out. Ditching those is the big win of the shared-DB approach.)*
 
 ---
 
@@ -154,30 +187,41 @@ Each step is independently shippable. We don't need a big-bang rewrite.
 
 These are the ones I want Charlie's and Lewis's view on before we invest:
 
-1. **Is offline-first actually a goal?** It's a free side-effect of this design, but if we don't care about it we could consider simpler models (e.g. keep writes server-side, only move reads to a local WASM SQLite).
+1. **Does Turso RLS give us what we need, today?** Need a 30-minute spike: mint a JWT with a `user_id` claim, try to insert a row with the matching `user_id` (should succeed), try to insert with a different `user_id` (should fail). If this works the whole design snaps into place. If not, we fall back to table-per-user or per-user DB.
 
-2. **What's the user ceiling we're designing for?** 100 users? 10,000? The per-user Turso DB model costs $0 up to 500 DBs on free tier. If we expect to blow past that quickly, we might prefer a single shared DB with row-level scoping and ditch the per-user idea.
+2. **Auth model:** right now it's localStorage + Google OAuth. Do we have a real server session/JWT we can use to mint Turso tokens? Or is the username the only identity we have? Answer affects how trustworthy the `user_id` claim is.
 
-3. **Auth model:** right now it's localStorage + Google OAuth. Do we have a real server session/JWT we can use to mint Turso tokens? Or is the username the only thing we have?
+3. **Is offline-first actually a goal?** With the shared-DB approach, offline means "queue writes, replay on reconnect", which is simpler than full bi-directional sync but still non-trivial. If we don't need offline we can just disable writes when offline and skip the queue.
 
-4. **How often does seed data change?** If the answer is "when Lewis edits a seed file every few months", static World DB is perfect. If it's "nightly imports from some source", we need the Turso read-replica path.
+4. **How often does seed data change?** If "rarely" the static World DB is perfect. If "nightly" we'd want a refresh mechanism (ETag check + re-download) or a Turso-hosted read copy.
 
-5. **Leaderboard freshness:** is 24h stale OK for the leaderboard (scheduled snapshot), or do we need within-minute updates (requires write-time publish)?
+5. **Browser support floor:** are we comfortable requiring WASM + OPFS (Safari 17+, anything modern)? Fine for the target audience, worth being explicit.
 
-6. **Browser support floor:** are we comfortable requiring OPFS-capable browsers (i.e. dropping Safari < 17 and anything older)? Today this is basically "anything from 2023+" which is probably fine for this app's audience.
+6. **Schema evolution:** the shared DB model has exactly one schema to migrate — same as today. Big simplification vs. per-user-DB.
 
-7. **Schema migration strategy for per-user DBs:** do we version the User DB schema and run migrations on open? Do we do it lazily on first access? This is the least solved piece in my head.
+7. **Dev loop:** today `docker compose up` gives a working app. We'd keep a local libSQL/SQLite for dev and bake the World DB from seeds at build time. Should be a small change.
 
-8. **Dev loop:** today `docker compose up` gives a working app. Do we still want that to Just Work with a local libSQL and local "World DB" baked from seeds? I think yes — shouldn't be hard.
+8. **Sync / retry UX:** do we show a "Saving…" / "Synced" indicator? I lean yes — silent failures in a writes-to-server app are bad. A tiny status dot in the nav is probably enough.
 
-9. **Sync observability:** do we surface sync state to the user ("Synced", "Saving…") or keep it fully invisible? The risk of invisible is the rare case where sync is failing and the user doesn't know their data isn't on the server.
+9. **The "is it actually faster?" test:** before we commit, worth prototyping the hot path (Dashboard score render) end-to-end with WASM SQLite + local user rows. If WASM load cost eats the network savings, the premise wobbles.
 
-10. **The "is it actually faster?" test:** before we commit, worth prototyping the hot path (Dashboard score render) end-to-end with a WASM SQLite + local data and comparing. If the WASM load cost eats the network savings, the whole premise wobbles.
+10. **Security posture:** RLS policies are a new attack surface. We need an integration test that proves token-for-A can't write rows for B. Same for reads if we make reads policy-scoped.
 
 ---
 
 ## Gut call
 
-Worth doing **if** questions 2, 6, and 10 land favourably. The big win isn't the server bill — it's that every interaction in the app stops feeling like a web form submission and starts feeling like a native app. That fits the vibe (the app is fundamentally about delight, not data entry). The big risk is operational complexity: per-user DBs, sync tokens, schema fan-out. We should budget for that honestly, not hand-wave it.
+With Charlie's shared-DB reframe, the operational tax drops a lot and this looks genuinely attractive. The whole plan reduces to:
 
-If we don't want the operational tax, a lighter version is still a big win: ship World DB as a static file, keep writes server-side. That alone probably halves perceived latency on every page without any of the sync headaches.
+- Static World DB for seed data (read-only, shipped as an asset)
+- Shared Turso DB for user visits with RLS-scoped tokens
+- Scoring runs client-side against both
+
+The remaining risks are narrow and testable: does Turso RLS work the way we need (question 1), and is the client hot path actually faster (question 9). Both are 1-day spikes.
+
+If either spike fails, the fallback ladder is clear:
+1. RLS broken → table-per-user with table-scoped tokens (same shape, uglier SQL)
+2. WASM too slow → keep reads server-side, only move writes to local-first
+3. Both fail → ship just the static World DB. Still halves perceived latency, zero new infra.
+
+Either way, the next action is the two spikes, not a PR.

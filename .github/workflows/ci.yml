@@ -85,9 +85,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Log pinned versions
         run: |
-          echo "node: $(node --version 2>/dev/null || echo 'not installed on runner')"
+          echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "compose: $(docker compose version)"
 
@@ -98,18 +102,17 @@ jobs:
       - name: Log pinned image digests before build
         run: |
           docker pull ghcr.io/tursodatabase/libsql-server:v0.24.32
-          docker pull mcr.microsoft.com/playwright:v1.58.2-noble
           docker pull nginx:1.27-alpine
           docker pull node:24-alpine
           docker image inspect --format '{{.RepoDigests}}' ghcr.io/tursodatabase/libsql-server:v0.24.32
-          docker image inspect --format '{{.RepoDigests}}' mcr.microsoft.com/playwright:v1.58.2-noble
           docker image inspect --format '{{.RepoDigests}}' nginx:1.27-alpine
           docker image inspect --format '{{.RepoDigests}}' node:24-alpine
 
       - name: Run E2E suite
         env:
           APP_SCHEMA_VERSION: ${{ steps.sha.outputs.short }}
-        run: ./scripts/e2e.sh
+        # Single entry point; Makefile is the source of truth for every environment.
+        run: make e2e
 
       - name: Upload Playwright report
         if: always()

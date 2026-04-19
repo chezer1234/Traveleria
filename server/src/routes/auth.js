@@ -5,16 +5,17 @@ const {
   signToken,
   hashPassword,
   checkPassword,
-  setAuthCookies,
-  clearAuthCookie,
-  AUTH_COOKIE,
   verifyToken,
+  extractBearerToken,
 } = require('../lib/auth');
 const { signupSchema, signinSchema, validateBody } = require('../lib/schemas');
 const changes = require('../lib/changes');
 
 const router = express.Router();
 
+// Signup/signin return { user, token }. The client stores the token in
+// localStorage and sends it as `Authorization: Bearer <token>` on every
+// subsequent API call. No cookies — see docs/db-speed.md "Cookies & cross-origin".
 router.post('/signup', validateBody(signupSchema), async (req, res) => {
   const { identifier, password, home_country } = req.body;
 
@@ -48,8 +49,7 @@ router.post('/signup', validateBody(signupSchema), async (req, res) => {
   });
 
   const token = signToken(id);
-  setAuthCookies(res, { token, identifier });
-  res.status(201).json(publicRow);
+  res.status(201).json({ user: publicRow, token });
 });
 
 router.post('/signin', validateBody(signinSchema), async (req, res) => {
@@ -68,17 +68,21 @@ router.post('/signin', validateBody(signinSchema), async (req, res) => {
   }
 
   const token = signToken(user.id);
-  setAuthCookies(res, { token, identifier: user.identifier });
-  res.json({ id: user.id, identifier: user.identifier, home_country: user.home_country });
+  res.json({
+    user: { id: user.id, identifier: user.identifier, home_country: user.home_country },
+    token,
+  });
 });
 
-router.post('/signout', (req, res) => {
-  clearAuthCookie(res);
+// Bearer tokens are stateless — the client just discards its copy. This route
+// stays for symmetry with the UI flow and so the client always has a single
+// "where do I sign out?" entry point if we ever add server-side revocation.
+router.post('/signout', (_req, res) => {
   res.json({ ok: true });
 });
 
 router.get('/me', async (req, res) => {
-  const token = req.cookies && req.cookies[AUTH_COOKIE];
+  const token = extractBearerToken(req);
   if (!token) return res.status(401).json({ error: 'Not signed in' });
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: 'Session invalid or expired' });

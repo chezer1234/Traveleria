@@ -35,7 +35,7 @@ function rpc(cmd, args) {
 // Per-user DB entry. Calls hop through the worker, so everything here is async.
 const openEntries = new Map();
 
-export async function openUserDb(userId, apiBase = '') {
+export async function openUserDb(userId, apiBase = '', authToken = null) {
   const fileName = `/traveleria-v${SCHEMA_VERSION}-${userId}.db`;
   if (openEntries.has(fileName)) return openEntries.get(fileName);
 
@@ -43,6 +43,7 @@ export async function openUserDb(userId, apiBase = '') {
     poolName: `traveleria-v${SCHEMA_VERSION}`,
     fileName,
     apiBase,
+    authToken,
   });
 
   const entry = {

@@ -14,9 +14,6 @@ services:
       PORT: 3001
       # E2E-only fallback. Real production (Render) must inject a real secret.
       JWT_SECRET: ${JWT_SECRET:-ephemeral-e2e-secret-never-use-in-prod}
-      # The E2E stack talks plain http inside the compose network. Prod (Render) is
-      # HTTPS-terminated upstream — override with COOKIE_SECURE=true there.
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
 
   client:
     build:
@@ -24,8 +21,7 @@ services:
       target: prod
       args:
         VITE_APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
-        # Compose-internal hostname so the Playwright container's Chromium can
-        # reach the API from the loaded client bundle. Matches prod topology
-        # (split client + API origins) — Render prod overrides with the real
-        # public API URL.
-        VITE_API_URL: http://server:3001
+        # Playwright runs on the host and loads the bundle via localhost:3000,
+        # so the baked API URL must be reachable from the host too — same host,
+        # sibling port. Render prod overrides with its real public API URL.
+        VITE_API_URL: http://localhost:3001

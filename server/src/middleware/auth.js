@@ -1,8 +1,8 @@
-const { verifyToken, AUTH_COOKIE } = require('../lib/auth');
+const { verifyToken, extractBearerToken } = require('../lib/auth');
 const db = require('../db/connection');
 
 async function requireAuth(req, res, next) {
-  const token = req.cookies && req.cookies[AUTH_COOKIE];
+  const token = extractBearerToken(req);
   if (!token) return res.status(401).json({ error: 'Not signed in' });
 
   const payload = verifyToken(token);

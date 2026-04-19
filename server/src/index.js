@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const cookieParser = require('cookie-parser');
 const db = require('./db/connection');
 const schemaVersionHeader = require('./middleware/schema-version');
 const coopCoep = require('./middleware/coop-coep');
@@ -26,11 +25,9 @@ app.use(cors({
   origin: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 }));
 app.options('/{*path}', cors());
 app.use(express.json());
-app.use(cookieParser());
 
 app.get('/api/health', async (req, res) => {
   const info = {

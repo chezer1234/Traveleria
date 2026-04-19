@@ -5,6 +5,33 @@ if (import.meta.env.PROD) {
   console.log('[TravelPoints] VITE_API_URL:', import.meta.env.VITE_API_URL || '(not set)');
 }
 
+const TOKEN_STORAGE_KEY = 'traveleria.auth_token';
+const LAST_IDENTIFIER_KEY = 'traveleria.last_identifier';
+
+// JWT lives in localStorage and is sent on every request via the
+// `Authorization: Bearer <token>` header. See docs/db-speed.md →
+// "Cookies & cross-origin in prod" for the why.
+export function getAuthToken() {
+  try { return localStorage.getItem(TOKEN_STORAGE_KEY); } catch { return null; }
+}
+
+function setAuthToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {}
+}
+
+export function getLastIdentifier() {
+  try { return localStorage.getItem(LAST_IDENTIFIER_KEY) || ''; } catch { return ''; }
+}
+
+function setLastIdentifier(identifier) {
+  try {
+    if (identifier) localStorage.setItem(LAST_IDENTIFIER_KEY, identifier);
+  } catch {}
+}
+
 // Custom error class so callers can render per-field validation feedback from 422s.
 export class ApiError extends Error {
   constructor(message, { status, errors } = {}) {
@@ -16,13 +43,11 @@ export class ApiError extends Error {
 
 async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const token = getAuthToken();
+  if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
   const url = `${API_BASE}${endpoint}`;
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  const res = await fetch(url, { ...options, headers });
 
   if (res.status === 204) return null;
 
@@ -44,22 +69,29 @@ async function request(endpoint, options = {}) {
 
 // ---------- Auth ----------
 
-export function signup({ identifier, password, home_country }) {
-  return request('/auth/signup', {
+export async function signup({ identifier, password, home_country }) {
+  const res = await request('/auth/signup', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, home_country }),
   });
+  setAuthToken(res.token);
+  setLastIdentifier(res.user.identifier);
+  return res.user;
 }
 
-export function signin({ identifier, password }) {
-  return request('/auth/signin', {
+export async function signin({ identifier, password }) {
+  const res = await request('/auth/signin', {
     method: 'POST',
     body: JSON.stringify({ identifier, password }),
   });
+  setAuthToken(res.token);
+  setLastIdentifier(res.user.identifier);
+  return res.user;
 }
 
-export function signout() {
-  return request('/auth/signout', { method: 'POST' });
+export async function signout() {
+  try { await request('/auth/signout', { method: 'POST' }); } catch {}
+  setAuthToken(null);
 }
 
 export function fetchCurrentUser() {

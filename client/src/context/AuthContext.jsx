@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { fetchCurrentUser, signout as apiSignout } from '../api/client';
+import { fetchCurrentUser, signout as apiSignout, getAuthToken, getLastIdentifier } from '../api/client';
 import { openUserDb, closeUserDb } from '../db/local';
 
 const AuthContext = createContext(null);
@@ -18,6 +18,13 @@ export function AuthProvider({ children }) {
   const activeUserId = useRef(null);
 
   useEffect(() => {
+    // Skip the network round-trip when there's no token in localStorage —
+    // common case is "first visit" or "post-signout".
+    if (!getAuthToken()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     fetchCurrentUser()
       .then(setUser)
       .catch(() => setUser(null))
@@ -47,7 +54,7 @@ export function AuthProvider({ children }) {
     setDbStatus('loading');
     setDbError(null);
 
-    openUserDb(user.id, API_BASE)
+    openUserDb(user.id, API_BASE, getAuthToken())
       .then((entry) => {
         if (cancelled) return;
         setDb(entry);
@@ -80,8 +87,12 @@ export function AuthProvider({ children }) {
       });
 
     return () => { cancelled = true; };
+    // Depend on user?.id, not the user object: fetchCurrentUser runs twice under
+    // StrictMode, and each resolve produces a new reference with the same id.
+    // Using [user] would cancel the first openUserDb and then the activeUserId
+    // guard would skip retrying, leaving __traveleria unset forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id]);
 
   async function logout() {
     try {
@@ -106,7 +117,5 @@ export function useAuth() {
 }
 
 export function readLastIdentifier() {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(/(?:^|;\s*)last_identifier=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : '';
+  return getLastIdentifier();
 }

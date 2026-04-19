@@ -19,16 +19,10 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        launchOptions: {
-          // http://client:3000 isn't a secure context by default, so OPFS and
-          // SharedArrayBuffer are disabled. Flag teaches Chromium to treat the
-          // compose-internal origin as secure for E2E only. Real browsers
-          // visiting production (over https) don't need this.
-          args: ['--unsafely-treat-insecure-origin-as-secure=http://client:3000'],
-        },
-      },
+      // Playwright runs on the host and points at localhost — Chromium already
+      // treats localhost as a secure context, so OPFS and COOP/COEP Just Work.
+      // No --unsafely-treat-insecure-origin-as-secure needed.
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 });

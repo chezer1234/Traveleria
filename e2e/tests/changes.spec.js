@@ -37,10 +37,12 @@ test('every write appends one row to _changes and surfaces via /api/changes', as
     data: { identifier, password: 'change-feed-test-password', home_country: 'GB' },
   });
   expect(signup.status()).toBe(201);
-  const user = await signup.json();
+  const { user, token } = await signup.json();
+  const auth = { Authorization: `Bearer ${token}` };
 
   const addCountry = await ctx.post(`${API_URL}/api/users/${user.id}/countries`, {
     data: { country_code: 'JP' },
+    headers: auth,
   });
   expect(addCountry.status()).toBe(201);
   const country = await addCountry.json();
@@ -81,11 +83,13 @@ test('cascade delete emits one _changes row per cascaded row', async () => {
   const signup = await ctx.post(`${API_URL}/api/auth/signup`, {
     data: { identifier, password: 'cascade-test-password-yes', home_country: 'FR' },
   });
-  const user = await (await signup).json();
+  const { user, token } = await signup.json();
+  const auth = { Authorization: `Bearer ${token}` };
 
   // Add a country, then an in-country province visit so the cascade has something to do.
   await ctx.post(`${API_URL}/api/users/${user.id}/countries`, {
     data: { country_code: 'FR' },
+    headers: auth,
   });
 
   // Find a province in FR to add.
@@ -95,11 +99,12 @@ test('cascade delete emits one _changes row per cascaded row', async () => {
 
   await ctx.post(`${API_URL}/api/users/${user.id}/provinces`, {
     data: { province_code: frProvince.code },
+    headers: auth,
   });
 
   const cursorBefore = (await (await ctx.get(`${API_URL}/api/snapshot`)).json()).cursor;
 
-  const del = await ctx.delete(`${API_URL}/api/users/${user.id}/countries/FR`);
+  const del = await ctx.delete(`${API_URL}/api/users/${user.id}/countries/FR`, { headers: auth });
   expect(del.status()).toBe(200);
 
   const after = await (await ctx.get(`${API_URL}/api/changes?since=${cursorBefore}`)).json();

@@ -27,7 +27,7 @@ const DDL = [
     population INTEGER
   )`,
   `CREATE TABLE IF NOT EXISTS provinces (
-    id INTEGER PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     country_code TEXT,
     code TEXT UNIQUE,
     name TEXT,
@@ -87,12 +87,13 @@ function bulkInsert(table, rows, columns) {
   }
 }
 
-async function hydrate(apiBase) {
+async function hydrate(apiBase, authToken) {
   const existing = db.selectValue(`SELECT value FROM _meta WHERE key = 'cursor'`);
   if (existing !== undefined) return Number(existing);
 
   const url = `${apiBase}/api/snapshot`;
-  const res = await fetch(url, { credentials: 'include' });
+  const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`snapshot failed: ${res.status} ${res.statusText}`);
   const snap = await res.json();
 
@@ -133,7 +134,7 @@ async function handle(cmd, args = {}) {
       if (db) { try { db.close(); } catch {} db = null; }
       db = new pool.OpfsSAHPoolDb(args.fileName);
       ensureSchema();
-      const cursor = await hydrate(args.apiBase || '');
+      const cursor = await hydrate(args.apiBase || '', args.authToken || null);
       return { fileName: args.fileName, cursor };
     }
     case 'all':

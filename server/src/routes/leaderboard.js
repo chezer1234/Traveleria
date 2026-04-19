@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
 
       entries.push({
         user_id: u.id,
-        username: u.username,
+        identifier: u.identifier,
         home_country: u.home_country,
         total_points: result.totalPoints,
         countries_visited: visitedCountries.length,

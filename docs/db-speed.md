@@ -13,7 +13,7 @@ Hobby project. No real users yet, so we're happy to drop data on any schema chan
 Top-level checkpoints. Each phase has its own checklist further down.
 
 - [x] **Phase A** — Docker parity + E2E harness (~1 day)
-- [ ] **Phase 0** — Lightweight auth (bcrypt + JWT cookie, email-or-handle usernames) (~½ day)
+- [x] **Phase 0** — Lightweight auth (bcrypt + JWT cookie, email-or-handle usernames) (~½ day)
 - [ ] **Phase 1** — Server change feed + debug metrics (~½ day)
 - [ ] **Phase 2** — Client SQLite via sqlite-wasm (or sync-wasm) (~1 day)
 - [ ] **Phase 3** — Incremental sync worker (skip if sync-wasm handles it) (~½ day)
@@ -171,17 +171,27 @@ De-risk everything before touching features. Every tier runs the same binaries i
 
 Drop the localStorage-identity farce. Not "real" auth — good enough to stop casual impersonation.
 
-- [ ] Migration: drop and rebuild `users` with `identifier TEXT UNIQUE NOT NULL`, `password_hash TEXT NOT NULL`. The `identifier` field accepts **either a handle or an email** (the app doesn't care; unique index is case-insensitive). **This is the final destructive users migration** — after this ships, all schema changes must preserve data.
-- [ ] `POST /api/auth/signup` — validates identifier is either a plausible email or a reasonable handle (`^[a-z0-9][a-z0-9._-]{2,31}$`), bcrypts the password, returns a signed JWT in an **httpOnly `auth` cookie**.
-- [ ] `POST /api/auth/signin` — same response shape.
-- [ ] Also set a non-httpOnly **`last_identifier` cookie** (30-day expiry) so the signin form can pre-fill. Never contains a credential.
-- [ ] `POST /api/auth/signout` — clears both cookies.
-- [ ] Middleware verifies the JWT on every write route; asserts `req.user.id === params.user_id` or 403.
-- [ ] **Zod body schemas + business-rule checks** on every write route: country/city/province code exists in the reference table; no duplicate `(user_id, target)` rows; `visited_at` not in the future. Invalid → 422 with field-level errors.
-- [ ] Client: replace the localStorage identity flow with `/signin` and `/signup` pages; pre-fill the identifier input from the `last_identifier` cookie.
-- [ ] E2E: sign up → cookie present → impersonation blocked (403) → bad payload rejected (422) → signout clears cookies → last_identifier persists so the form stays pre-filled.
+- [x] Migration `20260419001_auth_rebuild_users`: drops and rebuilds `users` with `identifier TEXT NOT NULL`, `password_hash TEXT NOT NULL`, `home_country`, `created_at`. Case-insensitive unique index on `LOWER(identifier)`. Child tables (user_countries/cities/provinces) cleared first. **Final destructive users migration** — after this ships, all schema changes must preserve data.
+- [x] `POST /api/auth/signup` — zod-validated identifier (handle regex OR email regex), bcrypts the password (`bcryptjs`, 12 rounds), returns `{id, identifier, home_country}` + sets the `auth` (httpOnly) and `last_identifier` (non-httpOnly) cookies.
+- [x] `POST /api/auth/signin` — constant-ish timing (runs bcrypt even for unknown identifiers) to avoid enumeration; same response + cookies as signup.
+- [x] `POST /api/auth/signout` — clears `auth`, keeps `last_identifier` so the form pre-fills next time.
+- [x] `GET /api/auth/me` — returns `{id, identifier, home_country}` if JWT valid, 401 otherwise. Client uses this on mount to rehydrate session.
+- [x] `requireAuth` + `requireOwnership('id')` middleware on every write route in `routes/users.js`. Reference-data GETs stay open for now (privacy tightening is future work; Phase 1's `users_public` already restricts what leaves the server).
+- [x] **Zod body schemas + business-rule checks** in `server/src/lib/schemas.js`. On failure → 422 with `{ error, errors: [{ path, message }] }`. Same shape for schema violations and business-rule failures (duplicate, unknown code, future date).
+- [x] Client: deleted `Welcome.jsx`, added `SignIn.jsx` + `SignUp.jsx`. `AuthContext` now calls `/api/auth/me` on mount. `fetch` calls use `credentials: 'include'`. `ApiError` class surfaces 422 field errors for per-field UI feedback. SignIn reads `last_identifier` cookie and pre-fills.
+- [x] E2E (`e2e/tests/auth.spec.js`): signup sets both cookies with correct `httpOnly` flags, impersonation → 403, malformed body → 422 with field errors, signout clears `auth` but keeps `last_identifier`, signin round-trip + wrong-password → 401.
 
-**Exit criteria:** you can't act as another user by editing browser storage, and malformed writes are rejected with useful errors.
+**Exit criteria:** you can't act as another user by editing browser storage, and malformed writes are rejected with useful errors. ✅ `make e2e` 7/7 green.
+
+**Decisions locked in during Phase 0:**
+
+1. **`bcryptjs`, not native `bcrypt`.** Pure-JS, no `node-gyp`/`python3` in the Alpine image, 12 rounds is still fast enough for hobby scale. Revisit only if signup becomes a bottleneck.
+2. **`JWT_SECRET` is env-var-only.** Dev falls back to a literal `dev-only-unsafe-secret`. In production (`NODE_ENV=production`), the module throws at require-time if unset. CI/E2E gets a fixed ephemeral secret via compose.
+3. **`COOKIE_SECURE` is a separate env knob.** Defaults to `NODE_ENV === 'production'`, but the E2E stack (which talks plain http inside the compose network) sets `COOKIE_SECURE=false` — otherwise browsers silently drop `secure` cookies and every test flakes as a 401. Render (HTTPS-terminated) inherits the default. A lesson we paid for once.
+4. **422 is the uniform validation shape.** Both zod failures and business-rule failures (unknown country code, duplicate `(user, target)`, future date) return `{ error, errors: [{ path, message }] }`. The client's `ApiError.errors` surfaces field-level messages. 401 means "not signed in", 403 means "not yours", 422 means "we heard you, the body is wrong".
+5. **Reference-data GETs remain open.** Privacy for per-user visit data is deferred — for now anyone can see any user's visited list. When that matters (real users, Phase 6ish), wrap those routes too.
+6. **`ApiError` on the client** replaces ad-hoc error strings. Non-400 responses preserve `status` and `errors[]` so the sign-up form can map issues to fields directly.
+7. **No `/api/dev/reset` in the E2E stack.** E2E uses `NODE_ENV=production`, which disables dev routes. Tests instead use unique-per-run identifiers (`${prefix}_${Date.now()}_${rand}`) so parallel workers don't collide. Keeps the prod stack clean.
 
 ### Phase 1 — Server change feed + debug metrics (~½ day)
 

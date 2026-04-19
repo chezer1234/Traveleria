@@ -19,11 +19,12 @@ beforeEach(async () => {
   await db('user_countries').del();
   await db('users').del();
 
-  // Create a test user (simple auth — no passwords)
+  // Create a test user. Uses post-Phase-0 user schema (identifier + password_hash).
   const [user] = await db('users')
     .insert({
       id: crypto.randomUUID(),
-      username: 'testuser',
+      identifier: 'testuser',
+      password_hash: 'placeholder-not-a-real-bcrypt-hash',
       home_country: 'GB',
     })
     .returning('*');
@@ -33,7 +34,7 @@ beforeEach(async () => {
 
 describe('User Creation', () => {
   test('user is created with correct fields', () => {
-    expect(testUser.username).toBe('testuser');
+    expect(testUser.identifier).toBe('testuser');
     expect(testUser.home_country).toBe('GB');
     expect(testUser.id).toBeDefined();
   });

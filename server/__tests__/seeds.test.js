@@ -163,14 +163,13 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'seedtest',
-        email: 'seedtest@example.com',
+        identifier: 'seedtest',
         password_hash: 'hash',
         home_country: 'GB',
       })
       .returning('*');
 
-    expect(user.username).toBe('seedtest');
+    expect(user.identifier).toBe('seedtest');
     expect(user.home_country).toBe('GB');
 
     await db('users').where({ id: user.id }).del();
@@ -180,8 +179,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'visittest',
-        email: 'visittest@example.com',
+        identifier: 'visittest',
         password_hash: 'hash',
         home_country: 'US',
       })
@@ -207,8 +205,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'cityvisit',
-        email: 'cityvisit@example.com',
+        identifier: 'cityvisit',
         password_hash: 'hash',
         home_country: 'US',
       })
@@ -246,8 +243,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'cascadetest',
-        email: 'cascade@example.com',
+        identifier: 'cascadetest',
         password_hash: 'hash',
         home_country: 'US',
       })

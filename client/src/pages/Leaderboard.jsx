@@ -64,7 +64,7 @@ export default function Leaderboard() {
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-16">Rank</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Username</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">User</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Home</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Points</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Countries</th>
@@ -80,7 +80,7 @@ export default function Leaderboard() {
                   >
                     <td className="px-4 py-3 text-gray-600 font-medium">{entry.rank}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">
-                      {entry.username}
+                      {entry.identifier}
                       {isCurrentUser && <span className="ml-2 text-xs text-indigo-600">(you)</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
@@ -104,7 +104,7 @@ export default function Leaderboard() {
                   <tr className="bg-indigo-50">
                     <td className="px-4 py-3 text-gray-600 font-medium">{outsideUser.rank}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">
-                      {outsideUser.username}
+                      {outsideUser.identifier}
                       <span className="ml-2 text-xs text-indigo-600">(you)</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">

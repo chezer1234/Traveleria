@@ -30,7 +30,7 @@ export default function Layout() {
             </Link>
             {user && (
               <>
-                <span className="text-sm text-gray-500">{user.username}</span>
+                <span className="text-sm text-gray-500">{user.identifier}</span>
                 <button
                   onClick={logout}
                   className="text-sm text-red-500 hover:text-red-700 font-medium"
@@ -75,7 +75,7 @@ export default function Layout() {
             </Link>
             {user && (
               <>
-                <div className="py-2 text-sm text-gray-500">{user.username}</div>
+                <div className="py-2 text-sm text-gray-500">{user.identifier}</div>
                 <button
                   onClick={() => { logout(); setMenuOpen(false); }}
                   className="block py-2 text-red-500 hover:text-red-700 text-sm font-medium"

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const db = require('./db/connection');
 const schemaVersionHeader = require('./middleware/schema-version');
 const coopCoep = require('./middleware/coop-coep');
@@ -9,6 +10,7 @@ const { APP_SCHEMA_VERSION } = require('./lib/schema-version');
 const countriesRoutes = require('./routes/countries');
 const usersRoutes = require('./routes/users');
 const leaderboardRoutes = require('./routes/leaderboard');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +25,7 @@ app.use(cors({
 }));
 app.options('/{*path}', cors());
 app.use(express.json());
+app.use(cookieParser());
 
 app.get('/api/health', async (req, res) => {
   const info = {
@@ -106,6 +109,7 @@ app.get('/api/debug/db', async (req, res) => {
   res.json(results);
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);

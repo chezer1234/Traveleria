@@ -141,7 +141,27 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+// One-time repair: rename legacy `.js` entries in knex_migrations to `.cjs`.
+// Phase 4 converted the server to ESM (package.json type:module) and the
+// migration files on disk moved from .js to .cjs accordingly. Turso's
+// knex_migrations table still holds the pre-rename names, which makes knex
+// abort with "migration directory corrupt" at startup. Idempotent — after the
+// first successful boot, the LIKE '%.js' filter matches zero rows.
+async function normalizeLegacyMigrationNames() {
+  const hasTable = await db.schema.hasTable('knex_migrations');
+  if (!hasTable) return;
+  const legacy = await db('knex_migrations').where('name', 'like', '%.js');
+  if (!legacy.length) return;
+  console.log(`Renaming ${legacy.length} legacy migration row(s) from .js to .cjs`);
+  for (const row of legacy) {
+    const newName = row.name.replace(/\.js$/, '.cjs');
+    await db('knex_migrations').where({ id: row.id }).update({ name: newName });
+  }
+}
+
 async function start() {
+  console.log('Normalizing migration history...');
+  await normalizeLegacyMigrationNames();
   console.log('Running migrations...');
   await db.migrate.latest();
   console.log('Running seeds...');

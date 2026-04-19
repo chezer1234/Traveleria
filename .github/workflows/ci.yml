@@ -210,6 +210,18 @@ jobs:
           fi
           sync_env_var "$RENDER_API_SERVICE_ID" "API" "JWT_SECRET" "$JWT_SECRET"
 
+          # APP_SCHEMA_VERSION is derived from the commit SHA — no GitHub
+          # secret needed because it's not sensitive. Every push to main
+          # produces a new SHA → the server stamps X-App-Schema-Version with
+          # it → clients on the old bundle detect the mismatch and wipe+
+          # resnapshot. The web service's bundle bakes VITE_APP_SCHEMA_VERSION
+          # at build time (Vite reads it from env during `npm run build`), so
+          # we set both and Render's subsequent rebuild captures it.
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "Stamping deploy with APP_SCHEMA_VERSION=${SHORT_SHA}"
+          sync_env_var "$RENDER_API_SERVICE_ID" "API" "APP_SCHEMA_VERSION" "$SHORT_SHA"
+          sync_env_var "$RENDER_WEB_SERVICE_ID" "Web" "VITE_APP_SCHEMA_VERSION" "$SHORT_SHA"
+
           # Fetch and print recent service logs from Render
           # Usage: fetch_logs <service_id> <label> [deploy_id]
           fetch_logs() {

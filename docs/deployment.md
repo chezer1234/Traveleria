@@ -80,6 +80,7 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
    - `TURSO_AUTH_TOKEN` = your token from step 1
    - `PORT` = `3000`
    - `JWT_SECRET` — **do not set here.** CI syncs this from GitHub secrets on every deploy (see §3).
+   - `APP_SCHEMA_VERSION` — **do not set here.** CI derives this from the commit SHA on every deploy (see §3).
 5. Click **Create Web Service**
 
 ### Create the frontend service (React)
@@ -94,6 +95,7 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
    - **Publish Directory:** `dist`
 4. Add **Environment Variable:**
    - `VITE_API_URL` = the URL of your API service (e.g. `https://travelpoints-api.onrender.com`)
+   - `VITE_APP_SCHEMA_VERSION` — **do not set here.** CI derives this from the commit SHA on every deploy (see §3). Render rebuilds the static bundle with the new value on each deploy, so the client's baked schema version matches the API's live one.
 5. Click **Create Static Site**
 
 > **Note:** No rewrite rules needed. The app uses hash-based routing (`/#/dashboard`) so all requests go to `/index.html` automatically — works on any static host without configuration.
@@ -128,6 +130,8 @@ These secrets let the CI pipeline trigger deploys automatically after tests pass
 | `RENDER_API_SERVICE_ID` | From the API service URL: `srv-XXXXX` |
 | `RENDER_WEB_SERVICE_ID` | From the Web service URL: `srv-XXXXX` |
 | `JWT_SECRET` | Generate with `openssl rand -hex 32`. CI pushes this onto the API service before every deploy via Render's per-key env-var endpoint, so Render is **not** the source of truth — GitHub is. Rotate by updating this secret and re-running the workflow. |
+
+CI also syncs a **non-secret** stamp before each deploy: `APP_SCHEMA_VERSION` (= first 7 chars of the commit SHA) goes onto the API service, and the same value goes onto the Web service as `VITE_APP_SCHEMA_VERSION`. No configuration needed — the deploy job reads `GITHUB_SHA` and PUTs both values. That's what makes the client's "server and I disagree on schema version → wipe OPFS + reload" trap actually fire after a schema-affecting change.
 
 That's it. Once these are set, every push to `main` that passes CI will automatically deploy and show build status in the GitHub Actions log.
 

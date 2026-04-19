@@ -2,14 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const db = require('./db/connection');
+const schemaVersionHeader = require('./middleware/schema-version');
+const coopCoep = require('./middleware/coop-coep');
+const { APP_SCHEMA_VERSION } = require('./lib/schema-version');
 
 const countriesRoutes = require('./routes/countries');
 const usersRoutes = require('./routes/users');
 const leaderboardRoutes = require('./routes/leaderboard');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
+app.use(schemaVersionHeader);
+app.use(coopCoep);
 app.use(cors({
   origin: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -105,6 +110,10 @@ app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev', require('./routes/dev'));
+}
+
 // In production, serve the built React frontend if available
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
@@ -127,7 +136,7 @@ async function start() {
   console.log('Database ready.');
 
   app.listen(PORT, () => {
-    console.log(`TravelPoints server running on port ${PORT}`);
+    console.log(`TravelPoints server running on port ${PORT} (schema ${APP_SCHEMA_VERSION})`);
   });
 }
 

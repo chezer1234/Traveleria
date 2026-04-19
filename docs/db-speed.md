@@ -4,13 +4,15 @@
 
 Hobby project. No real users yet, so we're happy to drop data on any schema change. Password+JWT auth is plenty. Move fast.
 
+> **One-time data drop.** Phase 0 rebuilds the `users` table, which wipes every existing account. This is the *last* time we're allowed to do that — once we ship Phase 0 and start inviting real users, schema changes must preserve data.
+
 ---
 
 ## Progress tracker
 
 Top-level checkpoints. Each phase has its own checklist further down.
 
-- [ ] **Phase A** — Docker parity + E2E harness (~1 day)
+- [x] **Phase A** — Docker parity + E2E harness (~1 day)
 - [ ] **Phase 0** — Lightweight auth (bcrypt + JWT cookie, email-or-handle usernames) (~½ day)
 - [ ] **Phase 1** — Server change feed + debug metrics (~½ day)
 - [ ] **Phase 2** — Client SQLite via sqlite-wasm (or sync-wasm) (~1 day)
@@ -94,8 +96,9 @@ Don't float these — every one has bitten someone in the last 12 months.
 
 | Thing | Pin | Why |
 |---|---|---|
-| Node | **22 LTS** | Node 20 LTS ends 2026-04-30. Don't target it. |
+| Node | **24 LTS** (`node:24-alpine`) | Node 20 LTS ends 2026-04-30. Node 24 entered Active LTS Oct 2025 — stay on the latest supported line. |
 | `ghcr.io/tursodatabase/libsql-server` | **`v0.24.32`** | Project is maintenance-only; active work moved to the Rust `tursodatabase/turso` rewrite. `:latest` could shift. |
+| `nginx` | **`1.27-alpine`** | Serves the prod client bundle; pin so COOP/COEP header behaviour doesn't drift. |
 | `@libsql/client` | latest stable | One client for local file, dockerised sqld, and Turso cloud — three URL schemes, one code path. Don't mix in `better-sqlite3`. |
 | `@sqlite.org/sqlite-wasm` | **`^3.51.2-build8`** | Use the OO1 API. Worker1 / Promiser1 are deprecated as of 2026-04-15. |
 | `@tursodatabase/sync-wasm` | **`^0.5.0`** (beta) | Bidirectional sync (pull + push) since v0.5. Still beta — plan must tolerate falling back. |
@@ -142,23 +145,33 @@ Each phase is independently shippable with its own E2E test.
 
 De-risk everything before touching features. Every tier runs the same binaries in dev, CI, and prod; the whole loop is validated in Docker.
 
-- [ ] Pin `ghcr.io/tursodatabase/libsql-server:v0.24.32` in `docker-compose.yml` (currently `:latest`).
-- [ ] Create `compose.prod-build.yml` overlay that builds the client as a static bundle and serves it from an nginx container.
-- [ ] Create `compose.test.yml` overlay that adds a `playwright:v1.58.2-noble` service against the prod-build stack.
-- [ ] Set **COOP/COEP headers** on the Vite dev server and the prod nginx (required for OPFS Worker threads — cheap to forget, ghost failures later).
-- [ ] Add `/api/dev/reset` endpoint (gated by `NODE_ENV !== 'production'`) — truncates user tables, reseeds, bumps the reset marker.
-- [ ] Add `make e2e` target: `docker compose down -v && docker compose -f compose.yml -f compose.prod-build.yml -f compose.test.yml run --rm e2e`.
-- [ ] Write the first E2E smoke test: boots stack → signs up → adds a country → asserts the visit is in both the server DB and (after Phase 2) the browser OPFS DB.
-- [ ] CI job runs the same compose commands and uploads the Playwright HTML report.
-- [ ] CI logs `node -v`, `docker image inspect` digests, and installed npm versions at the start of every E2E run.
+- [x] Pin `ghcr.io/tursodatabase/libsql-server:v0.24.32` in `compose.yaml` (was `:latest`).
+- [x] Multi-stage `server/Dockerfile` and `client/Dockerfile` with `dev` and `prod` targets (client `prod` stage is `nginx:1.27-alpine` serving the built bundle).
+- [x] `compose.prod-build.yaml` overlay swaps both services to their `prod` targets and bakes `APP_SCHEMA_VERSION` into the client build.
+- [x] `compose.test.yaml` overlay adds a `playwright:v1.58.2-noble` service on the compose network (`BASE_URL=http://client:3000`, `API_URL=http://server:3001`).
+- [x] **COOP/COEP/CORP headers** set on the Vite dev server (`vite.config.js`), nginx (`client/nginx.conf`), AND Express (`server/src/middleware/coop-coep.js`) so every tier agrees.
+- [x] `/api/dev/reset` mounted only when `NODE_ENV !== 'production'` (`server/src/routes/dev.js`) — truncates `user_provinces`, `user_cities`, `user_countries`, `users` and reseeds.
+- [x] `make e2e` → `scripts/e2e.sh` which sets `APP_SCHEMA_VERSION`, builds, boots, waits for `/api/health`, runs Playwright, tears down on exit.
+- [x] First E2E smoke test: health check returns `{status: ok, db: connected}` + header `x-app-schema-version`; root HTML responds 200 with COOP/COEP. (Signup + add-country flow will be added in Phase 0's E2E updates.)
+- [x] CI `e2e` job runs `./scripts/e2e.sh` with `APP_SCHEMA_VERSION=${short_sha}`, uploads `e2e-report/` as an artifact, gates `deploy`.
+- [x] CI logs node/docker/compose versions and `docker image inspect --format '{{.RepoDigests}}'` for each pinned image.
 
 **Exit criteria:** `make e2e` goes green locally. CI runs the same command against the same pinned images.
+
+**Decisions locked in during Phase A:**
+
+1. **Compose naming** follows the modern Compose Specification (`compose.yaml`, no `docker-` prefix). One file per concern; legacy `docker-compose.yml` and the experimental `docker-compose.turso-test.yml` are gone.
+2. **Port layout** is final: client 3000, server 3001, sqld 8080 internal (see the table above). CLAUDE.md updated to match.
+3. **Node 24 LTS** across both Dockerfiles and CI — bumped from the plan's original 22 pick because 24 entered Active LTS Oct 2025 and is the current supported line.
+4. **`APP_SCHEMA_VERSION = short git SHA`** baked at build time via `ARG`. Default `dev` locally so OPFS doesn't wipe on every save. No manual bumping anywhere.
+5. **Migrations + seeds live in `src/index.js` only.** The old `server/entrypoint.sh` was running them a second time and has been deleted; the dev Dockerfile uses `node --watch src/index.js` as its CMD.
+6. **Playwright deps** use `npm install` (not `ci`) inside the e2e container so we don't need to commit a lockfile for a one-dep project. Revisit if CI reproducibility becomes a concern.
 
 ### Phase 0 — Lightweight auth (~½ day)
 
 Drop the localStorage-identity farce. Not "real" auth — good enough to stop casual impersonation.
 
-- [ ] Migration: drop and rebuild `users` with `identifier TEXT UNIQUE NOT NULL`, `password_hash TEXT NOT NULL`. The `identifier` field accepts **either a handle or an email** (the app doesn't care; unique index is case-insensitive).
+- [ ] Migration: drop and rebuild `users` with `identifier TEXT UNIQUE NOT NULL`, `password_hash TEXT NOT NULL`. The `identifier` field accepts **either a handle or an email** (the app doesn't care; unique index is case-insensitive). **This is the final destructive users migration** — after this ships, all schema changes must preserve data.
 - [ ] `POST /api/auth/signup` — validates identifier is either a plausible email or a reasonable handle (`^[a-z0-9][a-z0-9._-]{2,31}$`), bcrypts the password, returns a signed JWT in an **httpOnly `auth` cookie**.
 - [ ] `POST /api/auth/signin` — same response shape.
 - [ ] Also set a non-httpOnly **`last_identifier` cookie** (30-day expiry) so the signin form can pre-fill. Never contains a credential.
@@ -175,9 +188,10 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 - [ ] Migration: `_changes` table — `(change_id INTEGER PK AUTOINCREMENT, table_name TEXT, pk TEXT, op TEXT CHECK (op IN ('insert','update','delete')), row_json TEXT, created_at TEXT)`.
 - [ ] Every write route ALSO appends a `_changes` row **in the same transaction**. Helper: `changes.record(trx, table, pk, op, row)`.
 - [ ] `GET /api/changes?since=N` → `{ changes: [...], cursor: <max_change_id> }`. Capped at 1000 rows per call; client re-asks until caught up.
-- [ ] `GET /api/snapshot` → `{ countries, cities, provinces, users_public, cursor }`. `users_public` is the minimal user row needed for leaderboard display.
+- [ ] `GET /api/snapshot` → `{ countries, cities, provinces, users_public, cursor }`. `users_public` is exactly `{ id, identifier, home_country }` per row — no `password_hash`, no email/handle distinction, nothing else. Any future field addition requires bumping `APP_SCHEMA_VERSION`.
 - [ ] Seed migration writes synthetic `_changes` rows for existing reference data at `change_id = 1`.
 - [ ] `GET /api/debug/metrics` (dev always; prod behind `?token=<env>`): request count per route, p50/p95 timings, `_changes` table size, current max `change_id`, count of active sync cursors seen in last 5 min.
+- [ ] **Retention:** no pruning of `_changes` yet. Revisit if the table exceeds ~100k rows — at that point add a nightly job that drops rows older than the oldest active client cursor.
 - [ ] Middleware: per-request timing log (server-timing header + structured log line).
 - [ ] E2E: after a write, `_changes` has the row and `/api/changes?since=0` returns it.
 
@@ -187,7 +201,7 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 
 - [ ] **Time-box experiment (half-day max):** wire `@tursodatabase/sync-wasm@^0.5.0` against the dockerised sqld **in pull-only mode** (we never call `push()` — writes stay on the REST path so the API can keep validating content; see Authorised writes section). If pull-only works cleanly, we skip Phase 3. If it's flaky inside the compose networking, abandon and go to sqlite-wasm.
 - [ ] Otherwise: add `@sqlite.org/sqlite-wasm@^3.51.2-build8` via the OO1 API (not Worker1 / Promiser1 — deprecated).
-- [ ] `client/src/db/local.js`: opens an OPFS-backed DB named `traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`.
+- [ ] `client/src/db/local.js`: opens an OPFS-backed DB named `traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`. **The DB is only opened after signin** — the `/signin` and `/signup` pages must not trigger any SQL code path. Sign-out closes the handle.
 - [ ] On first open: `fetch('/api/snapshot')` → create tables matching server schema → bulk-insert rows → store cursor.
 - [ ] Tiny helper API: `db.all(sql, params)`, `db.get(sql, params)`, `db.exec(sql)`.
 - [ ] Confirm Vite serves COOP/COEP headers (carry-over from Phase A).
@@ -211,7 +225,7 @@ Skip entirely if sync-wasm handled it.
 
 - [ ] Port `server/src/lib/points.js` to `client/src/lib/points.js` via `cp server/src/lib/points.js client/src/lib/points.js`.
 - [ ] Add a CI step that `diff`s the two files and fails with a clear message if they diverge. (Simplest approach that survives Docker build contexts — symlinks don't; npm workspaces are overkill for one file; revisit only when a second shared module shows up.)
-- [ ] Mirror the server's `__tests__/points.test.js` under `client/__tests__/points.test.js` (same assertions, same fixtures). Both suites run in CI.
+- [ ] Mirror the server's `__tests__/points.test.js` under `client/src/lib/__tests__/points.test.js` (same assertions, same fixtures) — run with **Vitest** (matches the Vite toolchain; do not add Jest to the client). Both suites run in CI.
 - [ ] Delete from `client/src/api/client.js`: `getCountries`, `getCountry`, `getUserCountries`, `getUserScore`, `getLeaderboard`. Replace each call site with a local SQL query.
 - [ ] Leaderboard is a client-side query: compute per-user totals from synced `user_countries` rows, `ORDER BY total DESC LIMIT 50`.
 - [ ] E2E golden test: scoring parity — for a fixed fixture (10 visited countries, known home), server-side `calculateTotalTravelPoints` exactly equals the client port.
@@ -238,10 +252,11 @@ Skip entirely if sync-wasm handled it.
 
 ## Schema updates & the web-app-reload story
 
-- Single `APP_SCHEMA_VERSION` integer in the repo. Bump it in the same PR as any Knex migration or `/api/changes` payload-shape change.
-- Server sends `X-App-Schema-Version: <N>` on every response (middleware, one-liner).
-- Client compares against `import.meta.env.VITE_APP_SCHEMA_VERSION` (baked at build time).
-- Mismatch → delete the OPFS DB file, show a "Updating…" splash, hard-reload. No user-data migration; we just drop.
+- **No manual version bumping.** `APP_SCHEMA_VERSION` is the **short git SHA** (7 chars) baked into the Docker images at build time via `ARG APP_SCHEMA_VERSION` — set in CI from `$(git rev-parse --short HEAD)` and defaulted to the literal string `dev` in both Dockerfiles so local dev stays stable.
+- Server reads `process.env.APP_SCHEMA_VERSION` via `server/src/lib/schema-version.js` and middleware stamps `X-App-Schema-Version: <sha>` on every response.
+- Client reads `import.meta.env.VITE_APP_SCHEMA_VERSION`, set at build time from the same arg. One value, two code paths — drift is impossible because they read the same build-arg.
+- Every push to main ⇒ new SHA ⇒ clients on the old bundle re-snapshot on their next request. At hobby scale a fresh snapshot is cheap. Revisit only if we outgrow that.
+- Mismatch at runtime → delete **every** `traveleria-v*.db` in OPFS (not just the current user's), show an "Updating…" splash, hard-reload. No user-data migration; we just drop.
 
 ---
 
@@ -259,11 +274,26 @@ Skip entirely if sync-wasm handled it.
 
 ### Compose layout
 
+Modern Compose Specification naming (`compose.yaml`, no `docker-` prefix). Legacy `docker-compose.yml` and `docker-compose.turso-test.yml` have been removed — there is one source of truth.
+
 ```
-compose.yml            # dev stack (existing)
-compose.prod-build.yml # overlay: static client via nginx
-compose.test.yml       # overlay: adds the playwright runner
+compose.yaml             # shared base; dev targets and default envs
+compose.override.yaml    # auto-loaded by `docker compose up` — adds dev bind mounts
+compose.prod-build.yaml  # overlay: prod targets, nginx-served client, baked schema SHA
+compose.test.yaml        # overlay: adds the Playwright runner
 ```
+
+`docker compose up` (no `-f`) loads `compose.yaml` + `compose.override.yaml` automatically → dev stack with hot reload. `scripts/e2e.sh` passes `-f compose.yaml -f compose.prod-build.yaml -f compose.test.yaml` explicitly, which means the override is skipped and the E2E run exercises the real bundle.
+
+### Ports (locked in)
+
+| Service | Host port | Container port | Exposed? |
+|---|---|---|---|
+| Vite dev / nginx prod (client) | 3000 | 3000 | ✅ `localhost:3000` |
+| Express API (server) | 3001 | 3001 | ✅ `localhost:3001` |
+| sqld (libSQL) | — | 8080 | ❌ internal compose network only |
+
+CLAUDE.md, compose files, Vite config, nginx config, server `PORT`, and CI all agree. If any disagree, that is a bug — fix it, don't work around it.
 
 ### The E2E suite (one test per concern)
 

@@ -68,19 +68,62 @@ jobs:
         working-directory: server
         env:
           NODE_ENV: test
-          PORT: 3000
+          PORT: 3001
         run: |
           node src/index.js &
           SERVER_PID=$!
           sleep 3
-          curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
+          curl -sf http://localhost:3001/api/health | grep -q '"status":"ok"'
           echo "Server health check OK"
           kill $SERVER_PID
+
+  e2e:
+    name: End-to-end (prod-build stack)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log pinned versions
+        run: |
+          echo "node: $(node --version 2>/dev/null || echo 'not installed on runner')"
+          echo "docker: $(docker --version)"
+          echo "compose: $(docker compose version)"
+
+      - name: Resolve short git SHA for APP_SCHEMA_VERSION
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log pinned image digests before build
+        run: |
+          docker pull ghcr.io/tursodatabase/libsql-server:v0.24.32
+          docker pull mcr.microsoft.com/playwright:v1.58.2-noble
+          docker pull nginx:1.27-alpine
+          docker pull node:24-alpine
+          docker image inspect --format '{{.RepoDigests}}' ghcr.io/tursodatabase/libsql-server:v0.24.32
+          docker image inspect --format '{{.RepoDigests}}' mcr.microsoft.com/playwright:v1.58.2-noble
+          docker image inspect --format '{{.RepoDigests}}' nginx:1.27-alpine
+          docker image inspect --format '{{.RepoDigests}}' node:24-alpine
+
+      - name: Run E2E suite
+        env:
+          APP_SCHEMA_VERSION: ${{ steps.sha.outputs.short }}
+        run: ./scripts/e2e.sh
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: e2e-report
+          retention-days: 14
+          if-no-files-found: ignore
 
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [build-and-test, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
 

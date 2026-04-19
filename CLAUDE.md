@@ -35,11 +35,20 @@ TravelPoints is a web app where users log countries they've visited and earn poi
 ## Running Locally
 
 ```bash
-docker compose up -d --build    # start everything
-# App at http://localhost:5173, API at http://localhost:3000
+docker compose up -d --build    # start everything (uses compose.yaml + compose.override.yaml)
+# App at http://localhost:3000 (Vite), API at http://localhost:3001, sqld internal on 8080
 docker compose down              # stop everything
 make reset-db                    # wipe SQLite DB and re-seed
+make e2e                         # full Playwright run against the prod-build stack
 ```
+
+Ports and versions are locked in — if you find something disagreeing (CLAUDE.md, compose, Vite, nginx, CI, Dockerfiles) it's a bug, fix it.
+
+**Pinned versions** (see `docs/db-speed.md` for rationale):
+- Node **24 LTS** — both Dockerfiles and CI
+- `ghcr.io/tursodatabase/libsql-server` **v0.24.32**
+- `mcr.microsoft.com/playwright` **v1.58.2-noble**
+- `nginx` **1.27-alpine**
 
 ## Running Tests
 

@@ -1,21 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  getCountry,
-  getUserCountries,
-  getUserProvinces,
   addUserCity,
   removeUserCity,
   addUserProvince,
   removeUserProvince,
 } from '../api/client';
+import { getCountryLocal, getUserStatusForCountry } from '../lib/queries';
 import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
 
 export default function CountryDetail() {
   const { code } = useParams();
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const homeCountry = user.home_country;
   const [country, setCountry] = useState(null);
   const [visitedCityIds, setVisitedCityIds] = useState(new Set());
@@ -25,37 +23,29 @@ export default function CountryDetail() {
   const [error, setError] = useState('');
   const [toggling, setToggling] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, [code, user.id, homeCountry]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (!db) return;
     setLoading(true);
     setError('');
     try {
-      const [countryData, userCountries, userProvinces] = await Promise.all([
-        getCountry(code, homeCountry),
-        getUserCountries(user.id, homeCountry),
-        getUserProvinces(user.id),
+      const [countryData, status] = await Promise.all([
+        getCountryLocal(db, code, homeCountry),
+        getUserStatusForCountry(db, user.id, code),
       ]);
       setCountry(countryData);
-
-      const uc = userCountries.find((c) => c.country_code === code.toUpperCase());
-      setIsVisited(!!uc);
-
-      // Filter provinces for this country
-      const provinceCodes = new Set(
-        userProvinces
-          .filter((p) => p.country_code === code.toUpperCase())
-          .map((p) => p.code)
-      );
-      setVisitedProvinceCodes(provinceCodes);
+      setIsVisited(status.isVisited);
+      setVisitedCityIds(status.visitedCityIds);
+      setVisitedProvinceCodes(status.visitedProvinceCodes);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [db, code, user.id, homeCountry]);
+
+  useEffect(() => {
+    if (dbStatus === 'ready') loadData();
+  }, [dbStatus, loadData]);
 
   async function toggleCity(cityId) {
     if (!isVisited) return;
@@ -103,7 +93,7 @@ export default function CountryDetail() {
     }
   }
 
-  if (loading) {
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>

@@ -9,7 +9,7 @@ PROD_COMPOSE := docker compose -f compose.yaml -f compose.prod-build.yaml
 
 .PHONY: help up down restart logs logs-server logs-client ps shell \
         migrate seed reset-db \
-        dev-client test server-test \
+        dev-client test server-test client-test check-points-parity \
         prod-up prod-down prod-logs \
         e2e e2e-install \
         clean
@@ -43,10 +43,10 @@ shell: ## Open a shell in the server container
 	docker compose exec server sh
 
 migrate: ## Run knex migrations against dev DB
-	docker compose exec server npx knex migrate:latest --knexfile src/db/knexfile.js
+	docker compose exec server npx knex migrate:latest --knexfile src/db/knexfile.cjs
 
 seed: ## Re-run knex seeds against dev DB
-	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.js
+	docker compose exec server npx knex seed:run --knexfile src/db/knexfile.cjs
 
 reset-db: ## Wipe the dev DB volume and re-seed
 	docker compose down -v
@@ -57,10 +57,24 @@ dev-client: ## Run Vite directly on host (stops the dockerised client first)
 	cd client && npx vite --host 0.0.0.0 --port 3000
 
 # -- Unit tests ------------------------------------------------------------
-test: server-test ## Alias for server-test
+test: check-points-parity server-test client-test ## Run parity check + server + client unit tests
 
 server-test: ## Run server Jest suite (no docker, uses local SQLite file)
 	cd server && npm test
+
+client-test: ## Run client Vitest suite (points parity mirror tests)
+	cd client && npx vitest run
+
+# Phase 4 invariant: server/src/lib/points.js and client/src/lib/points.js must
+# be byte-identical. The files are kept in sync by `cp server/... client/...`,
+# and this target is the enforcement — CI runs it too. If it fails, the last
+# person to touch points.js forgot to copy. No normalisation, no shim.
+check-points-parity: ## Fail if server/client points.js have drifted
+	@diff server/src/lib/points.js client/src/lib/points.js && \
+	  echo "  points.js parity: OK" || \
+	  (echo "  ERROR: server/src/lib/points.js and client/src/lib/points.js have diverged." >&2; \
+	   echo "  Re-copy with: cp server/src/lib/points.js client/src/lib/points.js" >&2; \
+	   exit 1)
 
 # -- Prod-shape stack ------------------------------------------------------
 # Same binaries and Dockerfiles that CI and Render prod use. Good for manual

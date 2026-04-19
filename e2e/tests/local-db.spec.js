@@ -87,7 +87,12 @@ test.describe('local OPFS DB hydration', () => {
     await page.waitForFunction(() => !!(window).__traveleria?.ready, null, { timeout: 20_000 });
     const secondCursor = await page.evaluate(async () => (window).__traveleria.cursor());
 
-    expect(secondCursor).toBe(firstCursor);
+    // Cursor must not REGRESS across reloads (that would indicate hydration
+    // reset the _meta). It may ADVANCE — with the Phase 3 sync worker live,
+    // parallel test workers' writes tick the cursor forward between captures.
+    // The invariant this test really cares about is "no re-snapshot", asserted
+    // below.
+    expect(secondCursor).toBeGreaterThanOrEqual(firstCursor);
     expect(snapshotCalls, 'hydration must short-circuit on a warm OPFS').toBe(0);
   });
 });

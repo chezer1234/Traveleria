@@ -1,13 +1,12 @@
-const express = require('express');
-const db = require('../db/connection');
-const {
+import express from 'express';
+import db from '../db/connection.js';
+import {
   getBaseline,
   getCityPercentage,
   getCountryTier,
   getExplorerCeiling,
   getScoreBreakdown,
-  getDistanceKm,
-} = require('../lib/points');
+} from '../lib/points.js';
 
 const router = express.Router();
 
@@ -144,4 +143,4 @@ router.get('/:code/cities', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

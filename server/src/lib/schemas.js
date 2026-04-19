@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 // An identifier can be either a handle (^[a-z0-9][a-z0-9._-]{2,31}$) or an email.
 // We deliberately keep the regexes separate and forgiving — the user probably typed
@@ -36,34 +36,34 @@ const visitedAtSchema = z
     'Visit date cannot be in the future'
   );
 
-const signupSchema = z.object({
+export const signupSchema = z.object({
   identifier: identifierSchema,
   password: passwordSchema,
   home_country: countryCodeSchema,
 });
 
-const signinSchema = z.object({
+export const signinSchema = z.object({
   identifier: z.string().trim().min(1, 'Identifier is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
-const addCountrySchema = z.object({
+export const addCountrySchema = z.object({
   country_code: countryCodeSchema,
   visited_at: visitedAtSchema,
 });
 
-const addCitySchema = z.object({
+export const addCitySchema = z.object({
   city_id: z.union([z.string(), z.number()]),
   visited_at: visitedAtSchema,
 });
 
-const addProvinceSchema = z.object({
+export const addProvinceSchema = z.object({
   province_code: z.string().trim().min(1, 'province_code is required'),
   visited_at: visitedAtSchema,
 });
 
 // Middleware factory: parse req.body through a schema, short-circuit with 422 on failure.
-function validateBody(schema) {
+export function validateBody(schema) {
   return (req, res, next) => {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -79,12 +79,3 @@ function validateBody(schema) {
     next();
   };
 }
-
-module.exports = {
-  signupSchema,
-  signinSchema,
-  addCountrySchema,
-  addCitySchema,
-  addProvinceSchema,
-  validateBody,
-};

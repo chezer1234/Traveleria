@@ -1,6 +1,6 @@
-const express = require('express');
-const db = require('../db/connection');
-const { calculateTotalTravelPoints, getCountryTier } = require('../lib/points');
+import express from 'express';
+import db from '../db/connection.js';
+import { calculateTotalTravelPoints, getCountryTier } from '../lib/points.js';
 
 const router = express.Router();
 
@@ -95,4 +95,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

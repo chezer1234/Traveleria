@@ -1,12 +1,17 @@
 /**
  * Tests that all database migrations create the correct tables and columns.
  */
-const path = require('path');
-const crypto = require('crypto');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import knex from 'knex';
+import { createRequire } from 'module';
 
-const knex = require('knex');
-const knexfile = require('../src/db/knexfile');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const knexfile = require('../src/db/knexfile.cjs');
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 let db;
 

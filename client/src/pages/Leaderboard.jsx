@@ -1,34 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getLeaderboard } from '../api/client';
+import { getLeaderboardLocal } from '../lib/queries';
 
 const flag = (code) =>
   code ? String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '';
 
 export default function Leaderboard() {
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, []);
-
-  async function loadLeaderboard() {
+  const loadLeaderboard = useCallback(async () => {
+    if (!db) return;
     setLoading(true);
     setError('');
     try {
-      const data = await getLeaderboard(user?.id);
+      const data = await getLeaderboardLocal(db, user?.id);
       setEntries(data);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [db, user?.id]);
 
-  if (loading) {
+  useEffect(() => {
+    if (dbStatus === 'ready') loadLeaderboard();
+  }, [dbStatus, loadLeaderboard]);
+
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>

@@ -1,7 +1,7 @@
-const { verifyToken, extractBearerToken } = require('../lib/auth');
-const db = require('../db/connection');
+import { verifyToken, extractBearerToken } from '../lib/auth.js';
+import db from '../db/connection.js';
 
-async function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const token = extractBearerToken(req);
   if (!token) return res.status(401).json({ error: 'Not signed in' });
 
@@ -20,7 +20,7 @@ async function requireAuth(req, res, next) {
 
 // Path-param ownership: the ":id" in /api/users/:id MUST equal the signed-in user.
 // This is what blocks POST /api/users/<someone_else>/countries.
-function requireOwnership(paramName = 'id') {
+export function requireOwnership(paramName = 'id') {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in' });
     if (req.params[paramName] !== req.user.id) {
@@ -29,5 +29,3 @@ function requireOwnership(paramName = 'id') {
     next();
   };
 }
-
-module.exports = { requireAuth, requireOwnership };

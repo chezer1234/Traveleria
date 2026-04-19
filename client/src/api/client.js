@@ -1,4 +1,5 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
+const CLIENT_SCHEMA_VERSION = import.meta.env.VITE_APP_SCHEMA_VERSION || 'dev';
 
 if (import.meta.env.PROD) {
   console.log('[TravelPoints] API_BASE:', API_BASE);
@@ -7,6 +8,20 @@ if (import.meta.env.PROD) {
 
 const TOKEN_STORAGE_KEY = 'traveleria.auth_token';
 const LAST_IDENTIFIER_KEY = 'traveleria.last_identifier';
+
+// Registered by AuthProvider at mount so REST responses can trigger the same
+// wipe-and-reload flow as the sync worker's schemaMismatch event. Kept as a
+// module-level hook to avoid a circular import between this file and db/local.
+let schemaMismatchHandler = null;
+export function setSchemaMismatchHandler(fn) { schemaMismatchHandler = fn; }
+
+function checkSchemaVersion(res) {
+  const serverVersion = res.headers.get('X-App-Schema-Version');
+  if (!serverVersion || serverVersion === CLIENT_SCHEMA_VERSION) return;
+  if (schemaMismatchHandler) {
+    schemaMismatchHandler({ clientVersion: CLIENT_SCHEMA_VERSION, serverVersion });
+  }
+}
 
 // JWT lives in localStorage and is sent on every request via the
 // `Authorization: Bearer <token>` header. See docs/db-speed.md →
@@ -48,6 +63,7 @@ async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
 
   const res = await fetch(url, { ...options, headers });
+  checkSchemaVersion(res);
 
   if (res.status === 204) return null;
 
@@ -104,28 +120,11 @@ export function getUser(id) {
   return request(`/users/${id}`);
 }
 
-// ---------- Reference data ----------
-
-export function getCountries(homeCountry) {
-  const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
-  return request(`/countries${qs}`);
-}
-
-export function getCountry(code, homeCountry) {
-  const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
-  return request(`/countries/${code}${qs}`);
-}
-
-export function getCountryCities(code) {
-  return request(`/countries/${code}/cities`);
-}
-
 // ---------- User travel log ----------
-
-export function getUserCountries(userId, homeCountry) {
-  const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
-  return request(`/users/${userId}/countries${qs}`);
-}
+//
+// Read endpoints (getCountries, getCountry, getUserCountries, getUserScore,
+// getLeaderboard) were deleted in Phase 4 — the client now reads from the
+// local synced SQLite DB via src/lib/queries.js. Only writes stay here.
 
 export function addUserCountry(userId, countryCode) {
   return request(`/users/${userId}/countries`, {
@@ -149,10 +148,6 @@ export function removeUserCity(userId, cityId) {
   return request(`/users/${userId}/cities/${cityId}`, { method: 'DELETE' });
 }
 
-export function getUserProvinces(userId) {
-  return request(`/users/${userId}/provinces`);
-}
-
 export function addUserProvince(userId, provinceCode) {
   return request(`/users/${userId}/provinces`, {
     method: 'POST',
@@ -162,16 +157,4 @@ export function addUserProvince(userId, provinceCode) {
 
 export function removeUserProvince(userId, provinceCode) {
   return request(`/users/${userId}/provinces/${provinceCode}`, { method: 'DELETE' });
-}
-
-export function getUserScore(userId, homeCountry) {
-  const qs = homeCountry ? `?home_country=${encodeURIComponent(homeCountry)}` : '';
-  return request(`/users/${userId}/score${qs}`);
-}
-
-// ---------- Leaderboard ----------
-
-export function getLeaderboard(userId) {
-  const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
-  return request(`/leaderboard${qs}`);
 }

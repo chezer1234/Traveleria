@@ -1,19 +1,25 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const db = require('./db/connection');
-const schemaVersionHeader = require('./middleware/schema-version');
-const coopCoep = require('./middleware/coop-coep');
-const { APP_SCHEMA_VERSION } = require('./lib/schema-version');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import db from './db/connection.js';
+import schemaVersionHeader from './middleware/schema-version.js';
+import coopCoep from './middleware/coop-coep.js';
+import { APP_SCHEMA_VERSION } from './lib/schema-version.js';
+import requestTiming from './middleware/request-timing.js';
 
-const countriesRoutes = require('./routes/countries');
-const usersRoutes = require('./routes/users');
-const leaderboardRoutes = require('./routes/leaderboard');
-const authRoutes = require('./routes/auth');
-const changesRoutes = require('./routes/changes');
-const snapshotRoutes = require('./routes/snapshot');
-const debugRoutes = require('./routes/debug');
-const requestTiming = require('./middleware/request-timing');
+import countriesRoutes from './routes/countries.js';
+import usersRoutes from './routes/users.js';
+import leaderboardRoutes from './routes/leaderboard.js';
+import authRoutes from './routes/auth.js';
+import changesRoutes from './routes/changes.js';
+import snapshotRoutes from './routes/snapshot.js';
+import debugRoutes from './routes/debug.js';
+import devRoutes from './routes/dev.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -120,13 +126,11 @@ app.use('/api/snapshot', snapshotRoutes);
 app.use('/api/debug', debugRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/dev', require('./routes/dev'));
+  app.use('/api/dev', devRoutes);
 }
 
 // In production, serve the built React frontend if available
 if (process.env.NODE_ENV === 'production') {
-  const path = require('path');
-  const fs = require('fs');
   const clientDist = path.join(__dirname, '../../client/dist');
   const indexHtml = path.join(clientDist, 'index.html');
   if (fs.existsSync(indexHtml)) {
@@ -154,4 +158,4 @@ start().catch((err) => {
   process.exit(1);
 });
 
-module.exports = app;
+export default app;

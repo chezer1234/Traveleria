@@ -1,7 +1,7 @@
-const express = require('express');
-const db = require('../db/connection');
-const { snapshot } = require('../lib/metrics');
-const { APP_SCHEMA_VERSION } = require('../lib/schema-version');
+import express from 'express';
+import db from '../db/connection.js';
+import { snapshot } from '../lib/metrics.js';
+import { APP_SCHEMA_VERSION } from '../lib/schema-version.js';
 
 const router = express.Router();
 
@@ -32,4 +32,4 @@ router.get('/metrics', async (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

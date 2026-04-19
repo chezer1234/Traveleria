@@ -1,5 +1,5 @@
-const express = require('express');
-const db = require('../db/connection');
+import express from 'express';
+import db from '../db/connection.js';
 
 const router = express.Router();
 
@@ -20,4 +20,4 @@ router.post('/reset', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

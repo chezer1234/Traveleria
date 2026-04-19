@@ -1,7 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-const Client_Libsql = require('./libsql-dialect');
+const Client_Libsql = require('./libsql-dialect.cjs');
 
 const migrationsDir = path.resolve(__dirname, 'migrations');
 const seedsDir = path.resolve(__dirname, 'seeds');
@@ -40,8 +40,8 @@ const pool = isHttp ? httpPool : filePool;
 const sharedConfig = {
   client: Client_Libsql,
   useNullAsDefault: true,
-  migrations: { directory: migrationsDir },
-  seeds: { directory: seedsDir },
+  migrations: { directory: migrationsDir, loadExtensions: ['.cjs'] },
+  seeds: { directory: seedsDir, loadExtensions: ['.cjs'] },
   pool,
 };
 

@@ -5,7 +5,7 @@
 const RING_SIZE = 500;
 const byRoute = new Map();
 
-function recordTiming({ route, method, status, durMs }) {
+export function recordTiming({ route, method, status, durMs }) {
   const key = `${method} ${route}`;
   let slot = byRoute.get(key);
   if (!slot) {
@@ -18,7 +18,7 @@ function recordTiming({ route, method, status, durMs }) {
   if (slot.samples.length > RING_SIZE) slot.samples.shift();
 }
 
-function snapshot() {
+export function snapshot() {
   const out = {};
   for (const [key, slot] of byRoute) {
     const sorted = [...slot.samples].sort((a, b) => a - b);
@@ -38,5 +38,3 @@ function pct(sorted, p) {
   const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
   return Math.round(sorted[idx] * 10) / 10;
 }
-
-module.exports = { recordTiming, snapshot };

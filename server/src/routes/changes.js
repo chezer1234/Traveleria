@@ -1,5 +1,5 @@
-const express = require('express');
-const db = require('../db/connection');
+import express from 'express';
+import db from '../db/connection.js';
 
 const router = express.Router();
 const MAX_BATCH = 1000;
@@ -35,4 +35,4 @@ router.get('/', async (req, res) => {
   res.json({ changes, cursor, has_more: changes.length === MAX_BATCH });
 });
 
-module.exports = router;
+export default router;

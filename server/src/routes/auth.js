@@ -1,15 +1,15 @@
-const express = require('express');
-const crypto = require('crypto');
-const db = require('../db/connection');
-const {
+import express from 'express';
+import crypto from 'crypto';
+import db from '../db/connection.js';
+import {
   signToken,
   hashPassword,
   checkPassword,
   verifyToken,
   extractBearerToken,
-} = require('../lib/auth');
-const { signupSchema, signinSchema, validateBody } = require('../lib/schemas');
-const changes = require('../lib/changes');
+} from '../lib/auth.js';
+import { signupSchema, signinSchema, validateBody } from '../lib/schemas.js';
+import * as changes from '../lib/changes.js';
 
 const router = express.Router();
 
@@ -96,4 +96,4 @@ router.get('/me', async (req, res) => {
   res.json(user);
 });
 
-module.exports = router;
+export default router;

@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { signup, getCountries, ApiError } from '../api/client';
+import { signup, ApiError } from '../api/client';
+
+// Pre-signin we have no local DB, so the country dropdown is sourced from
+// /api/snapshot — a public, read-only endpoint that's also the cold-boot
+// payload for authenticated users. Saves us keeping the old /api/countries
+// list route around just for one dropdown.
+const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
 export default function SignUp() {
   const { setUser } = useAuth();
@@ -15,8 +21,12 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getCountries()
-      .then(setCountries)
+    fetch(`${API_BASE}/snapshot`)
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error('snapshot ' + r.status)))
+      .then((s) => {
+        const list = [...(s.countries || [])].sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(list);
+      })
       .catch(() => setError('Failed to load countries. Is the server running?'));
   }, []);
 

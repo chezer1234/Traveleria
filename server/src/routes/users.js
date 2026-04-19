@@ -1,15 +1,15 @@
-const express = require('express');
-const crypto = require('crypto');
-const db = require('../db/connection');
-const { calculateCountryPoints, calculateTotalTravelPoints, getCountryTier } = require('../lib/points');
-const { requireAuth, requireOwnership } = require('../middleware/auth');
-const {
+import express from 'express';
+import crypto from 'crypto';
+import db from '../db/connection.js';
+import { calculateCountryPoints, calculateTotalTravelPoints, getCountryTier } from '../lib/points.js';
+import { requireAuth, requireOwnership } from '../middleware/auth.js';
+import {
   addCountrySchema,
   addCitySchema,
   addProvinceSchema,
   validateBody,
-} = require('../lib/schemas');
-const changes = require('../lib/changes');
+} from '../lib/schemas.js';
+import * as changes from '../lib/changes.js';
 
 const router = express.Router();
 
@@ -320,4 +320,4 @@ router.get('/:id/score', async (req, res) => {
   res.json({ user_id: id, ...result });
 });
 
-module.exports = router;
+export default router;

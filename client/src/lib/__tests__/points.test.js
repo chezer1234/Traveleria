@@ -25,7 +25,7 @@ import {
   TOURISM_CAP,
   FLOOR,
   BASE_CAP,
-} from '../src/lib/points.js';
+} from '../points.js';
 
 // Sample countries for testing (with lat/lng)
 const sampleCountries = [

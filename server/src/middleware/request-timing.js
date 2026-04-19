@@ -1,8 +1,8 @@
-const { recordTiming } = require('../lib/metrics');
+import { recordTiming } from '../lib/metrics.js';
 
 // Per-request timing: adds a Server-Timing header so browser DevTools shows it
 // natively, and feeds the in-memory metrics ring for /api/debug/metrics.
-module.exports = function requestTiming(req, res, next) {
+export default function requestTiming(req, res, next) {
   const start = process.hrtime.bigint();
   res.on('finish', () => {
     const durMs = Number(process.hrtime.bigint() - start) / 1e6;
@@ -21,7 +21,7 @@ module.exports = function requestTiming(req, res, next) {
     return oldEnd.apply(this, args);
   };
   next();
-};
+}
 
 function routeKey(req) {
   // req.route is only populated after the router matches, so fall back to the

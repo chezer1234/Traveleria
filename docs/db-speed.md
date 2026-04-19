@@ -14,8 +14,8 @@ Hobby project. No real users yet, so we're happy to drop data on any schema chan
 - [x] **Phase 0** — bcrypt + JWT bearer auth, email-or-handle usernames (~½ day)
 - [x] **Phase 1** — Server change feed + debug metrics (~½ day)
 - [x] **Phase 2** — Client SQLite via `@sqlite.org/sqlite-wasm` over OPFS (~1 day)
-- [ ] **Phase 3** — Incremental sync worker (~½ day)
-- [ ] **Phase 4** — Kill server reads; port `points.js` to client (~½ day)
+- [x] **Phase 3** — Incremental sync worker (~½ day)
+- [x] **Phase 4** — Kill server reads; port `points.js` to client (~½ day)
 - [ ] **Phase 5** — Optimistic writes (~½ day)
 - [ ] **Phase 6** — Reactive query hook (optional) (~½ day)
 
@@ -229,24 +229,40 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 
 ### Phase 3 — Incremental sync worker (~½ day)
 
-- [ ] Poller: `/api/changes?since=<cursor>` every 5 s, plus on `focus` and `visibilitychange`.
-- [ ] Apply each change in one transaction: `INSERT OR REPLACE` for insert/update, `DELETE` for delete.
-- [ ] Persist the cursor inside the OPFS DB (`_meta` table), not localStorage.
-- [ ] On any response with `X-App-Schema-Version` ≠ client's → wipe OPFS DB, reload page.
+- [ ] Poller: `/api/changes?since=<cursor>` every 5 s (flat — no focus/visibility logic in v1).
+- [ ] Apply each change batch in one transaction: `INSERT OR REPLACE` for insert/update, `DELETE` for delete; bump `_meta.cursor` atomically in the same transaction.
+- [ ] If the response has `has_more: true`, re-poll immediately until drained before returning to the 5 s cadence.
+- [ ] On any response with `X-App-Schema-Version` ≠ client's → wipe every `traveleria-v*.db` in OPFS, reload page.
+- [ ] Signup + home-country updates emit `_changes` rows for `users_public` so a running second client sees new users/identifier changes without a re-snapshot.
 - [ ] E2E: write from browser A → browser B (incognito context) sees the new row within one poll.
 
 **Exit criteria:** two browsers converge within 5–10 s of any write.
 
+**Decisions locked in for Phase 3:**
+
+1. **Flat 5 s poll, no focus/visibility tricks.** Simplest thing that works; revisit only if request volume actually bites. Hobby scale, one or two tabs per user — 12 req/min/tab is fine.
+2. **Poll loop lives inside the DB Web Worker**, not the main thread. The worker already owns the SQLite handle — applying a batch is a direct `db.exec()`, no extra postMessage hop per change. Main thread fires one `rpc('startSync', ...)` from `AuthContext` after `openUserDb` resolves, and `rpc('stopSync')` on signout/close.
+3. **Cursor in `_meta`, never localStorage.** Persisted inside the OPFS DB file so a user's cursor travels with their data — no way to desync by clearing one but not the other.
+4. **New users visible to already-running clients.** Auth signup appends a `users_public` insert change inside the same transaction as the user write; home-country updates append an update change. Leaderboard stays fresh for everyone without forcing a re-snapshot.
+
 ### Phase 4 — Kill server reads, move scoring to the client (~½ day)
 
+- [ ] Convert the server to ESM (`"type": "module"` in `server/package.json`, rewrite `require`/`module.exports` across `src/`). Prereq for byte-identical `points.js` sharing.
 - [ ] Port `server/src/lib/points.js` to `client/src/lib/points.js` via `cp server/src/lib/points.js client/src/lib/points.js`.
-- [ ] CI step that `diff`s the two files and fails with a clear message if they diverge.
-- [ ] Mirror the server's `__tests__/points.test.js` under `client/src/lib/__tests__/points.test.js` (same assertions, same fixtures) — run with **Vitest**.
+- [ ] `make check-points-parity` runs `diff` on the two files; CI runs the same target and fails with a clear message if they diverge.
+- [ ] Mirror the server's `__tests__/points.test.js` under `client/src/lib/__tests__/points.test.js` (same assertions, same fixtures) — run with **Vitest** (client devDep only, not a runtime dependency).
 - [ ] Delete from `client/src/api/client.js`: `getCountries`, `getCountry`, `getUserCountries`, `getUserScore`, `getLeaderboard`. Replace each call site with a local SQL query.
-- [ ] Leaderboard is a client-side query: per-user totals from synced `user_countries` rows, `ORDER BY total DESC LIMIT 50`.
+- [ ] Leaderboard is a client-side query: per-user totals from synced `user_countries` rows, `ORDER BY total DESC LIMIT 50`. Depends on the changes feed carrying write history — snapshot stays thin (ref data + `users_public` only); we'll fatten it only if cold-boot leaderboard latency actually matters.
 - [ ] E2E golden test: scoring parity — for a fixed fixture (10 visited countries, known home), server total === client total.
 
-**Exit criteria:** grepping the client for the deleted `getX` functions returns nothing. `diff server/src/lib/points.js client/src/lib/points.js` is empty in CI.
+**Exit criteria:** grepping the client for the deleted `getX` functions returns nothing. `make check-points-parity` is silent in CI.
+
+**Decisions locked in for Phase 4:**
+
+1. **Server moves to ESM.** One-time cost, forever clean — `cp` can produce a byte-identical copy so the CI diff is a simple check, no normalisation, no dual-format shim. Existing Jest suite is updated in the same change.
+2. **Snapshot includes user-visit tables.** Original plan was ref data + `users_public` only, with changes-feed catching up the rest. That design orphaned any write whose `change_id` was ≤ the snapshot cursor: not in snapshot, and `?since=<cursor>` returned nothing. Would have silently broken "returning user on a new device." Corrected during Phase 4 E2E: `/api/snapshot` now also ships `user_countries`, `user_cities`, `user_provinces`. Payload is still small at hobby scale.
+3. **Vitest client-side, Jest server-side.** Vitest is dev-only on the client — no runtime bundle impact. Jest stays on the server because it's already wired; converting both suites to one runner is a later call.
+4. **Client points.js is a copy, not an import.** Avoids coupling client build to server source tree. The parity target is the enforcement mechanism: if you touch one, you touch the other, or CI stops you.
 
 ### Phase 5 — Optimistic writes (~½ day)
 

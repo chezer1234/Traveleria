@@ -4,6 +4,4 @@
 // Any mismatch between server-sent X-App-Schema-Version and the client's baked
 // VITE_APP_SCHEMA_VERSION triggers a full OPFS wipe + hard reload on the client.
 
-module.exports = {
-  APP_SCHEMA_VERSION: process.env.APP_SCHEMA_VERSION || 'dev',
-};
+export const APP_SCHEMA_VERSION = process.env.APP_SCHEMA_VERSION || 'dev';

@@ -2,7 +2,7 @@
 // Returns the new change_id so the caller can echo it back to the client for
 // optimistic-write fast-forwarding (Phase 5).
 
-async function record(trx, { table, pk, op, row }) {
+export async function record(trx, { table, pk, op, row }) {
   if (!['insert', 'update', 'delete'].includes(op)) {
     throw new Error(`changes.record: invalid op "${op}"`);
   }
@@ -18,5 +18,3 @@ async function record(trx, { table, pk, op, row }) {
   // Knex returns either {change_id: N} or N depending on the dialect/driver.
   return typeof inserted === 'object' ? inserted.change_id : inserted;
 }
-
-module.exports = { record };

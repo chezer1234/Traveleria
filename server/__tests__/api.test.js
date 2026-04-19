@@ -2,9 +2,9 @@
  * Integration tests for API routes: countries, user travel log, points.
  * Uses the test database with migrations and seeds.
  */
-const crypto = require('crypto');
-const { db } = require('./setup');
-const { calculateCountryPoints, calculateTotalTravelPoints, getBaseline } = require('../src/lib/points');
+import crypto from 'crypto';
+import { db } from './setup.js';
+import { calculateCountryPoints, calculateTotalTravelPoints, getBaseline } from '../src/lib/points.js';
 
 let testUser;
 

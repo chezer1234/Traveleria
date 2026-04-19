@@ -4,6 +4,9 @@
   "description": "TravelPoints backend API server",
   "type": "module",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node src/index.js",
     "start": "node src/index.js",

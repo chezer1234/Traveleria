@@ -14,8 +14,9 @@
 - Scoring moves to the client (port `points.js` — it's already pure). Leaderboard becomes a local SQL query.
 - Auth: username + bcrypt password + JWT in an httpOnly cookie. Not real auth, just enough to kill the localStorage impersonation farce.
 - Schema updates: single `APP_SCHEMA_VERSION` constant. Server sends it as a header; on mismatch the client wipes its OPFS DB and re-snapshots. No user-data migration ever — we just drop.
+- **Every tier runs the same binaries locally as in prod** — sqld (already in `docker-compose.yml`), the server container, a prod-build client container, and headless Chromium via Playwright. The whole stack is validated end-to-end in Docker on every push, so nothing ships unless the full loop is green.
 
-Rough total for Phases 0–5: **~3 days of focused work.**
+Rough total for Phases A–5: **~4 days of focused work.**
 
 ---
 
@@ -114,6 +115,16 @@ Server (Express + Turso)
 
 Each phase is independently shippable. Ship, poke it, move on.
 
+### Phase A — Docker parity + E2E harness (~1 day, goes FIRST)
+
+De-risk everything before touching features. Every tier must run the same software locally that it runs in production, and the full stack must be testable end-to-end inside Docker.
+
+- Good news: `docker-compose.yml` already runs `ghcr.io/tursodatabase/libsql-server` (sqld) — same binary, same libsql wire protocol as Turso cloud. DB-tier parity is already in place; CLAUDE.md's "local file for dev, cloud for prod" note is out of date.
+- Add `compose.test.yml` — extends the base compose with a Playwright service that runs headless Chromium against the dev stack.
+- Add a `make e2e` target and an `/api/dev/reset` endpoint (dev-only, gated by `NODE_ENV !== 'production'`) that truncates user tables, reseeds, and bumps a test marker.
+- Write one end-to-end smoke test that boots the stack, signs a user up, adds a country, and asserts the visit is in both the server DB and the client OPFS DB. This is the scaffolding every later phase hangs its own tests off.
+- Add a CI job that runs the same compose commands — GitHub Actions uses the exact same binaries as local.
+
 ### Phase 0 — Lightweight auth (~half day)
 
 - Drop `users` and rebuild with `password_hash` column (no users to migrate).
@@ -185,14 +196,92 @@ Each phase is independently shippable. Ship, poke it, move on.
 
 ---
 
-## Dev loop & testing
+## Local parity & end-to-end validation
 
-- `docker compose up -d --build` still works — Turso embedded locally, unchanged.
-- `make reset-db` additionally hits a new `/api/dev/reset` endpoint (dev-only) that truncates user tables AND bumps the version so all browser OPFS DBs re-snapshot.
-- Tests:
-  - Server points tests continue untouched.
-  - Mirror the client port with a tiny node-side test harness (sqlite-wasm can run in Node too).
-  - Add one integration test: seed server → boot client → apply a write → confirm local DB reflects it after sync.
+**Rule:** every tier runs the same binaries in dev, CI, and prod. No "works on my machine" gap, and the whole loop is exercised end-to-end in Docker on every push.
+
+### Tier parity
+
+| Tier | Production | Local / CI (docker compose) | Parity status |
+|---|---|---|---|
+| Primary DB | Turso cloud (libSQL) | `ghcr.io/tursodatabase/libsql-server` (sqld) | ✅ already in compose |
+| App server | Node + Express container | identical Dockerfile | ✅ already in compose |
+| Client | Vite build, statically hosted | Vite dev container (+ a prod-build smoke in CI) | ⚠️ add prod-build variant |
+| Browser SQLite | sqlite-wasm (or sync-wasm) in user's browser | same, running in headless Chromium under Playwright | ➕ add |
+| E2E runner | — | `mcr.microsoft.com/playwright` container | ➕ add |
+
+### Compose layout
+
+```
+compose.yml            # dev stack: sqld + server + client (existing)
+compose.prod-build.yml # overlay: builds & serves the static client
+compose.test.yml       # overlay: adds the playwright runner + uses compose.prod-build.yml
+```
+
+Run modes:
+
+```bash
+docker compose up                                        # dev, as today
+docker compose -f compose.yml -f compose.prod-build.yml up
+docker compose -f compose.yml -f compose.prod-build.yml \
+               -f compose.test.yml run --rm e2e          # full E2E
+```
+
+### What the E2E suite covers
+
+A Playwright suite, minimum one test per concern:
+
+1. **Cold boot** — fresh browser, empty OPFS → `/api/snapshot` fetched → countries render from local SQLite.
+2. **Auth** — signup → JWT cookie present → signin round-trip → logout clears cookie.
+3. **Write + sync echo** — add a country → local DB reflects instantly (optimistic) → server `_changes` contains the row → second browser session (incognito context) picks it up on next poll.
+4. **Impersonation blocked** — `POST /api/users/<other_id>/countries` → 403.
+5. **Schema-version reload** — server bumps `APP_SCHEMA_VERSION` → client detects mismatch on next response → OPFS wiped → fresh snapshot → no stale rows.
+6. **Scoring parity** — for a fixed fixture (10 visited countries, known home), server-computed `calculateTotalTravelPoints` === client port. Golden-file test.
+7. **Leaderboard parity** — server-computed leaderboard === client-computed leaderboard for the same user set.
+8. **Offline blip** — stop the `server` container mid-session → add a country → client shows optimistic state → restart server → next poll reconciles cleanly.
+
+### Fixtures & reset
+
+- `/api/dev/reset` (dev-only middleware gate): truncate user tables, rerun seeds, bump schema reset marker. Called from Playwright `beforeAll`.
+- Deterministic seed user set checked into `server/src/db/seeds/dev_users.js`.
+- `make e2e` = `docker compose down -v && docker compose -f compose.yml -f compose.prod-build.yml -f compose.test.yml run --rm e2e`.
+
+### CI (GitHub Actions)
+
+- Existing `ci.yml` job (migrations + Jest + client build) keeps running as a fast lane.
+- New `e2e` job runs the same `docker compose ... run e2e` command a human would, then uploads the Playwright HTML report as an artifact. This is the single source of truth for "does the stack actually work."
+
+### Gotchas to validate during Phase A
+
+- **sqlite-wasm in Node**: yes, it runs in Node — use it for unit tests of the ported `points.js` against a snapshot DB, no browser needed.
+- **sync-wasm networking inside compose**: the browser (Playwright container) and the server are in the same docker network, but the URL baked into the client must resolve from *both* contexts. Easiest: expose sqld on `localhost:8080` via compose port mapping and set the client to use `http://localhost:8080`, then run Playwright in host-network mode in CI. If this is painful, that's a strong signal to take the hand-rolled sync path instead of sync-wasm.
+- **OPFS in headless Chromium**: supported since Chromium 108. Playwright bundles a recent enough Chromium. Fine.
+- **sqld volume state between test runs**: use a named volume but `docker compose down -v` before each E2E run for determinism.
+- **JWT secret in CI**: just a fixed `dev-secret` env var in `compose.test.yml`. No real secrets needed for E2E.
+
+### How this de-risks each phase
+
+| Phase | What the E2E suite catches |
+|---|---|
+| 0 (auth) | #2 impersonation, #4 cookie behaviour |
+| 1 (change feed) | #3 write+sync echo, #8 offline blip |
+| 2 (client SQLite) | #1 cold boot |
+| 3 (sync worker) | #3, #8 |
+| 4 (client-side reads) | #6 scoring parity, #7 leaderboard parity |
+| 5 (optimistic writes) | #3, #8 |
+
+If any phase's E2E test goes red, that phase isn't done — regardless of what the unit tests say.
+
+---
+
+## Dev loop
+
+- `docker compose up -d --build` unchanged for day-to-day.
+- `make reset-db` unchanged (drops sqld volume + rebuilds). Add `make e2e` for the full test lane.
+- `/api/dev/reset` is dev-only and doubles as the E2E reset hook.
+- Unit tests:
+  - Server `points.js` Jest tests untouched.
+  - Client port gets a mirrored Jest suite using sqlite-wasm in Node.
 
 ---
 
@@ -223,6 +312,7 @@ Each phase is independently shippable. Ship, poke it, move on.
 
 | Phase | Effort |
 |---|---|
+| A — Docker parity + E2E harness | ~1 day |
 | 0 — bcrypt+JWT auth | ~half day |
 | 1 — server change feed | ~half day |
 | 2 — client sqlite-wasm + snapshot | ~1 day (incl. sync-wasm time-box) |
@@ -231,4 +321,4 @@ Each phase is independently shippable. Ship, poke it, move on.
 | 5 — optimistic writes | ~half day |
 | 6 — reactive query hook (optional) | ~half day |
 
-**Total for Phases 0–5: ~3 days.** That's how long it should take to get to "every page is instant, every write is 0 ms, leaderboard is a local SQL query."
+**Total for Phases A–5: ~4 days.** Phase A front-loads a day to guarantee every later phase lands with a green end-to-end signal from the same stack we'd run in production.

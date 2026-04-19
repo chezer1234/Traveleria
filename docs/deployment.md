@@ -66,7 +66,7 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
 1. Click **New** > **Web Service**
 2. Connect the `Traveleria` repo
 3. Configure:
-   - **Name:** `travelpoints-api`
+   - **Name:** `traveleria-api`
    - **Region:** Frankfurt EU (or closest to you)
    - **Branch:** `main`
    - **Root Directory:** `server`
@@ -88,13 +88,13 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
 1. Click **New** > **Static Site**
 2. Connect the `Traveleria` repo
 3. Configure:
-   - **Name:** `travelpoints-web`
+   - **Name:** `traveleria` (served at `traveleria.onrender.com` — the public site)
    - **Branch:** `main`
    - **Root Directory:** `client`
    - **Build Command:** `npm install && npm run build`
    - **Publish Directory:** `dist`
 4. Add **Environment Variable:**
-   - `VITE_API_URL` = the URL of your API service (e.g. `https://travelpoints-api.onrender.com`)
+   - `VITE_API_URL` = the URL of your API service (e.g. `https://traveleria-api.onrender.com`)
    - `VITE_APP_SCHEMA_VERSION` — **do not set here.** CI derives this from the commit SHA on every deploy (see §3). Render rebuilds the static bundle with the new value on each deploy, so the client's baked schema version matches the API's live one.
 5. Click **Create Static Site**
 
@@ -114,9 +114,9 @@ These secrets let the CI pipeline trigger deploys automatically after tests pass
 3. Copy the key
 
 **Service IDs:**
-1. Go to your **travelpoints-api** service on Render
+1. Go to your **traveleria-api** service on Render
 2. The URL looks like `https://dashboard.render.com/web/srv-XXXXX` — the `srv-XXXXX` part is the ID
-3. Do the same for **travelpoints-web**
+3. Do the same for the **traveleria** static site
 
 ### Add secrets to GitHub
 

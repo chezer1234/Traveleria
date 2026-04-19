@@ -11,12 +11,17 @@ const countriesRoutes = require('./routes/countries');
 const usersRoutes = require('./routes/users');
 const leaderboardRoutes = require('./routes/leaderboard');
 const authRoutes = require('./routes/auth');
+const changesRoutes = require('./routes/changes');
+const snapshotRoutes = require('./routes/snapshot');
+const debugRoutes = require('./routes/debug');
+const requestTiming = require('./middleware/request-timing');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(schemaVersionHeader);
 app.use(coopCoep);
+app.use(requestTiming);
 app.use(cors({
   origin: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -113,6 +118,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/changes', changesRoutes);
+app.use('/api/snapshot', snapshotRoutes);
+app.use('/api/debug', debugRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', require('./routes/dev'));

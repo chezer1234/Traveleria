@@ -14,7 +14,7 @@ Top-level checkpoints. Each phase has its own checklist further down.
 
 - [x] **Phase A** — Docker parity + E2E harness (~1 day)
 - [x] **Phase 0** — Lightweight auth (bcrypt + JWT cookie, email-or-handle usernames) (~½ day)
-- [ ] **Phase 1** — Server change feed + debug metrics (~½ day)
+- [x] **Phase 1** — Server change feed + debug metrics (~½ day)
 - [ ] **Phase 2** — Client SQLite via sqlite-wasm (or sync-wasm) (~1 day)
 - [ ] **Phase 3** — Incremental sync worker (skip if sync-wasm handles it) (~½ day)
 - [ ] **Phase 4** — Kill server reads; port `points.js` to client (~½ day)
@@ -195,17 +195,27 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 
 ### Phase 1 — Server change feed + debug metrics (~½ day)
 
-- [ ] Migration: `_changes` table — `(change_id INTEGER PK AUTOINCREMENT, table_name TEXT, pk TEXT, op TEXT CHECK (op IN ('insert','update','delete')), row_json TEXT, created_at TEXT)`.
-- [ ] Every write route ALSO appends a `_changes` row **in the same transaction**. Helper: `changes.record(trx, table, pk, op, row)`.
-- [ ] `GET /api/changes?since=N` → `{ changes: [...], cursor: <max_change_id> }`. Capped at 1000 rows per call; client re-asks until caught up.
-- [ ] `GET /api/snapshot` → `{ countries, cities, provinces, users_public, cursor }`. `users_public` is exactly `{ id, identifier, home_country }` per row — no `password_hash`, no email/handle distinction, nothing else. Any future field addition requires bumping `APP_SCHEMA_VERSION`.
-- [ ] Seed migration writes synthetic `_changes` rows for existing reference data at `change_id = 1`.
-- [ ] `GET /api/debug/metrics` (dev always; prod behind `?token=<env>`): request count per route, p50/p95 timings, `_changes` table size, current max `change_id`, count of active sync cursors seen in last 5 min.
-- [ ] **Retention:** no pruning of `_changes` yet. Revisit if the table exceeds ~100k rows — at that point add a nightly job that drops rows older than the oldest active client cursor.
-- [ ] Middleware: per-request timing log (server-timing header + structured log line).
-- [ ] E2E: after a write, `_changes` has the row and `/api/changes?since=0` returns it.
+- [x] Migration `20260419002_create_changes_feed`: `_changes (change_id INTEGER PK AUTOINCREMENT, table_name, pk, op, row_json, created_at)` + index on `(table_name, pk)` + SQLite trigger enforcing `op ∈ {insert, update, delete}`.
+- [x] `server/src/lib/changes.js` — `record(trx, { table, pk, op, row })` helper. Called inside the same transaction as the write; returns the new `change_id` so routes can echo it to the client. Per decision: reference-data tables (`countries`, `cities`, `provinces`) have no write routes and therefore no change-feed entries; clients get them once via `/api/snapshot`.
+- [x] Every write route wraps insert+`changes.record(...)` in `db.transaction(...)`. Applied to signup (`users`), add/delete country, add/delete city, add/delete province. Cascade deletes emit one `_changes` row per child deleted.
+- [x] `GET /api/changes?since=N` → `{ changes: [...], cursor, has_more }`. Capped at 1000 rows per call. `has_more=true` signals the client to keep polling.
+- [x] `GET /api/snapshot` → `{ countries, cities, provinces, users_public, cursor }`. `users_public = { id, identifier, home_country }` enforced by explicit column list; password_hash never leaks.
+- [x] No seed backfill of synthetic `_changes` rows: `/api/snapshot` returns everything on cold start, so the feed starting empty is fine. Documented here.
+- [x] `GET /api/debug/metrics` — dev always; prod requires `?token=<DEBUG_TOKEN>` or 404s (prevents accidental exposure when the env var isn't set). Reports `schema_version`, uptime, per-route `count/p50/p95/p99`, `_changes` row count, current max `change_id`.
+- [x] `Server-Timing: total;dur=<ms>` header on every response plus in-memory metrics ring (500 samples per route). No prometheus dep — we're at hobby scale.
+- [x] **Retention:** no pruning of `_changes` yet. Revisit when the table exceeds ~100k rows; at that point add a nightly job that drops rows older than the oldest active client cursor.
+- [x] E2E (`e2e/tests/changes.spec.js`): snapshot shape + `users_public` keys asserted; writes surface in `/api/changes?since=N`; write responses carry `change_id`; cascade delete emits multiple `_changes` rows (one per cascaded row); `/api/changes?since=-1` → 422; `password_hash` never appears in `users` change rows.
 
-**Exit criteria:** every write produces exactly one `_changes` row atomically. Debug metrics endpoint reachable.
+**Exit criteria:** every write produces a `_changes` row atomically, in the same transaction. Debug metrics endpoint reachable (dev) or 404'd without token (prod). ✅ `make e2e` 12/12 green.
+
+**Decisions locked in during Phase 1:**
+
+1. **Write routes echo `change_id`** in their response body (`{ ..., change_id }`). Phase 5's optimistic writes will use this to fast-forward the client cursor past its own local write and skip the echo on the next poll.
+2. **`users_public` is enforced at the SELECT, not by a view.** Easy to audit (one explicit column list in `routes/snapshot.js`) and automatically covered by the Phase 1 E2E test that asserts the object's keys exactly.
+3. **Cascade deletes emit one `_changes` row per cascaded row**, not a single parent delete. Rationale: the client's local SQLite needs to know each row that disappeared so its own indexes stay consistent. The alternative (one parent delete, infer children) couples server and client code and would break if cascade logic diverges.
+4. **Reference tables are snapshot-only.** No routes mutate `countries`/`cities`/`provinces` at runtime — they're seeded and then frozen. No `_changes` entries needed; any future change to reference data means a new migration + an `APP_SCHEMA_VERSION` bump + a client resync.
+5. **Metrics are in-memory.** Deliberately per-process, no external store. Good enough for one Render container; any multi-instance deploy would need prometheus-client or similar, but that's not on the horizon.
+6. **E2E tests run in parallel (7 workers).** Phase 1's changes-feed test taught us: any assertion on "total rows since cursor X" will catch parallel tests' writes. Filter by the test's own `user.id` / `pk` instead of counting. Recorded so we don't re-learn it.
 
 ### Phase 2 — Client SQLite via sqlite-wasm (~1 day)
 

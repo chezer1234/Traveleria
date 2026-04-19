@@ -9,10 +9,10 @@ const {
   addProvinceSchema,
   validateBody,
 } = require('../lib/schemas');
+const changes = require('../lib/changes');
 
 const router = express.Router();
 
-// GET /api/users/:id — public profile (id, identifier, home_country).
 router.get('/:id', async (req, res) => {
   const user = await db('users')
     .where({ id: req.params.id })
@@ -75,12 +75,11 @@ async function getUserTravelData(userId, homeCountryCode) {
   return { homeCountry, allCountries, visitedCountries };
 }
 
-// Helper to report a business-rule failure in the same 422 shape as zod.
 function fail(res, path, message) {
   return res.status(422).json({ error: 'Validation failed', errors: [{ path, message }] });
 }
 
-// ---------- Writes: JWT + ownership + schema + business rules ----------
+// ---------- Writes: JWT + ownership + schema + business rules + change feed ----------
 
 router.post(
   '/:id/countries',
@@ -99,15 +98,21 @@ router.post(
       .first();
     if (existing) return fail(res, 'country_code', 'Already added');
 
-    const [record] = await db('user_countries')
-      .insert({
-        id: crypto.randomUUID(),
-        user_id: id,
-        country_code: country.code,
-        visited_at: visited_at || null,
-      })
-      .returning('*');
-    res.status(201).json(record);
+    const row = {
+      id: crypto.randomUUID(),
+      user_id: id,
+      country_code: country.code,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_countries').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_countries', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
   }
 );
 
@@ -124,18 +129,35 @@ router.delete(
       .first();
     if (!uc) return res.status(404).json({ error: 'Country not in your visited list' });
 
+    // Collect doomed child rows before we touch anything, so we can emit an
+    // accurate _changes entry per cascaded delete.
     const cityIds = await db('cities').where({ country_code: upperCode }).pluck('id');
-    if (cityIds.length > 0) {
-      await db('user_cities').where({ user_id: id }).whereIn('city_id', cityIds).del();
-    }
-
+    const cityVisits = cityIds.length
+      ? await db('user_cities').where({ user_id: id }).whereIn('city_id', cityIds)
+      : [];
     const provinceCodes = await db('provinces').where({ country_code: upperCode }).pluck('code');
-    if (provinceCodes.length > 0) {
-      await db('user_provinces').where({ user_id: id }).whereIn('province_code', provinceCodes).del();
-    }
+    const provinceVisits = provinceCodes.length
+      ? await db('user_provinces').where({ user_id: id }).whereIn('province_code', provinceCodes)
+      : [];
 
-    await db('user_countries').where({ user_id: id, country_code: upperCode }).del();
-    res.json({ message: 'Country and associated city/province visits removed' });
+    let last_change_id;
+    await db.transaction(async (trx) => {
+      for (const cv of cityVisits) {
+        await trx('user_cities').where({ id: cv.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_cities', pk: cv.id, op: 'delete' });
+      }
+      for (const pv of provinceVisits) {
+        await trx('user_provinces').where({ id: pv.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_provinces', pk: pv.id, op: 'delete' });
+      }
+      await trx('user_countries').where({ id: uc.id }).del();
+      last_change_id = await changes.record(trx, { table: 'user_countries', pk: uc.id, op: 'delete' });
+    });
+
+    res.json({
+      message: 'Country and associated city/province visits removed',
+      change_id: last_change_id,
+    });
   }
 );
 
@@ -185,15 +207,21 @@ router.post(
     const existing = await db('user_cities').where({ user_id: id, city_id }).first();
     if (existing) return fail(res, 'city_id', 'Already logged');
 
-    const [record] = await db('user_cities')
-      .insert({
-        id: crypto.randomUUID(),
-        user_id: id,
-        city_id,
-        visited_at: visited_at || null,
-      })
-      .returning('*');
-    res.status(201).json(record);
+    const row = {
+      id: crypto.randomUUID(),
+      user_id: id,
+      city_id,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_cities').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_cities', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
   }
 );
 
@@ -203,11 +231,17 @@ router.delete(
   requireOwnership('id'),
   async (req, res) => {
     const { id, cityId } = req.params;
-    const deleted = await db('user_cities')
-      .where({ user_id: id, city_id: cityId })
-      .del();
-    if (!deleted) return res.status(404).json({ error: 'City visit not found' });
-    res.json({ message: 'City visit removed' });
+    const existing = await db('user_cities').where({ user_id: id, city_id: cityId }).first();
+    if (!existing) return res.status(404).json({ error: 'City visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_cities').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_cities', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'City visit removed', change_id });
   }
 );
 
@@ -231,15 +265,21 @@ router.post(
     const existing = await db('user_provinces').where({ user_id: id, province_code }).first();
     if (existing) return fail(res, 'province_code', 'Already logged');
 
-    const [record] = await db('user_provinces')
-      .insert({
-        id: crypto.randomUUID(),
-        user_id: id,
-        province_code,
-        visited_at: visited_at || null,
-      })
-      .returning('*');
-    res.status(201).json(record);
+    const row = {
+      id: crypto.randomUUID(),
+      user_id: id,
+      province_code,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_provinces').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_provinces', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
   }
 );
 
@@ -249,11 +289,17 @@ router.delete(
   requireOwnership('id'),
   async (req, res) => {
     const { id, code } = req.params;
-    const deleted = await db('user_provinces')
-      .where({ user_id: id, province_code: code })
-      .del();
-    if (!deleted) return res.status(404).json({ error: 'Province visit not found' });
-    res.json({ message: 'Province visit removed' });
+    const existing = await db('user_provinces').where({ user_id: id, province_code: code }).first();
+    if (!existing) return res.status(404).json({ error: 'Province visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_provinces').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_provinces', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'Province visit removed', change_id });
   }
 );
 

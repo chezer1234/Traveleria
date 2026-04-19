@@ -11,6 +11,7 @@ const {
   verifyToken,
 } = require('../lib/auth');
 const { signupSchema, signinSchema, validateBody } = require('../lib/schemas');
+const changes = require('../lib/changes');
 
 const router = express.Router();
 
@@ -37,11 +38,18 @@ router.post('/signup', validateBody(signupSchema), async (req, res) => {
 
   const id = crypto.randomUUID();
   const password_hash = await hashPassword(password);
-  await db('users').insert({ id, identifier, password_hash, home_country });
+
+  // Only the public shape goes into the change feed — never the password hash.
+  const publicRow = { id, identifier, home_country };
+
+  await db.transaction(async (trx) => {
+    await trx('users').insert({ id, identifier, password_hash, home_country });
+    await changes.record(trx, { table: 'users', pk: id, op: 'insert', row: publicRow });
+  });
 
   const token = signToken(id);
   setAuthCookies(res, { token, identifier });
-  res.status(201).json({ id, identifier, home_country });
+  res.status(201).json(publicRow);
 });
 
 router.post('/signin', validateBody(signinSchema), async (req, res) => {

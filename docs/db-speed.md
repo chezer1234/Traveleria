@@ -83,7 +83,7 @@ Non-negotiable invariant: **every mutation to server-side data is validated by t
 
 ## Cookies & cross-origin in prod
 
-Prod runs split client + API on Render — `travelpoints-web.onrender.com` and `travelpoints-api.onrender.com`. `onrender.com` is on the Public Suffix List, so those subdomains are **cross-site** from the browser's perspective.
+Prod runs split client + API on Render — `traveleria.onrender.com` and `traveleria-api.onrender.com`. `onrender.com` is on the Public Suffix List, so those subdomains are **cross-site** from the browser's perspective.
 
 **Decision: JWT in `Authorization: Bearer <token>` header, not a cookie.**
 

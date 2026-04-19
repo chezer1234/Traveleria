@@ -24,4 +24,8 @@ services:
       target: prod
       args:
         VITE_APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
-        VITE_API_URL: http://localhost:3001
+        # Compose-internal hostname so the Playwright container's Chromium can
+        # reach the API from the loaded client bundle. Matches prod topology
+        # (split client + API origins) — Render prod overrides with the real
+        # public API URL.
+        VITE_API_URL: http://server:3001

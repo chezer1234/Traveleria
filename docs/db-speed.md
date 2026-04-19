@@ -15,7 +15,7 @@ Top-level checkpoints. Each phase has its own checklist further down.
 - [x] **Phase A** — Docker parity + E2E harness (~1 day)
 - [x] **Phase 0** — Lightweight auth (bcrypt + JWT cookie, email-or-handle usernames) (~½ day)
 - [x] **Phase 1** — Server change feed + debug metrics (~½ day)
-- [ ] **Phase 2** — Client SQLite via sqlite-wasm (or sync-wasm) (~1 day)
+- [~] **Phase 2** — Client SQLite via sqlite-wasm (~1 day) — **code in place, E2E blocked on followup task** (see "Followup: prod-shape E2E (HTTPS + cross-origin cookies)" below)
 - [ ] **Phase 3** — Incremental sync worker (skip if sync-wasm handles it) (~½ day)
 - [ ] **Phase 4** — Kill server reads; port `points.js` to client (~½ day)
 - [ ] **Phase 5** — Optimistic writes (~½ day)
@@ -217,17 +217,54 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 5. **Metrics are in-memory.** Deliberately per-process, no external store. Good enough for one Render container; any multi-instance deploy would need prometheus-client or similar, but that's not on the horizon.
 6. **E2E tests run in parallel (7 workers).** Phase 1's changes-feed test taught us: any assertion on "total rows since cursor X" will catch parallel tests' writes. Filter by the test's own `user.id` / `pk` instead of counting. Recorded so we don't re-learn it.
 
-### Phase 2 — Client SQLite via sqlite-wasm (~1 day)
+### Phase 2 — Client SQLite via sqlite-wasm (~1 day) — IN PROGRESS
 
-- [ ] **Time-box experiment (half-day max):** wire `@tursodatabase/sync-wasm@^0.5.0` against the dockerised sqld **in pull-only mode** (we never call `push()` — writes stay on the REST path so the API can keep validating content; see Authorised writes section). If pull-only works cleanly, we skip Phase 3. If it's flaky inside the compose networking, abandon and go to sqlite-wasm.
-- [ ] Otherwise: add `@sqlite.org/sqlite-wasm@^3.51.2-build8` via the OO1 API (not Worker1 / Promiser1 — deprecated).
-- [ ] `client/src/db/local.js`: opens an OPFS-backed DB named `traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`. **The DB is only opened after signin** — the `/signin` and `/signup` pages must not trigger any SQL code path. Sign-out closes the handle.
-- [ ] On first open: `fetch('/api/snapshot')` → create tables matching server schema → bulk-insert rows → store cursor.
-- [ ] Tiny helper API: `db.all(sql, params)`, `db.get(sql, params)`, `db.exec(sql)`.
-- [ ] Confirm Vite serves COOP/COEP headers (carry-over from Phase A).
-- [ ] E2E: cold-boot an incognito session → countries render from local SQLite with no `/api/countries` network call.
+- [x] Skipped the sync-wasm time-box per Phase-A-era decision (recorded above). Went direct to `@sqlite.org/sqlite-wasm`.
+- [x] Added `@sqlite.org/sqlite-wasm@^3.51.2-build9` to client deps. Excluded from Vite `optimizeDeps` so esbuild prebundling doesn't break its `import.meta.url`-based wasm/worker resolution.
+- [x] **Architecture corrected mid-phase**: sqlite-wasm runs in a dedicated Web Worker (`client/src/db/worker.js`), not on the main thread. Reason: `FileSystemFileHandle.prototype.createSyncAccessHandle` — required by `installOpfsSAHPoolVfs` — is **Worker-only by spec**. The plan's "OO1 on main thread" note was incorrect; OO1 is the right *API*, but it has to live inside a Worker for OPFS persistence to work. We use OO1 inside the worker and a tiny promise-RPC on the main thread (`client/src/db/local.js`) so callers don't see postMessage.
+- [x] DB filename and lifecycle match the plan: `/traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`, only opened after signin, closed on signout. SignIn/SignUp pages do not import `local.js`.
+- [x] DDL mirrors the server schema (countries/cities/provinces/users_public + user_* visit tables + `_meta` for cursor). Idempotent hydration: re-opening with a populated `_meta.cursor` short-circuits the snapshot fetch.
+- [x] Helper API exposed by `openUserDb(...)`: `entry.all(sql, bind)`, `entry.get(sql, bind)`, `entry.value(sql, bind)`, `entry.exec(sql, bind)`. All async (worker-RPC under the hood).
+- [x] `AuthContext` opens the DB after signin, closes on signout, exposes `{db, dbStatus, dbError}`. `dbStatus`: `idle` → `loading` → `ready` | `error`. Infinite-retry bug fixed: effect depends on `user` only.
+- [x] COOP/COEP/CORP headers verified in nginx + Vite + Express (already in place from Phase A).
+- [x] E2E test scaffold in `e2e/tests/local-db.spec.js`: cold-boot → snapshot → counts > 100; reload → cursor preserved → no second snapshot fetch. **Currently `test.describe.skip`** — see followup task below. Set `TRAVELERIA_OPFS_E2E=1` to re-enable once the followup lands.
 
-**Exit criteria:** after one cold boot, the app runs all read paths without hitting the network for reference data.
+**Why E2E is skipped:** the prod-build E2E stack runs over plain `http://` inside the compose network. Chromium's secure-context gate disables `createSyncAccessHandle` even in a Worker; `--unsafely-treat-insecure-origin-as-secure` doesn't reliably propagate to dedicated Workers. Real browsers (Chrome on `localhost:3000`, Render prod over HTTPS) do not have this problem.
+
+**Manual verification before declaring Phase 2 done:** run the dev stack on macOS (`make up`), sign up at `http://localhost:3000`, open DevTools → Application → Storage → IndexedDB / Origin Private File System, and confirm a `traveleria-v<sha>-<uuid>.db` file exists with populated tables. Should be a 5-minute check once the next session is in front of a real browser.
+
+**Exit criteria** (unchanged): after one cold boot, the app runs all read paths without hitting the network for reference data. Phase 4 wires the actual UI to `entry.all(...)` etc.
+
+---
+
+## Followup: prod-shape E2E (HTTPS + cross-origin cookies)
+
+**Standalone task for a fresh context.** Self-contained, doesn't block Phase 3 from being designed but does block Phase 2's E2E coverage.
+
+**Why it matters.** Production runs split client + API origins (Render serves them as separate services). Local + E2E must mirror that topology — no silent compromises like an nginx `/api` proxy in the client container, because that doesn't exist in prod. Two things break under plain http+split-origin in the E2E stack:
+
+1. **OPFS / `createSyncAccessHandle`** is gated by a secure context. Plain http in a docker network ≠ secure. `--unsafely-treat-insecure-origin-as-secure` does not propagate to Workers reliably.
+2. **`SameSite=Lax` cookies** are not sent on cross-site subresource fetches (e.g. AJAX from `client:3000` → `server:3001`). Today our auth cookie is `SameSite=Lax`, so once a page is loaded from one origin, it can't authenticate to the other via fetch. This must already be a question for Render prod — needs deciding.
+
+**Constraint from product owner.** The E2E stack must use the **same tier shape** as prod (split client + API). No proxy compromises in the client container. The fix lives in transport (TLS) and cookie policy, not topology.
+
+**Scope.**
+1. Decide cookie strategy for split-origin prod:
+   - Same registrable domain on Render? Then `SameSite=Lax` works for top-level navigation but still not for AJAX subresources. Need `SameSite=None; Secure` for AJAX cross-site auth.
+   - Different registrable domains? `SameSite=None; Secure` is mandatory.
+   - Update `server/src/lib/auth.js → cookieOpts` accordingly. Keep `COOKIE_SECURE` env honest with the chosen mode.
+2. Add HTTPS termination to the E2E compose stack:
+   - Generate a self-signed cert in `scripts/e2e.sh` (openssl one-liner, output to a gitignored `scripts/e2e-certs/`).
+   - Mount it into the client (nginx) and server (Express via `https.createServer` or a separate nginx in front of server) containers.
+   - Update `BASE_URL`/`API_URL` in `compose.test.yaml` to `https://...`. Update `VITE_API_URL` build arg likewise.
+   - `e2e/playwright.config.js`: add `use.ignoreHTTPSErrors: true`. Drop the `--unsafely-treat-insecure-origin-as-secure` arg — no longer needed.
+3. Re-enable Phase 2 E2E: `TRAVELERIA_OPFS_E2E=1` env on the e2e service; verify both `local-db` tests pass.
+4. Verify all 14 tests still green under HTTPS.
+5. Document the cookie + cert scheme in this doc under a new "Cookies & TLS" section so it's not folklore.
+
+**Out of scope.** Don't touch the prod-build Dockerfile beyond what's needed for HTTPS termination. Don't add intermediate proxies. Don't change tier topology.
+
+**Estimated effort:** ~2-3 hours in a focused fresh context.
 
 ### Phase 3 — Incremental sync worker (~½ day)
 

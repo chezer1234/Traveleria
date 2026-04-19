@@ -19,7 +19,16 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          // http://client:3000 isn't a secure context by default, so OPFS and
+          // SharedArrayBuffer are disabled. Flag teaches Chromium to treat the
+          // compose-internal origin as secure for E2E only. Real browsers
+          // visiting production (over https) don't need this.
+          args: ['--unsafely-treat-insecure-origin-as-secure=http://client:3000'],
+        },
+      },
     },
   ],
 });

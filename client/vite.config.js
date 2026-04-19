@@ -13,6 +13,12 @@ const crossOriginHeaders = {
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // sqlite-wasm ships its own WASM + Worker files alongside the ES module and
+  // locates them via `new URL(..., import.meta.url)`. Vite's esbuild prebundling
+  // breaks that resolution — exclude it and the import stays intact.
+  optimizeDeps: {
+    exclude: ['@sqlite.org/sqlite-wasm'],
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,

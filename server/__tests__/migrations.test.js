@@ -1,12 +1,17 @@
 /**
  * Tests that all database migrations create the correct tables and columns.
  */
-const path = require('path');
-const crypto = require('crypto');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import knex from 'knex';
+import { createRequire } from 'module';
 
-const knex = require('knex');
-const knexfile = require('../src/db/knexfile');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const knexfile = require('../src/db/knexfile.cjs');
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 let db;
 
@@ -53,10 +58,8 @@ describe('Database Migrations', () => {
 
     const columns = await db.table('users').columnInfo();
     expect(columns).toHaveProperty('id');
-    expect(columns).toHaveProperty('username');
-    expect(columns).toHaveProperty('email');
+    expect(columns).toHaveProperty('identifier');
     expect(columns).toHaveProperty('password_hash');
-    expect(columns).toHaveProperty('avatar_url');
     expect(columns).toHaveProperty('home_country');
     expect(columns).toHaveProperty('created_at');
   });
@@ -137,8 +140,7 @@ describe('Database Migrations', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'testuser_fk',
-        email: 'testfk@example.com',
+        identifier: 'testuser_fk',
         password_hash: 'hash',
         home_country: 'ZZ',
       })
@@ -149,15 +151,14 @@ describe('Database Migrations', () => {
     await expect(
       db('users').insert({
         id: crypto.randomUUID(),
-        username: 'baduser',
-        email: 'bad@example.com',
+        identifier: 'baduser',
         password_hash: 'hash',
         home_country: 'QQ',
       })
     ).rejects.toThrow();
 
     // Cleanup
-    await db('users').where({ username: 'testuser_fk' }).del();
+    await db('users').where({ identifier: 'testuser_fk' }).del();
     await db('countries').where({ code: 'ZZ' }).del();
   });
 
@@ -174,8 +175,7 @@ describe('Database Migrations', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'uniquetest',
-        email: 'unique@example.com',
+        identifier: 'uniquetest',
         password_hash: 'hash',
         home_country: 'ZZ',
       })

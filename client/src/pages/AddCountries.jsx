@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getCountries, getUserCountries, addUserCountry } from '../api/client';
+import { addCountryOptimistic } from '../lib/mutations';
+import { getCountriesLocal } from '../lib/queries';
 
 export default function AddCountries() {
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const homeCountry = user.home_country;
   const navigate = useNavigate();
   const [allCountries, setAllCountries] = useState([]);
@@ -16,22 +17,25 @@ export default function AddCountries() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    async function load() {
+    if (dbStatus !== 'ready' || !db) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const [countries, visited] = await Promise.all([
-          getCountries(homeCountry),
-          getUserCountries(user.id, homeCountry),
+        const [countries, visitedRows] = await Promise.all([
+          getCountriesLocal(db, homeCountry),
+          db.all(`SELECT country_code FROM user_countries WHERE user_id = ?`, [user.id]),
         ]);
+        if (cancelled) return;
         setAllCountries(countries);
-        setVisitedCodes(new Set(visited.map((v) => v.country_code)));
+        setVisitedCodes(new Set(visitedRows.map((v) => v.country_code)));
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }
-    load();
-  }, [user.id, homeCountry]);
+    })();
+    return () => { cancelled = true; };
+  }, [db, dbStatus, user.id, homeCountry]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return allCountries;
@@ -62,7 +66,10 @@ export default function AddCountries() {
     setError('');
 
     try {
-      const promises = [...selected].map((code) => addUserCountry(user.id, code));
+      // Mutations serialise in the worker's txLock, but the local INSERT in
+      // each savepoint lands instantly. Kicking them off with Promise.all keeps
+      // the queue tight without juggling ordering.
+      const promises = [...selected].map((code) => addCountryOptimistic(db, user.id, code));
       await Promise.all(promises);
       navigate('/dashboard');
     } catch (err) {
@@ -71,7 +78,7 @@ export default function AddCountries() {
     }
   }
 
-  if (loading) {
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>

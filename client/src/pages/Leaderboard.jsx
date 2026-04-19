@@ -1,34 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getLeaderboard } from '../api/client';
+import { getLeaderboardLocal } from '../lib/queries';
 
 const flag = (code) =>
   code ? String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '';
 
 export default function Leaderboard() {
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, []);
-
-  async function loadLeaderboard() {
+  const loadLeaderboard = useCallback(async () => {
+    if (!db) return;
     setLoading(true);
     setError('');
     try {
-      const data = await getLeaderboard(user?.id);
+      const data = await getLeaderboardLocal(db, user?.id);
       setEntries(data);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [db, user?.id]);
 
-  if (loading) {
+  useEffect(() => {
+    if (dbStatus === 'ready') loadLeaderboard();
+  }, [dbStatus, loadLeaderboard]);
+
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>
@@ -64,7 +65,7 @@ export default function Leaderboard() {
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-16">Rank</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Username</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">User</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Home</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Points</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Countries</th>
@@ -80,7 +81,7 @@ export default function Leaderboard() {
                   >
                     <td className="px-4 py-3 text-gray-600 font-medium">{entry.rank}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">
-                      {entry.username}
+                      {entry.identifier}
                       {isCurrentUser && <span className="ml-2 text-xs text-indigo-600">(you)</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
@@ -104,7 +105,7 @@ export default function Leaderboard() {
                   <tr className="bg-indigo-50">
                     <td className="px-4 py-3 text-gray-600 font-medium">{outsideUser.rank}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">
-                      {outsideUser.username}
+                      {outsideUser.identifier}
                       <span className="ml-2 text-xs text-indigo-600">(you)</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">

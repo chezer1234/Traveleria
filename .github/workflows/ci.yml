@@ -22,6 +22,12 @@ jobs:
             server/package-lock.json
             client/package-lock.json
 
+      # --- Parity invariant ---
+      # server/src/lib/points.js and client/src/lib/points.js must be byte-identical.
+      # See docs/db-speed.md → Phase 4 "Decisions locked in".
+      - name: Check points.js parity
+        run: make check-points-parity
+
       # --- Server ---
       - name: Install server dependencies
         working-directory: server
@@ -35,13 +41,13 @@ jobs:
         working-directory: server
         env:
           NODE_ENV: test
-        run: npx knex migrate:latest --knexfile src/db/knexfile.js
+        run: npx knex migrate:latest --knexfile src/db/knexfile.cjs
 
       - name: Run seeds
         working-directory: server
         env:
           NODE_ENV: test
-        run: npx knex seed:run --knexfile src/db/knexfile.js
+        run: npx knex seed:run --knexfile src/db/knexfile.cjs
 
       - name: Run server tests
         working-directory: server
@@ -53,6 +59,10 @@ jobs:
       - name: Install client dependencies
         working-directory: client
         run: npm ci
+
+      - name: Run client unit tests (points parity mirror)
+        working-directory: client
+        run: npx vitest run
 
       - name: Build client
         working-directory: client
@@ -68,19 +78,65 @@ jobs:
         working-directory: server
         env:
           NODE_ENV: test
-          PORT: 3000
+          PORT: 3001
         run: |
           node src/index.js &
           SERVER_PID=$!
           sleep 3
-          curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
+          curl -sf http://localhost:3001/api/health | grep -q '"status":"ok"'
           echo "Server health check OK"
           kill $SERVER_PID
+
+  e2e:
+    name: End-to-end (prod-build stack)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Log pinned versions
+        run: |
+          echo "node: $(node --version)"
+          echo "docker: $(docker --version)"
+          echo "compose: $(docker compose version)"
+
+      - name: Resolve short git SHA for APP_SCHEMA_VERSION
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log pinned image digests before build
+        run: |
+          docker pull ghcr.io/tursodatabase/libsql-server:v0.24.32
+          docker pull nginx:1.27-alpine
+          docker pull node:24-alpine
+          docker image inspect --format '{{.RepoDigests}}' ghcr.io/tursodatabase/libsql-server:v0.24.32
+          docker image inspect --format '{{.RepoDigests}}' nginx:1.27-alpine
+          docker image inspect --format '{{.RepoDigests}}' node:24-alpine
+
+      - name: Run E2E suite
+        env:
+          APP_SCHEMA_VERSION: ${{ steps.sha.outputs.short }}
+        # Single entry point; Makefile is the source of truth for every environment.
+        run: make e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: e2e-report
+          retention-days: 14
+          if-no-files-found: ignore
 
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [build-and-test, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
 
@@ -90,6 +146,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_SERVICE_ID: ${{ secrets.RENDER_API_SERVICE_ID }}
           RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_WEB_SERVICE_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -uo pipefail
 
@@ -102,6 +159,68 @@ jobs:
 
           RENDER_API="https://api.render.com/v1"
           AUTH="Authorization: Bearer ${RENDER_API_KEY}"
+
+          # Sync a single env var onto a Render service. Uses the per-key PUT
+          # endpoint so other env vars (TURSO_*, NODE_ENV, PORT, …) are
+          # untouched. Creates the var if missing, updates in place otherwise.
+          # Usage: sync_env_var <service_id> <label> <key> <value>
+          sync_env_var() {
+            local SVC_ID="$1"
+            local LABEL="$2"
+            local KEY="$3"
+            local VALUE="$4"
+
+            if [ -z "$SVC_ID" ] || [ -z "$VALUE" ]; then
+              return 0
+            fi
+
+            # Body built via jq so special chars in the secret are escaped correctly.
+            local BODY
+            BODY=$(jq -cn --arg v "$VALUE" '{value:$v}')
+
+            local HTTP_CODE
+            HTTP_CODE=$(curl -s -o /tmp/render_env_out -w '%{http_code}' \
+              -X PUT "${RENDER_API}/services/${SVC_ID}/env-vars/${KEY}" \
+              -H "${AUTH}" \
+              -H "Content-Type: application/json" \
+              -d "$BODY")
+
+            case "$HTTP_CODE" in
+              200|201)
+                echo "Synced ${KEY} to ${LABEL} (HTTP ${HTTP_CODE})."
+                ;;
+              *)
+                echo "::error::Failed to sync ${KEY} to ${LABEL} (HTTP ${HTTP_CODE})"
+                cat /tmp/render_env_out 2>/dev/null || true
+                echo
+                return 1
+                ;;
+            esac
+          }
+
+          # JWT_SECRET is the source of truth in GitHub secrets. We push it to
+          # Render before triggering the deploy so a restarted service boots
+          # with the current value — server/src/lib/auth.js throws at require
+          # time without it in production, so this must not be skipped silently.
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::JWT_SECRET is not set in GitHub secrets."
+            echo "Add it to the 'production' environment at:"
+            echo "  https://github.com/chezer1234/Traveleria/settings/environments"
+            exit 1
+          fi
+          sync_env_var "$RENDER_API_SERVICE_ID" "API" "JWT_SECRET" "$JWT_SECRET"
+
+          # APP_SCHEMA_VERSION is derived from the commit SHA — no GitHub
+          # secret needed because it's not sensitive. Every push to main
+          # produces a new SHA → the server stamps X-App-Schema-Version with
+          # it → clients on the old bundle detect the mismatch and wipe+
+          # resnapshot. The web service's bundle bakes VITE_APP_SCHEMA_VERSION
+          # at build time (Vite reads it from env during `npm run build`), so
+          # we set both and Render's subsequent rebuild captures it.
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "Stamping deploy with APP_SCHEMA_VERSION=${SHORT_SHA}"
+          sync_env_var "$RENDER_API_SERVICE_ID" "API" "APP_SCHEMA_VERSION" "$SHORT_SHA"
+          sync_env_var "$RENDER_WEB_SERVICE_ID" "Web" "VITE_APP_SCHEMA_VERSION" "$SHORT_SHA"
 
           # Fetch and print recent service logs from Render
           # Usage: fetch_logs <service_id> <label> [deploy_id]

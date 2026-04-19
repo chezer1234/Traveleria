@@ -3,7 +3,7 @@
  * Tests: tiers, distance multiplier, baseline, explorer ceiling,
  *        province exploration, city exploration, final score, breakdown.
  */
-const {
+import {
   getCountryTier,
   haversine,
   getDistanceMultiplier,
@@ -25,7 +25,7 @@ const {
   TOURISM_CAP,
   FLOOR,
   BASE_CAP,
-} = require('../src/lib/points');
+} from '../src/lib/points.js';
 
 // Sample countries for testing (with lat/lng)
 const sampleCountries = [

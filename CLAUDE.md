@@ -32,22 +32,27 @@ TravelPoints is a web app where users log countries they've visited and earn poi
 - **Dev environment:** Docker Compose (server + client, SQLite embedded — no external DB)
 - **CI:** GitHub Actions (`.github/workflows/ci.yml`) — runs migrations, seeds, Jest tests, client build
 
-## Running Locally
+## Running Locally — the Makefile is the source of truth
+
+Every command that a human, an agent, or CI needs to run is a Make target. Don't invoke `docker compose ...` directly — if a command you need isn't there, add a target instead. `make help` lists them all.
 
 ```bash
-docker compose up -d --build    # start everything
-# App at http://localhost:5173, API at http://localhost:3000
-docker compose down              # stop everything
-make reset-db                    # wipe SQLite DB and re-seed
+make up          # start the dev stack (Vite + Express + sqld, hot reload)
+make down        # stop it
+make reset-db    # wipe the SQLite volume + re-seed
+make test        # server Jest suite (no docker)
+make e2e         # prod-shape stack + full Playwright suite on host (what CI runs)
 ```
 
-## Running Tests
+App at http://localhost:3000 (client), API at http://localhost:3001. `sqld` is internal to the compose network on port 8080.
 
-```bash
-cd server
-npx jest __tests__/points.test.js    # unit tests (no DB needed)
-npm test                              # all tests (uses local SQLite — no external DB needed)
-```
+Ports and versions are locked in — if CLAUDE.md, Makefile, compose files, Vite, nginx, CI, or the Dockerfiles disagree with each other, it's a bug, fix it.
+
+**Pinned versions** (see `docs/db-speed.md` for rationale):
+- Node **24 LTS** — both Dockerfiles and CI
+- `ghcr.io/tursodatabase/libsql-server` **v0.24.32**
+- `nginx` **1.27-alpine**
+- `@playwright/test` **1.58.2** (runs on host; Chromium pinned by the package)
 
 ## Key Files
 
@@ -159,6 +164,8 @@ Mark the feature doc status as complete. Update `points-system.md` or other ever
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/db-speed.md](docs/db-speed.md) | Active roadmap — local-first SQLite-in-browser, phases A/0/1/2/3/4/5/6 |
+| [docs/deployment.md](docs/deployment.md) | Render + Turso deployment guide |
 | [docs/points-system.md](docs/points-system.md) | Evergreen reference for how scoring works |
 | [docs/features/province-exploration.md](docs/features/province-exploration.md) | Province/city exploration system |
 | [docs/features/world-map.md](docs/features/world-map.md) | World map feature |

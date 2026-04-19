@@ -2,25 +2,29 @@
   "name": "travelpoints-server",
   "version": "1.0.0",
   "description": "TravelPoints backend API server",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "dev": "node src/index.js",
     "start": "node src/index.js",
     "build": "echo 'No build step required for Node.js backend'",
-    "test": "NODE_ENV=test jest --verbose --runInBand --forceExit --testTimeout=30000",
-    "migrate": "knex migrate:latest --knexfile src/db/knexfile.js",
-    "migrate:rollback": "knex migrate:rollback --knexfile src/db/knexfile.js",
-    "seed": "knex seed:run --knexfile src/db/knexfile.js"
+    "test": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --verbose --runInBand --forceExit --testTimeout=30000",
+    "migrate": "knex migrate:latest --knexfile src/db/knexfile.cjs",
+    "migrate:rollback": "knex migrate:rollback --knexfile src/db/knexfile.cjs",
+    "seed": "knex seed:run --knexfile src/db/knexfile.cjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@libsql/client": "^0.17.2",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "knex": "^3.1.0"
+    "jsonwebtoken": "^9.0.3",
+    "knex": "^3.1.0",
+    "zod": "^4.3.6"
   },
   "jest": {
     "testPathIgnorePatterns": [

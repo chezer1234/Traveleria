@@ -1,0 +1,14 @@
+# Auto-loaded by `docker compose up`. Adds dev-only source mounts and live-reload volumes.
+# NOT loaded when overlays are passed explicitly via -f (so prod-build and E2E stacks are clean).
+
+services:
+  server:
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+      - /app/data
+
+  client:
+    volumes:
+      - ./client:/app
+      - /app/node_modules

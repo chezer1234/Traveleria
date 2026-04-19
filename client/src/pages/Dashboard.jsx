@@ -1,30 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserScore, getUserCountries, removeUserCountry } from '../api/client';
+import { removeCountryOptimistic } from '../lib/mutations';
+import { getUserScoreLocal, getUserCountriesLocal } from '../lib/queries';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const homeCountry = user.home_country;
   const [score, setScore] = useState(null);
   const [countries, setCountries] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(null);
 
-  useEffect(() => {
-    if (homeCountry) {
-      loadData();
-    }
-  }, [homeCountry]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (!db) return;
     setLoading(true);
     setError('');
     try {
       const [scoreData, countriesData] = await Promise.all([
-        getUserScore(user.id, homeCountry),
-        getUserCountries(user.id, homeCountry),
+        getUserScoreLocal(db, user.id, homeCountry),
+        getUserCountriesLocal(db, user.id, homeCountry),
       ]);
       setScore(scoreData);
       setCountries(countriesData);
@@ -33,7 +29,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [db, user.id, homeCountry]);
+
+  useEffect(() => {
+    if (dbStatus === 'ready') loadData();
+  }, [dbStatus, loadData]);
 
   async function handleRemoveCountry(code, name) {
     if (!confirm(`Remove ${name} from your visited countries? This will also remove all city visits.`)) {
@@ -41,16 +41,20 @@ export default function Dashboard() {
     }
     setRemoving(code);
     try {
-      await removeUserCountry(user.id, code);
+      // Optimistic: the local DELETE runs inside the savepoint before the
+      // network call, so loadData() below sees the row already gone. On
+      // network failure the savepoint rolls back and the row reappears.
+      await removeCountryOptimistic(db, user.id, code);
       await loadData();
     } catch (err) {
       setError(err.message);
+      await loadData();
     } finally {
       setRemoving(null);
     }
   }
 
-  if (loading) {
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>

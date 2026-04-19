@@ -1,6 +1,6 @@
-const express = require('express');
-const db = require('../db/connection');
-const { calculateTotalTravelPoints, getCountryTier } = require('../lib/points');
+import express from 'express';
+import db from '../db/connection.js';
+import { calculateTotalTravelPoints, getCountryTier } from '../lib/points.js';
 
 const router = express.Router();
 
@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
 
       entries.push({
         user_id: u.id,
-        username: u.username,
+        identifier: u.identifier,
         home_country: u.home_country,
         total_points: result.totalPoints,
         countries_visited: visitedCountries.length,
@@ -95,4 +95,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

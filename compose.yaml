@@ -1,0 +1,39 @@
+# Shared base stack. Invoked alone this gives you the dev stack (via compose.override.yaml auto-loading).
+# For prod-build or E2E, pass additional overlays explicitly (see scripts/e2e.sh and docs/db-speed.md).
+
+services:
+  sqld:
+    image: ghcr.io/tursodatabase/libsql-server:v0.24.32
+    environment:
+      SQLD_NODE: primary
+    volumes:
+      - sqld-data:/var/lib/sqld
+
+  server:
+    build:
+      context: ./server
+      target: dev
+    ports:
+      - "3001:3001"
+    depends_on:
+      - sqld
+    environment:
+      TURSO_DATABASE_URL: libsql://sqld:8080?tls=0
+      PORT: 3001
+      NODE_ENV: development
+      APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
+
+  client:
+    build:
+      context: ./client
+      target: dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
+
+volumes:
+  sqld-data:

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
-import { getUserCountries, getUserScore } from '../api/client';
+import { getUserScoreLocal, getUserCountriesLocal } from '../lib/queries';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -31,7 +31,7 @@ const NUM_TO_ALPHA2 = {
   '760':'SY','762':'TJ','764':'TH','768':'TG','776':'TO','780':'TT','784':'AE','788':'TN',
   '792':'TR','795':'TM','798':'TV','800':'UG','804':'UA','807':'MK','818':'EG','826':'GB',
   '834':'TZ','840':'US','854':'BF','858':'UY','860':'UZ','862':'VE','887':'YE','894':'ZM',
-  '732':'EH','710':'ZA','736':'SD',
+  '732':'EH','736':'SD',
 };
 
 function getAlpha2(geo) {
@@ -39,7 +39,7 @@ function getAlpha2(geo) {
 }
 
 export default function Map() {
-  const { user } = useAuth();
+  const { user, db, dbStatus } = useAuth();
   const navigate = useNavigate();
   const homeCountry = user.home_country;
 
@@ -52,24 +52,27 @@ export default function Map() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    async function loadData() {
+    if (dbStatus !== 'ready' || !db) return;
+    let cancelled = false;
+    (async () => {
       setLoading(true);
       setError('');
       try {
         const [scoreData, countriesData] = await Promise.all([
-          getUserScore(user.id, homeCountry),
-          getUserCountries(user.id, homeCountry),
+          getUserScoreLocal(db, user.id, homeCountry),
+          getUserCountriesLocal(db, user.id, homeCountry),
         ]);
+        if (cancelled) return;
         setScore(scoreData);
         setUserCountries(countriesData);
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }
-    loadData();
-  }, [user.id, homeCountry]);
+    })();
+    return () => { cancelled = true; };
+  }, [db, dbStatus, user.id, homeCountry]);
 
   const visitedCodes = new Set(userCountries.map(c => c.country_code));
   const visitedLookup = Object.fromEntries(userCountries.map(c => [c.country_code, c]));
@@ -109,7 +112,7 @@ export default function Map() {
     return visitedCodes.has(code) ? '#16a34a' : '#9ca3af'; // green-600 / gray-400
   }
 
-  if (loading) {
+  if (loading || dbStatus !== 'ready') {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
         <div className="loading-spinner mx-auto" aria-hidden="true" />

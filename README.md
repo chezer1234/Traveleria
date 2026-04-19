@@ -18,30 +18,43 @@ That's it. No Node.js, no database installs needed — SQLite is embedded.
 ```bash
 git clone https://github.com/chezer1234/Traveleria.git
 cd Traveleria
-docker compose up -d --build
+make up
 ```
 
-Wait for it to finish (first time takes a few minutes to download images and install dependencies), then open http://localhost:5173
+Wait for it to finish (first time takes a few minutes to download images and install dependencies), then open http://localhost:3000
 
-### Useful commands
+### Commands — the Makefile is the source of truth
 
-| Command | What it does |
-|---------|-------------|
-| `docker compose up -d --build` | Start everything |
-| `docker compose down` | Stop everything |
-| `docker compose logs -f` | Watch live logs |
-| `docker compose logs -f server` | Watch server logs only |
-| `docker compose restart server` | Restart the backend |
-| `docker compose down` | Stop everything |
+Every command you or CI need lives in the `Makefile`. Run `make help` to see the full list. There should never be any "which docker compose incantation was it?" guessing — if you're reaching for a raw `docker compose ...`, add a target to the Makefile instead.
 
-If you have `make` installed (Mac has it, Windows: `winget install GnuWin32.Make`):
+**Dev stack** (hot reload, Vite + Express + sqld):
 
 | Command | What it does |
 |---------|-------------|
-| `make up` | Start everything |
-| `make down` | Stop everything |
-| `make logs` | Watch live logs |
-| `make reset-db` | Wipe SQLite database and re-seed |
+| `make up` | Start dev stack |
+| `make down` | Stop dev stack |
+| `make logs` / `logs-server` / `logs-client` | Tail logs |
+| `make ps` | Show container status |
+| `make shell` | Open a shell in the server container |
+| `make reset-db` | Wipe SQLite volume and re-seed |
+| `make test` | Run server Jest tests (no docker) |
+
+**Prod-shape stack** (what CI builds, nginx-served client, same binaries Render runs):
+
+| Command | What it does |
+|---------|-------------|
+| `make prod-up` | Build + start the prod-shape stack |
+| `make prod-down` | Stop it and wipe volumes |
+| `make prod-logs` | Tail prod-shape logs |
+
+**End-to-end** (Playwright on host against the prod-shape stack — identical to CI):
+
+| Command | What it does |
+|---------|-------------|
+| `make e2e-install` | One-time: install Chromium for Playwright |
+| `make e2e` | Build prod-shape stack, run the full Playwright suite, tear down |
+
+Windows users need `make` installed (`winget install GnuWin32.Make`); everything else works as-is.
 
 ---
 
@@ -61,12 +74,12 @@ server/          Express API + Knex.js
   src/lib/         points.js (scoring engine)
   src/db/          migrations, seeds, connection
 
-docker-compose.yml   Express + Vite dev server (SQLite embedded)
+compose.yaml         Express + Vite dev server (SQLite embedded)
 ```
 
 - **SQLite** runs inside the server container (no external database needed)
-- **Express API** runs on port 3000 (auto-reloads when you edit server code)
-- **Vite dev server** runs on port 5173 (auto-reloads when you edit client code)
+- **Vite dev server** runs on port 3000 (auto-reloads when you edit client code)
+- **Express API** runs on port 3001 (auto-reloads when you edit server code)
 - **Production** uses Turso (hosted SQLite) for the database
 
 Edit any file in `server/` or `client/` and the changes appear immediately.
@@ -118,12 +131,11 @@ All points endpoints accept `?home_country=XX` to personalise scores based on di
 ## Running Tests
 
 ```bash
-# Unit tests (no database needed)
-cd server && npx jest __tests__/points.test.js
-
-# All tests (uses local SQLite — no external DB needed)
-cd server && npm test
+make test       # server Jest suite (no docker)
+make e2e        # full Playwright suite against the prod-shape stack
 ```
+
+Single-file run: `cd server && npx jest __tests__/points.test.js`.
 
 ---
 
@@ -132,6 +144,7 @@ cd server && npm test
 | Document | Description |
 |----------|-------------|
 | [Points System](docs/points-system.md) | How scores are calculated — formulas, examples, parameters |
+| [DB Speed Plan](docs/db-speed.md) | Active roadmap — local-first SQLite-in-the-browser, phased rollout |
 | [Province Exploration](docs/features/province-exploration.md) | Province/city exploration system and tier classification |
 | [World Map](docs/features/world-map.md) | Interactive map feature |
 | [Points Rebalance](docs/points-rebalance-plan.md) | Historical: the analysis and plan behind the April 2026 rebalance |

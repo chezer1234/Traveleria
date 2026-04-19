@@ -1,12 +1,17 @@
 /**
  * Tests that seed data loads correctly and contains expected values.
  */
-const path = require('path');
-const crypto = require('crypto');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import knex from 'knex';
+import { createRequire } from 'module';
 
-const knex = require('knex');
-const knexfile = require('../src/db/knexfile');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const knexfile = require('../src/db/knexfile.cjs');
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 let db;
 
@@ -163,14 +168,13 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'seedtest',
-        email: 'seedtest@example.com',
+        identifier: 'seedtest',
         password_hash: 'hash',
         home_country: 'GB',
       })
       .returning('*');
 
-    expect(user.username).toBe('seedtest');
+    expect(user.identifier).toBe('seedtest');
     expect(user.home_country).toBe('GB');
 
     await db('users').where({ id: user.id }).del();
@@ -180,8 +184,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'visittest',
-        email: 'visittest@example.com',
+        identifier: 'visittest',
         password_hash: 'hash',
         home_country: 'US',
       })
@@ -207,8 +210,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'cityvisit',
-        email: 'cityvisit@example.com',
+        identifier: 'cityvisit',
         password_hash: 'hash',
         home_country: 'US',
       })
@@ -246,8 +248,7 @@ describe('Seed Data — Referential Integrity', () => {
     const [user] = await db('users')
       .insert({
         id: crypto.randomUUID(),
-        username: 'cascadetest',
-        email: 'cascade@example.com',
+        identifier: 'cascadetest',
         password_hash: 'hash',
         home_country: 'US',
       })

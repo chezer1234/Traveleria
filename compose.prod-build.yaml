@@ -1,0 +1,27 @@
+# Overlay that swaps dev Dockerfile targets for their prod equivalents.
+# Client is served as a static nginx bundle. Server runs without --watch.
+# APP_SCHEMA_VERSION is baked into both images at build time; set it in CI to $(git rev-parse --short HEAD).
+
+services:
+  server:
+    build:
+      context: ./server
+      target: prod
+      args:
+        APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # E2E-only fallback. Real production (Render) must inject a real secret.
+      JWT_SECRET: ${JWT_SECRET:-ephemeral-e2e-secret-never-use-in-prod}
+
+  client:
+    build:
+      context: ./client
+      target: prod
+      args:
+        VITE_APP_SCHEMA_VERSION: ${APP_SCHEMA_VERSION:-dev}
+        # Playwright runs on the host and loads the bundle via localhost:3000,
+        # so the baked API URL must be reachable from the host too — same host,
+        # sibling port. Render prod overrides with its real public API URL.
+        VITE_API_URL: http://localhost:3001

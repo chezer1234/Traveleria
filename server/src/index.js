@@ -1,20 +1,36 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const db = require('./db/connection');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import db from './db/connection.js';
+import schemaVersionHeader from './middleware/schema-version.js';
+import coopCoep from './middleware/coop-coep.js';
+import { APP_SCHEMA_VERSION } from './lib/schema-version.js';
+import requestTiming from './middleware/request-timing.js';
 
-const countriesRoutes = require('./routes/countries');
-const usersRoutes = require('./routes/users');
-const leaderboardRoutes = require('./routes/leaderboard');
+import countriesRoutes from './routes/countries.js';
+import usersRoutes from './routes/users.js';
+import leaderboardRoutes from './routes/leaderboard.js';
+import authRoutes from './routes/auth.js';
+import changesRoutes from './routes/changes.js';
+import snapshotRoutes from './routes/snapshot.js';
+import debugRoutes from './routes/debug.js';
+import devRoutes from './routes/dev.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
+app.use(schemaVersionHeader);
+app.use(coopCoep);
+app.use(requestTiming);
 app.use(cors({
   origin: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 }));
 app.options('/{*path}', cors());
 app.use(express.json());
@@ -101,14 +117,20 @@ app.get('/api/debug/db', async (req, res) => {
   res.json(results);
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/countries', countriesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/changes', changesRoutes);
+app.use('/api/snapshot', snapshotRoutes);
+app.use('/api/debug', debugRoutes);
+
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev', devRoutes);
+}
 
 // In production, serve the built React frontend if available
 if (process.env.NODE_ENV === 'production') {
-  const path = require('path');
-  const fs = require('fs');
   const clientDist = path.join(__dirname, '../../client/dist');
   const indexHtml = path.join(clientDist, 'index.html');
   if (fs.existsSync(indexHtml)) {
@@ -127,7 +149,7 @@ async function start() {
   console.log('Database ready.');
 
   app.listen(PORT, () => {
-    console.log(`TravelPoints server running on port ${PORT}`);
+    console.log(`TravelPoints server running on port ${PORT} (schema ${APP_SCHEMA_VERSION})`);
   });
 }
 
@@ -136,4 +158,4 @@ start().catch((err) => {
   process.exit(1);
 });
 
-module.exports = app;
+export default app;

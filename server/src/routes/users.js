@@ -88,7 +88,7 @@ router.post(
   validateBody(addCountrySchema),
   async (req, res) => {
     const { id } = req.params;
-    const { country_code, visited_at } = req.body;
+    const { id: clientId, country_code, visited_at } = req.body;
 
     const country = await db('countries').where({ code: country_code }).first();
     if (!country) return fail(res, 'country_code', 'Unknown country code');
@@ -99,7 +99,7 @@ router.post(
     if (existing) return fail(res, 'country_code', 'Already added');
 
     const row = {
-      id: crypto.randomUUID(),
+      id: clientId || crypto.randomUUID(),
       user_id: id,
       country_code: country.code,
       visited_at: visited_at || null,
@@ -194,7 +194,7 @@ router.post(
   validateBody(addCitySchema),
   async (req, res) => {
     const { id } = req.params;
-    const { city_id, visited_at } = req.body;
+    const { id: clientId, city_id, visited_at } = req.body;
 
     const city = await db('cities').where({ id: city_id }).first();
     if (!city) return fail(res, 'city_id', 'Unknown city');
@@ -208,7 +208,7 @@ router.post(
     if (existing) return fail(res, 'city_id', 'Already logged');
 
     const row = {
-      id: crypto.randomUUID(),
+      id: clientId || crypto.randomUUID(),
       user_id: id,
       city_id,
       visited_at: visited_at || null,
@@ -252,7 +252,7 @@ router.post(
   validateBody(addProvinceSchema),
   async (req, res) => {
     const { id } = req.params;
-    const { province_code, visited_at } = req.body;
+    const { id: clientId, province_code, visited_at } = req.body;
 
     const province = await db('provinces').where({ code: province_code }).first();
     if (!province) return fail(res, 'province_code', 'Unknown province');
@@ -266,7 +266,7 @@ router.post(
     if (existing) return fail(res, 'province_code', 'Already logged');
 
     const row = {
-      id: crypto.randomUUID(),
+      id: clientId || crypto.randomUUID(),
       user_id: id,
       province_code,
       visited_at: visited_at || null,

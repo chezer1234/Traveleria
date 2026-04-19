@@ -16,7 +16,7 @@ Hobby project. No real users yet, so we're happy to drop data on any schema chan
 - [x] **Phase 2** — Client SQLite via `@sqlite.org/sqlite-wasm` over OPFS (~1 day)
 - [x] **Phase 3** — Incremental sync worker (~½ day)
 - [x] **Phase 4** — Kill server reads; port `points.js` to client (~½ day)
-- [ ] **Phase 5** — Optimistic writes (~½ day)
+- [x] **Phase 5** — Optimistic writes (~½ day)
 - [ ] **Phase 6** — Reactive query hook (optional) (~½ day)
 
 **Total Phases A–5: ~4 days.**
@@ -266,11 +266,23 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 
 ### Phase 5 — Optimistic writes (~½ day)
 
-- [ ] `POST /api/users/:id/countries` returns `{ change_id, row }` in the response body.
-- [ ] Client wraps every mutation: write to local SQLite inside a savepoint → fire the network call → on success commit + fast-forward cursor past the returned `change_id` → on failure rollback savepoint and show a toast.
-- [ ] E2E: stop the `server` container mid-session → add a country → UI updates instantly (optimistic) → restart server → next poll reconciles cleanly.
+- [x] `POST /api/users/:id/countries` returns `{ change_id, row }` in the response body (done in Phase 1; Phase 5 confirms every write route already echoes `change_id`).
+- [x] Client wraps every mutation: write to local SQLite inside a savepoint → fire the network call → on success commit + fast-forward cursor past the returned `change_id` → on failure rollback savepoint and show an error.
+- [x] Schema accepts an optional client-supplied `id: z.string().uuid()` on add-country/city/province routes, so the optimistic local row and the server row share a PK and the sync echo is an idempotent no-op.
+- [x] `client/src/lib/mutations.js` — six wrappers (`add/removeCountry/City/ProvinceOptimistic`). Pages (`AddCountries`, `Dashboard`, `CountryDetail`) route through them; the old REST helpers in `api/client.js` are deleted so there's one write path.
+- [x] Worker gains a `mutate` RPC (`SAVEPOINT` → preSteps → fetch → `RELEASE`+cursor fast-forward, or `ROLLBACK TO`). A `txLock` promise chain serialises mutations against the sync poll so they can't interleave `BEGIN`s on the same connection.
+- [x] E2E (`e2e/tests/optimistic.spec.js`): (a) with the POST delayed at the route boundary, the local DB already reflects the write while the mutate promise is still pending; cursor fast-forwards past the returned `change_id`. (b) with the POST aborted, mutate rejects and the local DB is clean (savepoint rolled back).
 
-**Exit criteria:** the "add country" interaction has zero visible latency on a healthy network.
+**Exit criteria:** the "add country" interaction has zero visible latency on a healthy network. ✅
+
+**Decisions locked in during Phase 5:**
+
+1. **Client-generated UUIDs sent in the POST body.** Server falls back to `crypto.randomUUID()` when absent, so the wire protocol stays backwards-compatible with tests and external callers. Sharing the PK avoids the "two rows for the same logical visit" hazard when the server's own `_changes` echo lands after the optimistic insert.
+2. **Savepoint spans the fetch.** The whole point of Phase 5 is that the UI sees the write inside the same tick the user clicked, so the local SQL change has to land before the network succeeds. Keeping the savepoint open across `await fetch(...)` makes "rollback on failure" free and correct — no inverse-SQL bookkeeping.
+3. **`txLock` serialises the sync poll and mutations.** SQLite forbids nested `BEGIN`s, and the worker's event loop will happily interleave an in-flight `applyBatch` with a new mutation's savepoint. One promise-chain lock closes that hole; concurrent reads (`all`/`get`/`value`) still run freely since they don't open transactions.
+4. **No retry queue yet.** A failing mutation rolls back and surfaces the error — the user re-tries. Hobby-scale, good-network reality doesn't justify a background outbox.
+5. **Server write helpers deleted from `api/client.js`.** Two write paths would rot; the optimistic wrapper is now the only way in.
+6. **Worker `MutationError` carries `status` + `errors` across `postMessage`.** Same shape as the existing `ApiError` on auth routes, so 422 field-level feedback keeps working if we surface it later in the UI.
 
 ### Phase 6 — Reactive query hook (optional, ~½ day)
 
@@ -334,7 +346,7 @@ If any of CLAUDE.md, Makefile, compose files, Vite config, nginx config, server 
 6. **Schema-version reload** — server bumps `APP_SCHEMA_VERSION` → client detects mismatch → OPFS wiped → fresh snapshot.
 7. **Scoring parity** — fixed fixture; server total === client total.
 8. **Leaderboard parity** — same user set; server-computed === client-computed.
-9. **Offline blip** — stop the server → add a country → optimistic UI stays → restart → reconciles.
+9. **Optimistic write + rollback** (`optimistic.spec.js`) — with the POST delayed, the local DB already has the row while the mutate is in flight; with the POST aborted, the savepoint rolls back and the local DB is clean.
 
 ---
 

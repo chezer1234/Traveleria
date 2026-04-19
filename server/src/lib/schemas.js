@@ -47,17 +47,26 @@ export const signinSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Optional client-supplied UUID. Phase 5 (optimistic writes) generates a UUID
+// in the browser so the local-SQLite row and the server row share a PK — that
+// way the _changes echo from the sync loop is a no-op INSERT OR REPLACE instead
+// of a duplicate. Server falls back to crypto.randomUUID() when omitted.
+const clientIdSchema = z.string().uuid().optional();
+
 export const addCountrySchema = z.object({
+  id: clientIdSchema,
   country_code: countryCodeSchema,
   visited_at: visitedAtSchema,
 });
 
 export const addCitySchema = z.object({
+  id: clientIdSchema,
   city_id: z.union([z.string(), z.number()]),
   visited_at: visitedAtSchema,
 });
 
 export const addProvinceSchema = z.object({
+  id: clientIdSchema,
   province_code: z.string().trim().min(1, 'province_code is required'),
   visited_at: visitedAtSchema,
 });

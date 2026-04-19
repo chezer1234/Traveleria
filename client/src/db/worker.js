@@ -40,6 +40,20 @@ let syncStopped = true;
 const POLL_INTERVAL_MS = 5000;
 const POLL_BACKOFF_MS = 30000;
 
+// Serialises anything that holds a SQLite transaction or savepoint. Without
+// this, the sync poll's BEGIN/COMMIT and a mutation's open SAVEPOINT can
+// interleave on the same connection and SQLite blows up with "cannot start a
+// transaction within a transaction". Queue is FIFO via a promise chain.
+let txLock = Promise.resolve();
+function withTx(fn) {
+  const prev = txLock;
+  let release;
+  const next = new Promise((r) => { release = r; });
+  txLock = next;
+  return prev.then(fn).finally(release);
+}
+let mutateCounter = 0;
+
 const DDL = [
   `CREATE TABLE IF NOT EXISTS countries (
     code TEXT PRIMARY KEY,
@@ -166,46 +180,149 @@ function getCursor() {
 // where it was so the next tick retries the same window. Unknown tables are
 // skipped with a warning — happens if the server introduces a new table before
 // the client bundle catches up (a schema-version bump will wipe + resnapshot).
-function applyBatch(changes, newCursor) {
-  if (!changes.length) {
+//
+// Serialised through withTx so mutate's savepoint can't interleave.
+//
+// Cursor never regresses: if an in-flight poll fetched `?since=K` and the
+// server replied with changes up to M while a Phase-5 optimistic mutation has
+// already fast-forwarded the cursor past M, we still want to apply the rows
+// (they're idempotent) but leave the cursor at the higher value. Otherwise a
+// stale poll would rewind the cursor and the next tick would re-fetch and
+// re-apply our own write.
+function writeCursor(newCursor) {
+  const current = getCursor();
+  if (Number(newCursor) > current) {
     db.exec({
       sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
       bind: [String(newCursor)],
     });
-    return;
   }
+}
 
-  db.exec('BEGIN');
-  try {
-    for (const ch of changes) {
-      const localTable = TABLE_MAP[ch.table];
-      if (!localTable) {
-        console.warn('[sync] skipping change for unknown table:', ch.table);
-        continue;
-      }
-      if (ch.op === 'delete') {
-        db.exec({ sql: `DELETE FROM ${localTable} WHERE id = ?`, bind: [String(ch.pk)] });
-      } else {
-        // insert or update — both use INSERT OR REPLACE with the row shape.
-        const cols = TABLE_COLUMNS[localTable];
-        if (!cols || !ch.row) continue;
-        const placeholders = cols.map(() => '?').join(',');
-        const bind = cols.map((c) => ch.row[c] === undefined ? null : ch.row[c]);
-        db.exec({
-          sql: `INSERT OR REPLACE INTO ${localTable} (${cols.join(',')}) VALUES (${placeholders})`,
-          bind,
-        });
-      }
+function applyBatch(changes, newCursor) {
+  return withTx(() => {
+    if (!changes.length) {
+      writeCursor(newCursor);
+      return;
     }
-    db.exec({
-      sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
-      bind: [String(newCursor)],
-    });
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+
+    db.exec('BEGIN');
+    try {
+      for (const ch of changes) {
+        const localTable = TABLE_MAP[ch.table];
+        if (!localTable) {
+          console.warn('[sync] skipping change for unknown table:', ch.table);
+          continue;
+        }
+        if (ch.op === 'delete') {
+          db.exec({ sql: `DELETE FROM ${localTable} WHERE id = ?`, bind: [String(ch.pk)] });
+        } else {
+          // insert or update — both use INSERT OR REPLACE with the row shape.
+          const cols = TABLE_COLUMNS[localTable];
+          if (!cols || !ch.row) continue;
+          const placeholders = cols.map(() => '?').join(',');
+          const bind = cols.map((c) => ch.row[c] === undefined ? null : ch.row[c]);
+          db.exec({
+            sql: `INSERT OR REPLACE INTO ${localTable} (${cols.join(',')}) VALUES (${placeholders})`,
+            bind,
+          });
+        }
+      }
+      writeCursor(newCursor);
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+  });
+}
+
+// Phase 5: optimistic mutation. Opens a savepoint, applies the local writes,
+// fires the network call while the savepoint is still open, then either
+// RELEASES (success) or ROLLS BACK (failure). Fast-forwards _meta.cursor past
+// the server-assigned change_id on success so the next poll doesn't re-apply
+// our own echo.
+//
+// We keep the savepoint open across `await fetch(...)` deliberately — that's
+// the invariant that lets the UI see the optimistic row instantly and still
+// undo cleanly if the server rejects. All of this runs under withTx so the
+// sync poll can't BEGIN concurrently.
+async function handleMutate({ preSteps, endpoint, method, body }) {
+  return withTx(async () => {
+    const spName = `sp_m${++mutateCounter}`;
+    db.exec(`SAVEPOINT ${spName}`);
+    let settled = false;
+    try {
+      for (const step of preSteps || []) {
+        db.exec({ sql: step.sql, bind: step.bind || [] });
+      }
+
+      const url = `${syncApiBase}${endpoint}`;
+      const headers = { 'Content-Type': 'application/json' };
+      if (syncAuthToken) headers.Authorization = `Bearer ${syncAuthToken}`;
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: body == null ? undefined : JSON.stringify(body),
+      });
+
+      // Schema drift on a mutation response: roll back the optimistic write and
+      // kick the main thread to wipe. Symmetric with the poll-loop check.
+      const serverSchema = res.headers.get('X-App-Schema-Version');
+      if (serverSchema && serverSchema !== CLIENT_SCHEMA_VERSION) {
+        db.exec(`ROLLBACK TO ${spName}`);
+        db.exec(`RELEASE ${spName}`);
+        settled = true;
+        syncStopped = true;
+        self.postMessage({
+          type: 'schemaMismatch',
+          clientVersion: CLIENT_SCHEMA_VERSION,
+          serverVersion: serverSchema,
+        });
+        const err = new Error('Schema version mismatch');
+        err.status = res.status;
+        throw err;
+      }
+
+      let responseBody = null;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        responseBody = await res.json();
+      }
+
+      if (!res.ok) {
+        db.exec(`ROLLBACK TO ${spName}`);
+        db.exec(`RELEASE ${spName}`);
+        settled = true;
+        const err = new Error(
+          (responseBody && responseBody.error) || `Request failed (${res.status})`,
+        );
+        err.status = res.status;
+        err.errors = (responseBody && responseBody.errors) || [];
+        throw err;
+      }
+
+      // Fast-forward the cursor so the next /api/changes poll doesn't re-apply
+      // our own write. writeCursor() only advances — never rewinds — so a
+      // concurrent poll landing after us with a lower newCursor can't undo it.
+      const newChangeId = responseBody && responseBody.change_id;
+      if (newChangeId !== undefined && newChangeId !== null) {
+        writeCursor(newChangeId);
+      }
+
+      db.exec(`RELEASE ${spName}`);
+      settled = true;
+      return { status: res.status, body: responseBody };
+    } catch (err) {
+      if (!settled) {
+        // Network error or SQL error before we reached the HTTP branches — roll
+        // the savepoint back so the optimistic insert doesn't linger.
+        try { db.exec(`ROLLBACK TO ${spName}`); } catch {}
+        try { db.exec(`RELEASE ${spName}`); } catch {}
+      }
+      throw err;
+    }
+  });
 }
 
 // One poll: fetch /api/changes, check X-App-Schema-Version, apply, loop while
@@ -238,7 +355,7 @@ async function pollOnce() {
       if (!res.ok) throw new Error(`changes failed: ${res.status}`);
       const body = await res.json();
       const cursor = Number(body.cursor);
-      applyBatch(body.changes || [], cursor);
+      await applyBatch(body.changes || [], cursor);
 
       if (body.changes && body.changes.length) {
         self.postMessage({
@@ -377,6 +494,8 @@ async function handle(cmd, args = {}) {
       stopSync();
       if (db) { try { db.close(); } catch {} db = null; }
       return { ok: true };
+    case 'mutate':
+      return await handleMutate(args);
     case 'startSync':
       startSync(args);
       return { ok: true };
@@ -398,6 +517,14 @@ self.onmessage = async (e) => {
     const result = await handle(cmd, args);
     self.postMessage({ id, ok: true, result });
   } catch (err) {
-    self.postMessage({ id, ok: false, error: err && err.message ? err.message : String(err) });
+    // Preserve `status` and `errors` across the worker boundary so mutate
+    // callers can render per-field feedback from 422 validation responses.
+    self.postMessage({
+      id,
+      ok: false,
+      error: err && err.message ? err.message : String(err),
+      status: err && err.status,
+      errors: err && err.errors,
+    });
   }
 };

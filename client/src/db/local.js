@@ -4,6 +4,17 @@
 
 const SCHEMA_VERSION = import.meta.env.VITE_APP_SCHEMA_VERSION || 'dev';
 
+// Mirrors api/client's ApiError so Phase 5 optimistic writes can surface HTTP
+// validation detail (status + field-level errors) to the UI exactly the way
+// pre-optimistic REST calls did. Kept here so src/db doesn't import from src/api.
+export class MutationError extends Error {
+  constructor(message, { status, errors } = {}) {
+    super(message);
+    this.status = status;
+    this.errors = errors || [];
+  }
+}
+
 let worker = null;
 let msgCounter = 0;
 const pending = new Map();
@@ -37,7 +48,17 @@ function ensureWorker() {
       const p = pending.get(data.id);
       if (!p) return;
       pending.delete(data.id);
-      data.ok ? p.resolve(data.result) : p.reject(new Error(data.error));
+      if (data.ok) {
+        p.resolve(data.result);
+      } else {
+        // Promote HTTP-ish errors (from mutate) to a MutationError so callers
+        // can branch on `status` and `errors`. Plain worker failures stay as
+        // bare Error.
+        const err = (data.status !== undefined || (data.errors && data.errors.length))
+          ? new MutationError(data.error, { status: data.status, errors: data.errors })
+          : new Error(data.error);
+        p.reject(err);
+      }
       return;
     }
     if (data.type) emitEvent(data.type, data);
@@ -89,6 +110,12 @@ export async function openUserDb(userId, apiBase = '', authToken = null) {
         get: (sql, bind) => rpc('get', { sql, bind }),
         value: (sql, bind) => rpc('value', { sql, bind }),
         exec: (sql, bind) => rpc('exec', { sql, bind }),
+        // Phase 5: optimistic write. The worker opens a savepoint, runs
+        // preSteps, fires the HTTP request, then commits + fast-forwards the
+        // cursor on success, or rolls back on failure. See worker.js →
+        // handleMutate for the full protocol.
+        mutate: ({ preSteps, endpoint, method, body }) =>
+          rpc('mutate', { preSteps, endpoint, method, body }),
         stopSync: () => rpc('stopSync'),
         wipeAllDbs: () => rpc('wipeAllDbs'),
       };

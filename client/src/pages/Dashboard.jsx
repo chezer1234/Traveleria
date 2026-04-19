@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { removeUserCountry } from '../api/client';
+import { removeCountryOptimistic } from '../lib/mutations';
 import { getUserScoreLocal, getUserCountriesLocal } from '../lib/queries';
 
 export default function Dashboard() {
@@ -41,13 +41,14 @@ export default function Dashboard() {
     }
     setRemoving(code);
     try {
-      await removeUserCountry(user.id, code);
-      // The sync worker will eventually propagate this into local SQLite, but
-      // we reload immediately for instant feedback — the REST call has already
-      // committed on the server, and the re-fetch is all local SQL.
+      // Optimistic: the local DELETE runs inside the savepoint before the
+      // network call, so loadData() below sees the row already gone. On
+      // network failure the savepoint rolls back and the row reappears.
+      await removeCountryOptimistic(db, user.id, code);
       await loadData();
     } catch (err) {
       setError(err.message);
+      await loadData();
     } finally {
       setRemoving(null);
     }

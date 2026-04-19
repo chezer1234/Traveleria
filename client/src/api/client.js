@@ -124,37 +124,9 @@ export function getUser(id) {
 //
 // Read endpoints (getCountries, getCountry, getUserCountries, getUserScore,
 // getLeaderboard) were deleted in Phase 4 — the client now reads from the
-// local synced SQLite DB via src/lib/queries.js. Only writes stay here.
-
-export function addUserCountry(userId, countryCode) {
-  return request(`/users/${userId}/countries`, {
-    method: 'POST',
-    body: JSON.stringify({ country_code: countryCode }),
-  });
-}
-
-export function removeUserCountry(userId, code) {
-  return request(`/users/${userId}/countries/${code}`, { method: 'DELETE' });
-}
-
-export function addUserCity(userId, cityId) {
-  return request(`/users/${userId}/cities`, {
-    method: 'POST',
-    body: JSON.stringify({ city_id: cityId }),
-  });
-}
-
-export function removeUserCity(userId, cityId) {
-  return request(`/users/${userId}/cities/${cityId}`, { method: 'DELETE' });
-}
-
-export function addUserProvince(userId, provinceCode) {
-  return request(`/users/${userId}/provinces`, {
-    method: 'POST',
-    body: JSON.stringify({ province_code: provinceCode }),
-  });
-}
-
-export function removeUserProvince(userId, provinceCode) {
-  return request(`/users/${userId}/provinces/${provinceCode}`, { method: 'DELETE' });
-}
+// local synced SQLite DB via src/lib/queries.js.
+//
+// Write endpoints (addUser*, removeUser*) were deleted in Phase 5 — the client
+// now mutates through client/src/lib/mutations.js, which opens a savepoint in
+// the sqlite worker, applies the local write, and fires the server call
+// inside that savepoint (see client/src/db/worker.js → handleMutate).

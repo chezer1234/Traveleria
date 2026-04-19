@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { addUserCountry } from '../api/client';
+import { addCountryOptimistic } from '../lib/mutations';
 import { getCountriesLocal } from '../lib/queries';
 
 export default function AddCountries() {
@@ -66,7 +66,10 @@ export default function AddCountries() {
     setError('');
 
     try {
-      const promises = [...selected].map((code) => addUserCountry(user.id, code));
+      // Mutations serialise in the worker's txLock, but the local INSERT in
+      // each savepoint lands instantly. Kicking them off with Promise.all keeps
+      // the queue tight without juggling ordering.
+      const promises = [...selected].map((code) => addCountryOptimistic(db, user.id, code));
       await Promise.all(promises);
       navigate('/dashboard');
     } catch (err) {

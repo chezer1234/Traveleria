@@ -2,6 +2,10 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { fetchCurrentUser, signout as apiSignout, getAuthToken, getLastIdentifier, setSchemaMismatchHandler } from '../api/client';
 import { openUserDb, closeUserDb, onWorkerEvent, wipeAndReload } from '../db/local';
 import { getUserScoreLocal, getLeaderboardLocal } from '../lib/queries';
+import {
+  addCountryOptimistic,
+  removeCountryOptimistic,
+} from '../lib/mutations';
 
 const AuthContext = createContext(null);
 
@@ -97,6 +101,11 @@ export function AuthProvider({ children }) {
             // bundled code the pages do (no re-implementation).
             computeScore: (homeCountry) => getUserScoreLocal(entry, user.id, homeCountry),
             computeLeaderboard: (currentUserId = null) => getLeaderboardLocal(entry, currentUserId),
+            // Phase 5 optimistic-write probes. E2E asserts that the local row
+            // appears before any network request resolves (rollback branch)
+            // and that the cursor fast-forwards on success.
+            addCountry: (countryCode) => addCountryOptimistic(entry, user.id, countryCode),
+            removeCountry: (countryCode) => removeCountryOptimistic(entry, user.id, countryCode),
           };
         }
       })

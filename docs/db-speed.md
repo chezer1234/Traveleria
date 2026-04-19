@@ -1,52 +1,53 @@
 # DB Speed — Scratch Plan
 
-> **Status:** scratch / WIP. Peer review of the "Replicache + Turso" hypothesis and a concrete phased plan for TravelPoints. Not a spec yet — for discussion with Charlie before any code gets written.
+> **Status:** scratch / WIP, v2 (bold edition). v1 played it safe; v2 takes off the production-grade handbrake. No real users, hobby project, happy to drop and reseed data, lightweight password+JWT is plenty of auth, move fast and break things. **Primary goal: see how fast we can make this with a real in-browser database.**
 
 ---
 
 ## TL;DR
 
-The hypothesis has the right instincts (local-first reads, API-only writes, lazy pull) but picks the wrong tool for **our** shape of problem in **April 2026**:
+- The Replicache/Zero peer review still stands (below). Neither is the right framework in April 2026.
+- **But the bold play is to go fully local-first:** a real SQLite database in the browser, populated and kept in sync from the server. All reads become microsecond-latency local SQL. Writes still go through the API; the sync loop echoes them back.
+- Two candidates for the browser DB:
+  1. **`@tursodatabase/sync-wasm`** — native Turso sync in the browser. Early-access / private beta, but *the* theoretical best fit since the server is already Turso. **Try this first** with a 1-day time-box.
+  2. **`@sqlite.org/sqlite-wasm` + OPFS + hand-rolled sync** — production-stable WASM build; we write ~150 LoC of change-feed code ourselves. Safe fallback if sync-wasm is rough.
+- Scoring moves to the client (port `points.js` — it's already pure). Leaderboard becomes a local SQL query.
+- Auth: username + bcrypt password + JWT in an httpOnly cookie. Not real auth, just enough to kill the localStorage impersonation farce.
+- Schema updates: single `APP_SCHEMA_VERSION` constant. Server sends it as a header; on mismatch the client wipes its OPFS DB and re-snapshots. No user-data migration ever — we just drop.
 
-1. **Replicache is in maintenance mode.** Rocicorp pushed it out to open source and redirected development to Zero. It still works, but you'd be adopting a frozen codebase and paying the full BYOB integration cost.
-2. **Zero isn't GA.** Targeted beta late-2025 / early-2026 and is Postgres-oriented. We're on Turso/libSQL, so Zero isn't a drop-in.
-3. **Turso-in-the-browser exists but is early-access / private beta.** Promising, but not something to bet the app on today.
-4. **Most importantly — our perf problems aren't the ones Replicache solves.** The dominant costs are server-side recomputation (leaderboard O(N×M), per-request score recomputation, N+1 city queries) and re-fetching ~100 KB of reference data on every page load. Shipping Replicache wouldn't touch any of those.
-
-**Recommendation:** skip the sync-engine framework. Do a staged, boring plan: ETag-cached reference data in IndexedDB, move score computation client-side, fix the leaderboard, and add a lightweight schema-version / app-reload protocol. Revisit Turso browser sync or Zero in ~6 months when they're GA.
+Rough total for Phases 0–5: **~3 days of focused work.**
 
 ---
 
-## Peer review of the hypothesis
+## Peer review of the original hypothesis
 
 ### What's right
 
-- **"Write to local first, let UI feel instant"** — the core local-first insight is correct.
-- **"API owns writes to the shared DB"** — yes. A sync engine must not bypass server-side validation/authz.
-- **"Poll for updates with a version cursor"** — correct pattern; every sync system boils down to this.
-- **"Offline queueing"** — Replicache genuinely does this well.
+- **"Write to local first, let UI feel instant"** — correct instinct.
+- **"API owns writes to the shared DB"** — correct; any sync layer must not bypass authz.
+- **"Poll for updates with a version cursor"** — correct pattern; every sync system reduces to this.
+- **"Offline queueing"** — genuinely a Replicache strength.
 
-### What's wrong or misleading
+### What's wrong or misleading in April 2026
 
 | Claim from hypothesis | Reality |
 |---|---|
-| "Replicache is the absolute best tool for this job right now" | Replicache is in **maintenance mode** in 2026. Rocicorp is directing new users to **Zero**, which is still alpha/beta. Neither is a safe production bet for a family side-project today. |
-| "Zero UI latency — user never waits for Turso" | Our Turso calls aren't the bottleneck. The slow page loads come from server-side recomputation and payload re-fetching, not the Turso round-trip. |
-| "Security: API handles all routing… session token" | **There is no auth in TravelPoints right now.** The client stores `{id, username, home_country}` in `localStorage` and any client can impersonate any user. Replicache doesn't fix this — it would layer on top of the same broken model. Real auth is a prerequisite for *any* sync strategy. |
-| "Offline support" | Genuine, but not something Charlie has asked for. We're optimising for a mobile browser on patchy hotel Wi-Fi, not airplane mode. IndexedDB + optimistic updates covers 95 % of that without a sync framework. |
-| "Increment a version integer on every user record write" | Fine in isolation but implies a schema migration, a new push/pull protocol, and re-plumbing every existing write route. Large integration cost for a 3-route write surface. |
-| Implicit: "Replicache is Turso-aware" | Replicache is backend-agnostic. Every mutation has to be re-implemented twice — once as a local JS mutator, once as an SQL write on the server — and kept in sync forever. That's a permanent ongoing tax on a codebase where Charlie is learning as we go. |
+| "Replicache is the absolute best tool for this job right now" | Replicache is in **maintenance mode**. Rocicorp open-sourced it and redirected development to Zero. You'd be adopting a frozen codebase. |
+| "Zero (implied successor) is ready" | **Zero isn't GA.** Beta targeted for late-2025 / early-2026. It's Postgres-shaped and doesn't have a libSQL/Turso backend. |
+| "Zero UI latency — user never waits for Turso" | The Turso round-trip isn't our bottleneck today. The slow bits are **server-side recomputation** (leaderboard O(users × countries)), N+1 city queries, and re-fetching ~100 KB of reference data on every page load. A sync framework wouldn't fix any of those. |
+| "Security: API handles session token" | **TravelPoints has no auth today.** The client stores `{id, username, home_country}` in `localStorage` and any client can impersonate any user. Replicache doesn't fix this — it'd layer on top of a broken identity model. |
+| Implicit: "Replicache is Turso-aware" | Replicache is backend-agnostic and **K/V-shaped**. Every mutation has to be reimplemented twice (local JS mutator + server SQL writer) and kept in sync forever. Heavy ongoing tax on a 3-route write surface. |
 
-### Why it doesn't fit TravelPoints specifically
+### Why it still doesn't fit TravelPoints specifically
 
-Our shape of data (from mapping the API and fetch patterns):
+Our actual shape (from the audit):
 
-- **~100 KB of mostly-read reference data** (195 countries, ~2–3k cities, ~900 provinces) — served on nearly every page.
+- **~100 KB of mostly-read reference data** (195 countries, ~2–3k cities, ~900 provinces).
 - **Three write endpoints**, all per-user visit tracking. Low write rate. No collaboration. No realtime.
-- **Pure-function scoring engine** (`server/src/lib/points.js`) — takes reference data + user visits, returns a number. Completely portable to the client.
-- **Single logged-in user per browser**, no cross-device merging problem.
+- **Pure-function scoring engine** — portable to the client as-is.
+- **One logged-in user per browser**, no cross-device merging problem.
 
-Replicache is built for Figma/Linear-style apps: many concurrent collaborators mutating shared state, offline-first, with complex server-authoritative merge semantics. We have ~none of that.
+Replicache was built for Figma/Linear-style apps (many collaborators, offline-first, complex merge semantics). We have ~none of that. The *local SQLite* idea is the right half of the hypothesis; the *Replicache framework* part is the wrong half.
 
 ---
 
@@ -54,147 +55,180 @@ Replicache is built for Figma/Linear-style apps: many concurrent collaborators m
 
 From the API/data-access audit:
 
-1. **Leaderboard is O(users × visited_countries) per request.** It loads every user, recomputes every user's score from scratch, no caching, no pagination. On even 10 users this is already 1–2 s. `server/src/routes/leaderboard.js:46-96`.
-2. **`getUserTravelData` refetches all 195 countries and all provinces on every hot endpoint** (`/score`, `/countries`). Reference data is re-queried request-after-request. `server/src/routes/users.js` (see audit).
-3. **N+1 city lookups** when building a user's visited countries list.
-4. **Every page fetches the same reference data again** — no HTTP caching headers, no ETag, no IndexedDB.
-5. **Score recomputed server-side on every request** despite being a pure function of public reference data plus the visit set the client already has.
-6. **No `updated_at` / version column anywhere** — so a diff-since-version pull is impossible today even if we wanted it.
+1. **Leaderboard is O(users × visited_countries) per request.** `server/src/routes/leaderboard.js:46-96`.
+2. **`getUserTravelData` refetches all 195 countries + provinces on every hot endpoint** (`/score`, `/countries`).
+3. **N+1 city lookups** when building a user's visited-countries list.
+4. **No HTTP caching** on reference endpoints — no ETag, no Last-Modified.
+5. **Scores recomputed server-side every request** despite being a pure function of public data + the visit set the client already has.
+6. **No `updated_at` / version column anywhere** — can't do a diff-since-version pull today.
 
-Fix those and the app will feel fast without any sync engine.
+Local SQLite in the browser collapses #1–#5 to essentially free. #6 we add in Phase 1.
 
 ---
 
-## Proposed architecture
-
-A small, boring, Turso-friendly version of the hypothesis. Same instincts, a fraction of the code.
+## Architecture (v2)
 
 ```
-              ┌──────────────────────────────────────┐
-              │            Browser (SPA)             │
-              │                                      │
-              │  IndexedDB (reference data cache)    │
-              │    ├── countries                     │
-              │    ├── cities                        │
-              │    └── provinces                     │
-              │                                      │
-              │  In-memory + localStorage (user)     │
-              │    ├── user profile                  │
-              │    ├── visited_countries             │
-              │    ├── visited_cities                │
-              │    └── visited_provinces             │
-              │                                      │
-              │  client/src/lib/points.js            │
-              │    (ported from server/src/lib)      │
-              └───────────┬──────────────────────────┘
+Browser (SPA)
+┌──────────────────────────────────────────────────────────┐
+│  SQLite WASM (OPFS-backed, persistent across reloads)    │
+│    ├── countries, cities, provinces       (ref data)     │
+│    ├── users, user_countries, user_cities, user_provinces│
+│    └── _meta (cursor, schema_version)                    │
+│                                                          │
+│  Reads   → local SQL  (microseconds)                     │
+│  Scoring → client/src/lib/points.js  (pure fns)          │
+│  Leaderboard → local SQL ORDER BY points DESC LIMIT 50   │
+│                                                          │
+│  ↕ sync worker                                           │
+│     ↓ GET /api/snapshot       (cold start)               │
+│     ↓ GET /api/changes?since=N  (polled, incremental)    │
+│     ↑ POST /api/users/:id/...   (writes, JWT-authed)     │
+└──────────────────────────────────────────────────────────┘
                           │
-           GET /api/ref?since=<version>  (polled / conditional)
-           POST /api/users/:id/countries (writes only)
-           GET  /api/version             (schema/app version check)
-                          │
-              ┌───────────┴──────────────────────────┐
-              │       Express API (unchanged shape)  │
-              │  - Owns writes, owns auth            │
-              │  - Serves reference data with ETag   │
-              │  - Owns schema via Knex migrations   │
-              │  - Publishes SCHEMA_VERSION constant │
-              └───────────┬──────────────────────────┘
-                          │
-                       Turso (single source of truth)
+                          ▼
+Server (Express + Turso)
+  - Auth: bcrypt + JWT cookie
+  - Owns writes and schema (Knex migrations)
+  - _changes table — every write appends (change_id, table, pk, op, row_json)
+  - /api/snapshot: full JSON dump + current change_id
+  - /api/changes?since=N: rows + tombstones since N
+  - APP_SCHEMA_VERSION header on every response
 ```
 
-The API server stays the authoritative write path and the authoritative schema owner. No Replicache push/pull protocol. No local-first mutators to keep in sync.
+---
+
+## Why SQLite-in-browser (vs. Replicache, vs. just caching)
+
+| Option | Verdict |
+|---|---|
+| Replicache | Maintenance mode; K/V; duplicate mutators. Skip. |
+| Zero | Not GA; Postgres-shaped; no libSQL. Reassess in 6–12 months. |
+| `@tursodatabase/sync-wasm` | Theoretical best fit — native Turso sync. Early-access private beta. **Try first, 1-day time-box.** |
+| `@sqlite.org/sqlite-wasm` + hand-rolled sync | Production-stable WASM. ~150 LoC of change-feed code. **Safe fallback.** |
+| IndexedDB + JSON cache (v1 plan) | Works but leaves scoring server-side and doesn't get the "real SQL on the client" win. Now redundant. |
 
 ---
 
-## Phased plan
+## Phases
 
-Each phase is independently shippable. Ship, measure, then decide on the next.
+Each phase is independently shippable. Ship, poke it, move on.
 
-### Phase 0 — Measure (before touching anything)
+### Phase 0 — Lightweight auth (~half day)
 
-- Add server timing logs to the top 5 endpoints, flag p95s.
-- Record baseline numbers: Dashboard mount, CountryDetail mount, Leaderboard, AddCountry round-trip. This is what we'll compare against.
-- Output: a short `docs/db-speed-baseline.md` with numbers.
+- Drop `users` and rebuild with `password_hash` column (no users to migrate).
+- `POST /api/auth/signup` and `POST /api/auth/signin` — bcrypt + sign a JWT, set as httpOnly cookie.
+- Middleware verifies the cookie and attaches `req.user.id`.
+- All write routes assert `req.user.id === params.user_id`.
+- Client replaces the localStorage-identity flow with signup/signin pages.
 
-### Phase 1 — Quick wins on the server (biggest ROI, no client changes)
+### Phase 1 — Server change feed (~half day)
 
-1. **Fix the leaderboard.** Either:
-   - Materialised: a `user_totals` table, updated on every visit write (small trigger in route code), and `/leaderboard` becomes a plain `SELECT … ORDER BY total_points DESC LIMIT 50`. Or
-   - Cached: in-memory LRU with a 60 s TTL, invalidated on write.
-   Preference: materialised. It's also what the in-page score card can read.
-2. **Cache reference-data fetches inside the Node process.** `getAllCountries()` / `getAllProvinces()` only change on deploy; load once, keep in module scope, invalidate on `NODE_ENV === 'test'`.
-3. **Add ETags** to `/api/countries`, `/api/countries/:code/cities`, `/api/countries/:code` (reference part only). A hash of the seed version is enough.
-4. **Eliminate the N+1** in `getUserTravelData` by batch-loading cities with one `WHERE country_code IN (…)` query.
+- New `_changes` table: `(change_id INTEGER PK AUTOINCREMENT, table TEXT, pk TEXT, op TEXT, row_json TEXT, created_at)`.
+- Every write route ALSO appends a `_changes` row in the same transaction.
+- `GET /api/changes?since=N` → `{ changes: [...], cursor: <max_change_id> }`.
+- `GET /api/snapshot` → `{ countries: [...], cities: [...], provinces: [...], cursor: <max_change_id> }`.
+- Seed migration inserts synthetic `_changes` rows for existing reference data at change_id 1.
 
-Expected result: Dashboard and Leaderboard drop an order of magnitude in latency, with zero client-side change.
+### Phase 2 — Client SQLite via sqlite-wasm (~1 day)
 
-### Phase 2 — Client cache for reference data
+- Add `@sqlite.org/sqlite-wasm`.
+- `client/src/db/local.js`: opens an OPFS-backed DB named `traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`.
+- On first open: fetch `/api/snapshot`, create tables matching server schema, bulk-insert rows, store cursor.
+- Tiny helper: `db.all(sql, params)`, `db.get(sql, params)`, `db.exec(sql)`.
+- **Time-box experiment: try `@tursodatabase/sync-wasm` first.** If the snapshot-then-sync dance "just works", use it and skip Phase 3. Otherwise fall back to sqlite-wasm here.
 
-1. Wrap `client/src/api/client.js` so `getCountries`, `getCountryCities`, `getProvinces` go through an IndexedDB-backed cache (idb-keyval or Dexie — Dexie is friendlier, ~15 KB gz).
-2. On app boot: read cached reference data, show UI immediately, fire a conditional `If-None-Match` request in the background.
-3. 304 → keep cache. 200 → replace and bump stored ETag.
-4. Tie the cache key to the schema version (Phase 4) so a migration forces a refill.
+### Phase 3 — Incremental sync worker (~half day)
 
-Expected result: cold page load still hits the network once, warm loads are instant and offline-tolerant for read paths.
+(Skip if `sync-wasm` handled it.)
 
-### Phase 3 — Move score computation to the client
+- Web Worker (or plain `setInterval` for simplicity) polls `/api/changes?since=<cursor>` every 5 s, plus on `focus` and `visibilitychange`.
+- Apply each change in a transaction: INSERT OR REPLACE for ops `insert`/`update`, DELETE for `delete`.
+- Update cursor after each successful apply.
+- On `APP_SCHEMA_VERSION` mismatch in any response → wipe OPFS DB, reload.
 
-1. Port `server/src/lib/points.js` to `client/src/lib/points.js` (pure functions, no Node deps). Keep the server copy authoritative for tests and leaderboard.
-2. Share the constants via a single JSON config that both sides import, or (cleaner) extract `points.js` to a shared package under `packages/points` and have both server and client import it.
-3. Dashboard / CountryDetail compute scores locally from cached reference data + local visit set. No `/score` round-trip on navigation.
-4. Server still computes the authoritative score for leaderboard writes.
+### Phase 4 — Kill server reads, move scoring to the client (~half day)
 
-Expected result: navigation between pages is instant; only add/remove visit actions touch the network.
+- Delete (or stub) `getCountries`, `getCountry`, `getUserCountries`, `getUserScore`, `getLeaderboard` from `client/src/api/client.js`. Replace each call site with a local SQL query.
+- Port `server/src/lib/points.js` to `client/src/lib/points.js` (literal copy of a pure-function module). Server keeps its copy for tests and any server-side use; when it's worth it we extract to `packages/points` and both import it.
+- Leaderboard is now:
+  ```sql
+  SELECT user_id, SUM(points) AS total
+  FROM user_country_scores_view  -- or compute in JS per user
+  GROUP BY user_id ORDER BY total DESC LIMIT 50
+  ```
+  — every client has everyone's visit data. For a hobby project this is fine and makes the leaderboard instant.
 
-### Phase 4 — Schema version + app reload protocol
+### Phase 5 — Optimistic writes (~half day)
 
-This is where we sense-check the hypothesis's "API still manages schema updates" concern.
+- `POST /api/users/:id/countries` returns `{ change_id, row }`.
+- Client applies the mutation to local SQLite **before** the network call, inside a "pending" savepoint.
+- On success: commit and fast-forward cursor past the returned `change_id`.
+- On failure: rollback savepoint, show an error toast.
+- Net effect: add/remove country feels 0 ms; the sync worker reconciles anything remote in the next poll.
 
-1. A single `APP_SCHEMA_VERSION` integer committed in the repo, bumped whenever the shape of the API or reference data changes. Exposed at `GET /api/version` and returned as an `X-App-Schema-Version` response header on every API call.
-2. The client stores the version it was built against (`import.meta.env.VITE_APP_SCHEMA_VERSION`) and compares on every response.
-3. Mismatch handling:
-   - **Server version > client version** → show a non-blocking "New version available — reload" banner. On any write attempt, force the reload.
-   - **Server version < client version** (shouldn't happen outside local dev) → warn in console, don't block.
-4. On version bump, the IndexedDB cache namespace is rebuilt (cache key includes the version), so stale reference data can never be served against a new schema.
-5. Knex migrations continue to be the source of truth for DB shape; the `APP_SCHEMA_VERSION` bump lives in the same PR as the migration, so they move together.
+### Phase 6 (nice-to-have) — Reactive queries
 
-This gives us the "web app reloads when required" behaviour without needing Replicache's push/pull semantics.
-
-### Phase 5 — Real auth (prerequisite for anything beyond this)
-
-Before *any* sync-engine experiment or true local-first write path, we need actual authentication. Today the user ID is client-asserted in `localStorage`; a sync layer on top of that amplifies the security hole. Wire up the Google OAuth that the `google_id` column was prepared for, put a signed session cookie on requests, and enforce `session.user_id === params.user_id` server-side on every write route.
-
-### Phase 6 (deferred) — Revisit sync frameworks
-
-Reassess once any of these land:
-- **Turso embedded replicas in the browser go GA** (not private beta). Then we can pull read-only replicas of `countries` / `cities` / `provinces` directly, no custom ETag plumbing, and Turso's WAL streaming gives us free incremental updates.
-- **Zero hits 1.0 and gets libSQL/SQLite backend support.** Then we'd have a supported, modern path to full local-first writes.
-- **The write rate changes.** If TravelPoints grows into something where users are logging visits rapidly or offline matters, the calculus for Replicache/Zero changes.
-
-Until one of those happens, the Phase 1–4 plan is cheaper to build, cheaper to debug, and gets 90 % of the perceived-performance win.
+- `useSqlQuery(sql, params)` React hook that re-runs after every successful sync tick or local mutation.
+- Pages become pure: "give me a query, I'll re-render when data changes."
+- Nothing essential — but it makes the code delightful.
 
 ---
 
-## Open questions to discuss with Charlie
+## Schema updates & the web-app-reload story
 
-1. Is **leaderboard freshness** OK at a 60-second lag, or does it need to be instant? (Affects cache vs. materialised table.)
-2. Do we want **offline "add a visited country"**? If yes, Phase 3.5 adds an outgoing mutation queue (~half a day of work). If no, skip it.
-3. Is **real auth (Phase 5) a blocker for merging the rest**, or can it ship independently? My vote: parallel track, because the current localStorage model is already shipped and the performance work is additive.
-4. Are we comfortable extracting `points.js` into a **shared package** (monorepo-ish), or would Charlie rather we copy-paste it across server and client for now? Shared is cleaner; copy is simpler.
+- `APP_SCHEMA_VERSION` is a single integer constant in the repo, bumped in the **same PR as any Knex migration** or any change to the `/api/changes` payload shape.
+- Server sends `X-App-Schema-Version: <N>` on every response (middleware, one-liner).
+- Client compares against `import.meta.env.VITE_APP_SCHEMA_VERSION` (baked at build time).
+- Mismatch → delete the OPFS DB file, show a "Updating…" splash, hard-reload. Because we're happy to drop data, there's no migration logic to write. Ever.
+- Knex migrations remain the authoritative schema source for the server.
+
+---
+
+## Dev loop & testing
+
+- `docker compose up -d --build` still works — Turso embedded locally, unchanged.
+- `make reset-db` additionally hits a new `/api/dev/reset` endpoint (dev-only) that truncates user tables AND bumps the version so all browser OPFS DBs re-snapshot.
+- Tests:
+  - Server points tests continue untouched.
+  - Mirror the client port with a tiny node-side test harness (sqlite-wasm can run in Node too).
+  - Add one integration test: seed server → boot client → apply a write → confirm local DB reflects it after sync.
+
+---
+
+## Risk list
+
+| Risk | Mitigation |
+|---|---|
+| `@tursodatabase/sync-wasm` is beta, might be rough | 1-day time-box; fall back to hand-rolled sync on sqlite-wasm. |
+| OPFS wobbles on iOS Safari | Chrome/Firefox/Edge are solid; Safari 17+ is good. Hobby project, not a blocker. |
+| ~1 MB gz bundle cost for sqlite-wasm | Fine for a desktop-first app. Lazy-load after first paint if it matters. |
+| Sync drift / cursor corruption | Server is authoritative; on any inconsistency, drop the OPFS file and re-snapshot. Cheap. |
+| Leaderboard exposes everyone's visits to every client | Hobby project, no users, not sensitive. If we ever care, precompute a `user_totals` row per user and sync only that. |
+| Password auth isn't "real" | Acknowledged. It's good enough to stop casual copy-paste impersonation. OAuth can come later if it ever matters. |
+
+---
+
+## Open questions for Charlie
+
+1. **Turso sync-wasm first (1-day time-box) or go straight to sqlite-wasm + hand-rolled sync?** My vote: time-box sync-wasm — if it works, we win a lot of code.
+2. **Poll interval?** 5 s everywhere, or smarter (on focus + after local writes)?
+3. **Everyone's visit data on every client — OK?** Enables local leaderboard. Hobby project, probably yes.
+4. **Password reset flow — skip entirely?** Hobby + no users = yes, skip for now.
+5. **Monorepo-ise `points.js`** (shared package for server + client) or just copy it? Copy is faster; share is cleaner. I'd copy first and promote to shared when the copy starts to hurt.
 
 ---
 
 ## Rough effort estimate
 
-| Phase | Effort | Risk |
-|---|---|---|
-| 0 — measure | ~half a day | none |
-| 1 — server quick wins | 1–2 days | low |
-| 2 — IndexedDB ref cache | 1–2 days | low |
-| 3 — client-side scoring | 1 day (if `points.js` stays pure) | low |
-| 4 — schema version + reload | half a day | low |
-| 5 — real auth | 2–3 days | medium (UX decisions) |
-| 6 — revisit sync engines | — | deferred |
+| Phase | Effort |
+|---|---|
+| 0 — bcrypt+JWT auth | ~half day |
+| 1 — server change feed | ~half day |
+| 2 — client sqlite-wasm + snapshot | ~1 day (incl. sync-wasm time-box) |
+| 3 — incremental sync worker | ~half day (skippable if sync-wasm works) |
+| 4 — kill server reads, port scoring | ~half day |
+| 5 — optimistic writes | ~half day |
+| 6 — reactive query hook (optional) | ~half day |
 
-Total for Phases 0–4 ≈ **one week**. That's the fast path to "the app feels snappy" without committing to a sync framework that's either frozen or not GA yet.
+**Total for Phases 0–5: ~3 days.** That's how long it should take to get to "every page is instant, every write is 0 ms, leaderboard is a local SQL query."

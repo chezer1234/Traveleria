@@ -79,6 +79,7 @@ Render hosts the Express API and serves the React frontend. Free tier: web servi
    - `TURSO_DATABASE_URL` = your database URL from step 1
    - `TURSO_AUTH_TOKEN` = your token from step 1
    - `PORT` = `3000`
+   - `JWT_SECRET` — **do not set here.** CI syncs this from GitHub secrets on every deploy (see §3).
 5. Click **Create Web Service**
 
 ### Create the frontend service (React)
@@ -126,6 +127,7 @@ These secrets let the CI pipeline trigger deploys automatically after tests pass
 | `RENDER_API_KEY` | Render > Account Settings > API Keys |
 | `RENDER_API_SERVICE_ID` | From the API service URL: `srv-XXXXX` |
 | `RENDER_WEB_SERVICE_ID` | From the Web service URL: `srv-XXXXX` |
+| `JWT_SECRET` | Generate with `openssl rand -hex 32`. CI pushes this onto the API service before every deploy via Render's per-key env-var endpoint, so Render is **not** the source of truth — GitHub is. Rotate by updating this secret and re-running the workflow. |
 
 That's it. Once these are set, every push to `main` that passes CI will automatically deploy and show build status in the GitHub Actions log.
 

@@ -146,6 +146,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_SERVICE_ID: ${{ secrets.RENDER_API_SERVICE_ID }}
           RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_WEB_SERVICE_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -uo pipefail
 
@@ -158,6 +159,56 @@ jobs:
 
           RENDER_API="https://api.render.com/v1"
           AUTH="Authorization: Bearer ${RENDER_API_KEY}"
+
+          # Sync a single env var onto a Render service. Uses the per-key PUT
+          # endpoint so other env vars (TURSO_*, NODE_ENV, PORT, …) are
+          # untouched. Creates the var if missing, updates in place otherwise.
+          # Usage: sync_env_var <service_id> <label> <key> <value>
+          sync_env_var() {
+            local SVC_ID="$1"
+            local LABEL="$2"
+            local KEY="$3"
+            local VALUE="$4"
+
+            if [ -z "$SVC_ID" ] || [ -z "$VALUE" ]; then
+              return 0
+            fi
+
+            # Body built via jq so special chars in the secret are escaped correctly.
+            local BODY
+            BODY=$(jq -cn --arg v "$VALUE" '{value:$v}')
+
+            local HTTP_CODE
+            HTTP_CODE=$(curl -s -o /tmp/render_env_out -w '%{http_code}' \
+              -X PUT "${RENDER_API}/services/${SVC_ID}/env-vars/${KEY}" \
+              -H "${AUTH}" \
+              -H "Content-Type: application/json" \
+              -d "$BODY")
+
+            case "$HTTP_CODE" in
+              200|201)
+                echo "Synced ${KEY} to ${LABEL} (HTTP ${HTTP_CODE})."
+                ;;
+              *)
+                echo "::error::Failed to sync ${KEY} to ${LABEL} (HTTP ${HTTP_CODE})"
+                cat /tmp/render_env_out 2>/dev/null || true
+                echo
+                return 1
+                ;;
+            esac
+          }
+
+          # JWT_SECRET is the source of truth in GitHub secrets. We push it to
+          # Render before triggering the deploy so a restarted service boots
+          # with the current value — server/src/lib/auth.js throws at require
+          # time without it in production, so this must not be skipped silently.
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::JWT_SECRET is not set in GitHub secrets."
+            echo "Add it to the 'production' environment at:"
+            echo "  https://github.com/chezer1234/Traveleria/settings/environments"
+            exit 1
+          fi
+          sync_env_var "$RENDER_API_SERVICE_ID" "API" "JWT_SECRET" "$JWT_SECRET"
 
           # Fetch and print recent service logs from Render
           # Usage: fetch_logs <service_id> <label> [deploy_id]

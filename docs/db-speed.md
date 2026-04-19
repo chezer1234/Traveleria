@@ -26,7 +26,7 @@ Top-level checkpoints. Each phase has its own checklist further down.
 ## TL;DR
 
 - SQLite in the browser via **OPFS**. All reads = local SQL, microsecond latency.
-- Writes still go through the Express API (JWT-authed). A server-side `_changes` feed echoes them back so the client stays in sync.
+- **Writes always go through the Express API** (JWT-authed + per-route content validation). The browser never writes to the server DB directly. A server-side `_changes` feed echoes authorised writes back so the client stays in sync.
 - Scoring moves to the client by sharing `server/src/lib/points.js` with a copy-and-CI-diff rule (simplest option that actually works in Docker; see Phase 4).
 - Schema updates: a single `APP_SCHEMA_VERSION` integer. Mismatch → client wipes its OPFS DB and hard-reloads. No migration logic, ever.
 - Every tier runs the same binaries in dev, CI, and prod. The whole loop is validated end-to-end in Docker via Playwright.
@@ -63,6 +63,28 @@ Server (Express + Turso/libSQL)
   - /api/debug/metrics: request timings, sync stats (dev + behind flag in prod)
   - APP_SCHEMA_VERSION header on every response
 ```
+
+---
+
+## Authorised writes: the server stays in the write path
+
+Non-negotiable invariant: **every mutation to server-side data is validated by the Express API.** This holds today and must hold forever, even after we adopt any local-first sync.
+
+**How it's enforced**
+
+- All client-originated writes go to REST endpoints (`POST /api/users/:id/countries`, etc.). No other write path exists.
+- Each write route runs, in order: (1) JWT-verify middleware, (2) ownership assertion (`req.user.id === params.user_id`), (3) **Zod content schema** on the body, (4) **business-rule checks** against the DB (e.g., `country_code` exists in `countries`; no duplicate `(user_id, country_code)`; `visited_at` not in the future).
+- The `_changes` row is appended **by the route handler itself**, inside the same transaction as the validated write. No endpoint lets a client write to `_changes`.
+- `GET /api/changes?since=N` is read-only — it replays what the server already authorised.
+- Reference tables (`countries`, `cities`, `provinces`) have **no write routes at all**. They're seeded and considered immutable at runtime.
+
+**The sync-wasm trap (and how we dodge it)**
+
+`@tursodatabase/sync-wasm` v0.5 is **bidirectional**. If we used its `push()` direction, the browser would talk directly to sqld over the libsql wire protocol and bypass Express — we'd lose content validation with no sane place to bolt it back on (sqld has no real per-user RLS). 
+
+Rule: **sync-wasm, if adopted in Phase 2, is used pull-only.** Writes always take the REST path. We explicitly do not call `push()` from the client. Optimistic UX comes from Phase 5's local-savepoint + REST POST pattern, not from the sync library.
+
+This means we can retrofit new content checks (or a full policy layer) later without a protocol change — just add middleware to the write routes.
 
 ---
 
@@ -142,10 +164,11 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 - [ ] Also set a non-httpOnly **`last_identifier` cookie** (30-day expiry) so the signin form can pre-fill. Never contains a credential.
 - [ ] `POST /api/auth/signout` — clears both cookies.
 - [ ] Middleware verifies the JWT on every write route; asserts `req.user.id === params.user_id` or 403.
+- [ ] **Zod body schemas + business-rule checks** on every write route: country/city/province code exists in the reference table; no duplicate `(user_id, target)` rows; `visited_at` not in the future. Invalid → 422 with field-level errors.
 - [ ] Client: replace the localStorage identity flow with `/signin` and `/signup` pages; pre-fill the identifier input from the `last_identifier` cookie.
-- [ ] E2E: sign up → cookie present → impersonation blocked (403) → signout clears cookies → last_identifier persists after signout so the form stays pre-filled.
+- [ ] E2E: sign up → cookie present → impersonation blocked (403) → bad payload rejected (422) → signout clears cookies → last_identifier persists so the form stays pre-filled.
 
-**Exit criteria:** you can't act as another user by editing browser storage.
+**Exit criteria:** you can't act as another user by editing browser storage, and malformed writes are rejected with useful errors.
 
 ### Phase 1 — Server change feed + debug metrics (~½ day)
 
@@ -162,7 +185,7 @@ Drop the localStorage-identity farce. Not "real" auth — good enough to stop ca
 
 ### Phase 2 — Client SQLite via sqlite-wasm (~1 day)
 
-- [ ] **Time-box experiment (half-day max):** wire `@tursodatabase/sync-wasm@^0.5.0` against the dockerised sqld. It does bidirectional sync natively — if it works, we save writing Phases 3 and half of 5. If it's flaky inside the compose networking, abandon and go to sqlite-wasm.
+- [ ] **Time-box experiment (half-day max):** wire `@tursodatabase/sync-wasm@^0.5.0` against the dockerised sqld **in pull-only mode** (we never call `push()` — writes stay on the REST path so the API can keep validating content; see Authorised writes section). If pull-only works cleanly, we skip Phase 3. If it's flaky inside the compose networking, abandon and go to sqlite-wasm.
 - [ ] Otherwise: add `@sqlite.org/sqlite-wasm@^3.51.2-build8` via the OO1 API (not Worker1 / Promiser1 — deprecated).
 - [ ] `client/src/db/local.js`: opens an OPFS-backed DB named `traveleria-v<APP_SCHEMA_VERSION>-<user.id>.db`.
 - [ ] On first open: `fetch('/api/snapshot')` → create tables matching server schema → bulk-insert rows → store cursor.
@@ -247,11 +270,12 @@ compose.test.yml       # overlay: adds the playwright runner
 1. **Cold boot** — fresh browser, empty OPFS → `/api/snapshot` → countries render from local SQLite.
 2. **Auth** — signup → `auth` cookie set → `last_identifier` cookie set → signout clears `auth` but leaves `last_identifier` → signin round-trip.
 3. **Impersonation blocked** — `POST /api/users/<other_id>/countries` → 403.
-4. **Write + sync echo** — add a country → local DB reflects instantly → server `_changes` contains the row → second browser context picks it up.
-5. **Schema-version reload** — server bumps `APP_SCHEMA_VERSION` → client detects mismatch → OPFS wiped → fresh snapshot.
-6. **Scoring parity** — fixed fixture; server total === client total.
-7. **Leaderboard parity** — same user set; server-computed === client-computed.
-8. **Offline blip** — stop the server → add a country → optimistic UI stays → restart → reconciles.
+4. **Content validation** — malformed body (missing field, bogus country code, duplicate visit, future date) → 422 with field errors; `_changes` table unchanged.
+5. **Write + sync echo** — add a country → local DB reflects instantly → server `_changes` contains the row → second browser context picks it up.
+6. **Schema-version reload** — server bumps `APP_SCHEMA_VERSION` → client detects mismatch → OPFS wiped → fresh snapshot.
+7. **Scoring parity** — fixed fixture; server total === client total.
+8. **Leaderboard parity** — same user set; server-computed === client-computed.
+9. **Offline blip** — stop the server → add a country → optimistic UI stays → restart → reconciles.
 
 ---
 
@@ -273,6 +297,7 @@ We can refine once we see real numbers.
 | Risk | Mitigation |
 |---|---|
 | `@tursodatabase/sync-wasm` is beta | Half-day time-box in Phase 2; abandon to hand-rolled sync if it wobbles. |
+| sync-wasm's bidirectional mode would bypass API content validation | **Rule: pull-only use.** Writes always take the REST path. Enforced by convention (we never import `push()`) and verified by the content-validation E2E test — if writes reached the DB without Express auth, those tests would fail to reject bad input. |
 | OPFS / Worker threads need COOP/COEP headers | Bake into Vite and nginx config in Phase A; Playwright test fails fast if missing. |
 | sync-wasm networking inside docker-compose | Browser and server resolve the libsql URL differently; expose sqld on host `localhost:8080` and bake that URL into the client. If painful → fall back to sqlite-wasm. |
 | ~1 MB gz sqlite-wasm bundle | Fine for desktop. Lazy-load after first paint if it starts to hurt. |

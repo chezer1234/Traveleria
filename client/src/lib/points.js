@@ -475,10 +475,13 @@ export const SUBREGION_CENTROIDS = {
   'Polynesia':                { lat: -15.0, lng: -170.0 },
 };
 
+// Normalisation constant: log2(20 000 km / 1 000 + 1) ≈ log2(21)
 const SUBREGION_DIST_MAX_LOG = Math.log2(21);
 
+// Visit bonus X: 0–60, scaled by distance from home + average tourism difficulty.
+// Returns 0 if homeCountry is in the subregion (no bonus for going home).
 export function getSubregionVisitBonus(homeCountry, subregionName, subregionCountries) {
-  if (!homeCountry) return 30;
+  if (!homeCountry) return 30; // fallback when home unknown
 
   const isHomeSubregion = subregionCountries.some(c => c.code === homeCountry.code);
   if (isHomeSubregion) return 0;
@@ -499,6 +502,9 @@ export function getSubregionVisitBonus(homeCountry, subregionName, subregionCoun
   return Math.round(60 * (0.5 * distNorm + 0.5 * tourismNorm));
 }
 
+// Full subregion bonus calculation for a user.
+// visitedCodes: Set of alpha-2 country codes the user has visited.
+// Returns { subregions: [...], totalBonusPoints: number }
 export function calculateSubregionBonuses(homeCountry, allCountries, visitedCodes) {
   const bySubregion = {};
   for (const c of allCountries) {
@@ -511,6 +517,7 @@ export function calculateSubregionBonuses(homeCountry, allCountries, visitedCode
 
   for (const [name, srCountries] of Object.entries(bySubregion)) {
     const visitBonus = getSubregionVisitBonus(homeCountry, name, srCountries);
+    // Home subregion: visit bonus is 0, completion always gives 5
     const completionBonus = visitBonus === 0 ? 5 : visitBonus;
 
     const visitedInSR = srCountries.filter(c => visitedCodes.has(c.code));

@@ -13,6 +13,7 @@ import {
   getExplorerCeiling,
   getCityPercentage,
   getScoreBreakdown,
+  calculateSubregionBonuses,
 } from './points.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
@@ -316,4 +317,22 @@ export async function getLeaderboardLocal(db, currentUserId) {
   }
 
   return top50;
+}
+
+// ── Subregion bonus data ─────────────────────────────────────────────────────
+
+export async function getSubregionsLocal(db, userId, homeCountryCode) {
+  const allCountries = await db.all(
+    `SELECT code, name, region, subregion, population, annual_tourists, area_km2, lat, lng
+     FROM countries ORDER BY name`,
+  );
+  const homeCountry = allCountries.find(c => c.code === homeCountryCode) || null;
+
+  const visitedRows = await db.all(
+    `SELECT country_code FROM user_countries WHERE user_id = ?`,
+    [userId],
+  );
+  const visitedCodes = new Set(visitedRows.map(r => r.country_code));
+
+  return calculateSubregionBonuses(homeCountry, allCountries, visitedCodes);
 }

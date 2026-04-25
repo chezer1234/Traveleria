@@ -59,6 +59,7 @@ const DDL = [
     code TEXT PRIMARY KEY,
     name TEXT,
     region TEXT,
+    subregion TEXT,
     population INTEGER,
     annual_tourists INTEGER,
     area_km2 REAL,
@@ -115,6 +116,8 @@ function ensureSchema() {
     db.exec('ROLLBACK');
     throw e;
   }
+  // Idempotent column additions for existing DBs (ALTER TABLE fails silently if already present)
+  try { db.exec('ALTER TABLE countries ADD COLUMN subregion TEXT'); } catch { /* already exists */ }
 }
 
 function bulkInsert(table, rows, columns) {
@@ -145,7 +148,7 @@ async function hydrate(apiBase, authToken) {
   db.exec('BEGIN');
   try {
     bulkInsert('countries', snap.countries, [
-      'code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng',
+      'code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng',
     ]);
     bulkInsert('cities', snap.cities, ['id', 'country_code', 'name', 'population']);
     bulkInsert('provinces', snap.provinces, [

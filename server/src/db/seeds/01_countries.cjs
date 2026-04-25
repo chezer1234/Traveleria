@@ -216,6 +216,95 @@ const countries = [
   { code: 'VU', name: 'Vanuatu', region: 'Oceania', population: 307145, annual_tourists: 116000, area_km2: 12189, lat: -17.73, lng: 168.32 },
 ];
 
+// ── UN M.49 subregion assignments ────────────────────────────────────────────
+const SUBREGIONS = {
+  // Northern Europe
+  DK: 'Northern Europe', EE: 'Northern Europe', FI: 'Northern Europe',
+  IS: 'Northern Europe', IE: 'Northern Europe', LV: 'Northern Europe',
+  LT: 'Northern Europe', NO: 'Northern Europe', SE: 'Northern Europe', GB: 'Northern Europe',
+  // Western Europe
+  AT: 'Western Europe', BE: 'Western Europe', FR: 'Western Europe',
+  DE: 'Western Europe', LI: 'Western Europe', LU: 'Western Europe',
+  MC: 'Western Europe', NL: 'Western Europe', CH: 'Western Europe',
+  // Southern Europe
+  AL: 'Southern Europe', AD: 'Southern Europe', BA: 'Southern Europe',
+  HR: 'Southern Europe', GR: 'Southern Europe', IT: 'Southern Europe',
+  XK: 'Southern Europe', MT: 'Southern Europe', ME: 'Southern Europe',
+  MK: 'Southern Europe', PT: 'Southern Europe', SM: 'Southern Europe',
+  RS: 'Southern Europe', SI: 'Southern Europe', ES: 'Southern Europe', VA: 'Southern Europe',
+  // Eastern Europe
+  BY: 'Eastern Europe', BG: 'Eastern Europe', CZ: 'Eastern Europe',
+  HU: 'Eastern Europe', MD: 'Eastern Europe', PL: 'Eastern Europe',
+  RO: 'Eastern Europe', RU: 'Eastern Europe', SK: 'Eastern Europe', UA: 'Eastern Europe',
+  // Western Asia (includes Middle East from seed + Cyprus per UN M.49)
+  AM: 'Western Asia', AZ: 'Western Asia', BH: 'Western Asia', CY: 'Western Asia',
+  GE: 'Western Asia', IQ: 'Western Asia', IL: 'Western Asia', JO: 'Western Asia',
+  KW: 'Western Asia', LB: 'Western Asia', OM: 'Western Asia', QA: 'Western Asia',
+  SA: 'Western Asia', SY: 'Western Asia', TR: 'Western Asia', AE: 'Western Asia',
+  YE: 'Western Asia', IR: 'Western Asia',
+  // Central Asia
+  KZ: 'Central Asia', KG: 'Central Asia', TJ: 'Central Asia',
+  TM: 'Central Asia', UZ: 'Central Asia',
+  // Southern Asia
+  AF: 'Southern Asia', BD: 'Southern Asia', BT: 'Southern Asia',
+  IN: 'Southern Asia', MV: 'Southern Asia', NP: 'Southern Asia',
+  PK: 'Southern Asia', LK: 'Southern Asia',
+  // South-Eastern Asia
+  BN: 'South-Eastern Asia', KH: 'South-Eastern Asia', ID: 'South-Eastern Asia',
+  LA: 'South-Eastern Asia', MY: 'South-Eastern Asia', MM: 'South-Eastern Asia',
+  PH: 'South-Eastern Asia', SG: 'South-Eastern Asia', TH: 'South-Eastern Asia',
+  TL: 'South-Eastern Asia', VN: 'South-Eastern Asia',
+  // Eastern Asia
+  CN: 'Eastern Asia', JP: 'Eastern Asia', MN: 'Eastern Asia',
+  KP: 'Eastern Asia', KR: 'Eastern Asia', TW: 'Eastern Asia',
+  // Northern Africa
+  DZ: 'Northern Africa', EG: 'Northern Africa', LY: 'Northern Africa',
+  MA: 'Northern Africa', SD: 'Northern Africa', TN: 'Northern Africa',
+  // Western Africa
+  BJ: 'Western Africa', BF: 'Western Africa', CV: 'Western Africa',
+  CI: 'Western Africa', GM: 'Western Africa', GH: 'Western Africa',
+  GN: 'Western Africa', GW: 'Western Africa', LR: 'Western Africa',
+  ML: 'Western Africa', MR: 'Western Africa', NE: 'Western Africa',
+  NG: 'Western Africa', SN: 'Western Africa', SL: 'Western Africa', TG: 'Western Africa',
+  // Middle Africa
+  AO: 'Middle Africa', CM: 'Middle Africa', CF: 'Middle Africa',
+  TD: 'Middle Africa', CG: 'Middle Africa', CD: 'Middle Africa',
+  GQ: 'Middle Africa', GA: 'Middle Africa', ST: 'Middle Africa',
+  // Eastern Africa
+  BI: 'Eastern Africa', KM: 'Eastern Africa', DJ: 'Eastern Africa',
+  ER: 'Eastern Africa', ET: 'Eastern Africa', KE: 'Eastern Africa',
+  MG: 'Eastern Africa', MW: 'Eastern Africa', MU: 'Eastern Africa',
+  MZ: 'Eastern Africa', RW: 'Eastern Africa', SC: 'Eastern Africa',
+  SO: 'Eastern Africa', SS: 'Eastern Africa', TZ: 'Eastern Africa',
+  UG: 'Eastern Africa', ZM: 'Eastern Africa', ZW: 'Eastern Africa',
+  // Southern Africa
+  BW: 'Southern Africa', SZ: 'Southern Africa', LS: 'Southern Africa',
+  NA: 'Southern Africa', ZA: 'Southern Africa',
+  // Northern America
+  CA: 'Northern America', US: 'Northern America',
+  // Central America
+  BZ: 'Central America', CR: 'Central America', SV: 'Central America',
+  GT: 'Central America', HN: 'Central America', MX: 'Central America',
+  NI: 'Central America', PA: 'Central America',
+  // Caribbean
+  AG: 'Caribbean', BS: 'Caribbean', BB: 'Caribbean', CU: 'Caribbean',
+  DM: 'Caribbean', DO: 'Caribbean', GD: 'Caribbean', HT: 'Caribbean',
+  JM: 'Caribbean', KN: 'Caribbean', LC: 'Caribbean', VC: 'Caribbean', TT: 'Caribbean',
+  // South America
+  AR: 'South America', BO: 'South America', BR: 'South America',
+  CL: 'South America', CO: 'South America', EC: 'South America',
+  GY: 'South America', PY: 'South America', PE: 'South America',
+  SR: 'South America', UY: 'South America', VE: 'South America',
+  // Australia and New Zealand
+  AU: 'Australia and New Zealand', NZ: 'Australia and New Zealand',
+  // Melanesia
+  FJ: 'Melanesia', PG: 'Melanesia', SB: 'Melanesia', VU: 'Melanesia',
+  // Micronesia
+  KI: 'Micronesia', MH: 'Micronesia', FM: 'Micronesia', NR: 'Micronesia', PW: 'Micronesia',
+  // Polynesia
+  WS: 'Polynesia', TO: 'Polynesia', TV: 'Polynesia',
+};
+
 /**
  * @param {import('knex').Knex} knex
  */
@@ -223,13 +312,22 @@ exports.seed = async function (knex) {
   const existing = await knex('countries').count('* as count').first();
   if (parseInt(existing.count, 10) > 0) {
     // Patch lat/lng on existing rows if missing
-    const sample = await knex('countries').whereNull('lat').first();
-    if (sample) {
+    const needsLatLng = await knex('countries').whereNull('lat').first();
+    if (needsLatLng) {
       console.log('Updating countries with lat/lng coordinates...');
       for (const c of countries) {
         await knex('countries').where({ code: c.code }).update({ lat: c.lat, lng: c.lng });
       }
       console.log('Countries lat/lng updated.');
+    }
+    // Patch subregion on existing rows if missing
+    const needsSubregion = await knex('countries').whereNull('subregion').first();
+    if (needsSubregion) {
+      console.log('Updating countries with subregion data...');
+      for (const [code, subregion] of Object.entries(SUBREGIONS)) {
+        await knex('countries').where({ code }).update({ subregion });
+      }
+      console.log('Countries subregion updated.');
     } else {
       console.log('Countries already seeded, skipping.');
     }
@@ -238,8 +336,9 @@ exports.seed = async function (knex) {
 
   // Insert in batches to avoid hitting parameter limits
   const batchSize = 50;
-  for (let i = 0; i < countries.length; i += batchSize) {
-    await knex('countries').insert(countries.slice(i, i + batchSize));
+  const countriesWithSubregion = countries.map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null }));
+  for (let i = 0; i < countriesWithSubregion.length; i += batchSize) {
+    await knex('countries').insert(countriesWithSubregion.slice(i, i + batchSize));
   }
 };
 

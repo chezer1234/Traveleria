@@ -18,7 +18,7 @@ import {
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
-const COUNTRY_COLS = 'code, name, region, population, annual_tourists, area_km2, lat, lng';
+const COUNTRY_COLS = 'code, name, region, subregion, population, annual_tourists, area_km2, lat, lng';
 
 async function loadAllCountries(db) {
   return db.all(`SELECT ${COUNTRY_COLS} FROM countries ORDER BY name`);

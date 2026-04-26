@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
 import { getSubregionsLocal } from '../lib/queries';
+import { claimSubregionOptimistic, unclaimSubregionOptimistic } from '../lib/mutations';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -89,10 +90,11 @@ export default function Subregions() {
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [codeToSubregion, setCodeToSubregion] = useState({});
+  const [pending, setPending] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!db) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError('');
     try {
       const result = await getSubregionsLocal(db, user.id, user.home_country);
@@ -106,9 +108,33 @@ export default function Subregions() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [db, user.id, user.home_country]);
+
+  const handleClaim = async (e, subregionName) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(subregionName);
+    try {
+      await claimSubregionOptimistic(db, user.id, subregionName);
+      await load({ silent: true });
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleUnclaim = async (e, subregionName) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(subregionName);
+    try {
+      await unclaimSubregionOptimistic(db, user.id, subregionName);
+      await load({ silent: true });
+    } finally {
+      setPending(null);
+    }
+  };
 
   useEffect(() => {
     if (dbStatus === 'ready') load();
@@ -275,7 +301,7 @@ export default function Subregions() {
                       </div>
 
                       {/* Bonus pills */}
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           sr.visitBonusEarned
                             ? 'bg-green-100 text-green-700'
@@ -296,8 +322,28 @@ export default function Subregions() {
                             ? `Complete +${sr.completionBonus}`
                             : `Complete: ${sr.completionBonus} pts`}
                         </span>
-                        <span className="ml-auto text-xs text-gray-400">
-                          {isExpanded ? '▲' : '▼'}
+                        <span className="ml-auto flex items-center gap-2">
+                          {sr.isClaimed && (
+                            <button
+                              className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
+                              disabled={pending === sr.name}
+                              onClick={(e) => handleUnclaim(e, sr.name)}
+                            >
+                              {pending === sr.name ? '…' : 'Remove'}
+                            </button>
+                          )}
+                          {sr.isClaimable && !sr.isClaimed && (
+                            <button
+                              className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors disabled:opacity-50"
+                              disabled={pending === sr.name}
+                              onClick={(e) => handleClaim(e, sr.name)}
+                            >
+                              {pending === sr.name ? '…' : 'Add'}
+                            </button>
+                          )}
+                          <span className="text-xs text-gray-400">
+                            {isExpanded ? '▲' : '▼'}
+                          </span>
                         </span>
                       </div>
                     </div>

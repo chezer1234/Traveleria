@@ -320,4 +320,25 @@ router.get('/:id/score', async (req, res) => {
   res.json({ user_id: id, ...result });
 });
 
+// ── Subregion claims ─────────────────────────────────────────────────────────
+
+router.post('/:id/subregions', requireAuth, requireOwnership('id'), async (req, res) => {
+  const { id } = req.params;
+  const { subregion } = req.body;
+  if (!subregion || typeof subregion !== 'string') {
+    return res.status(400).json({ error: 'subregion is required' });
+  }
+  const claimId = crypto.randomUUID();
+  await db('user_subregions')
+    .insert({ id: claimId, user_id: id, subregion })
+    .onConflict(['user_id', 'subregion']).ignore();
+  res.status(201).json({ id: claimId, user_id: id, subregion });
+});
+
+router.delete('/:id/subregions/:subregion', requireAuth, requireOwnership('id'), async (req, res) => {
+  const { id, subregion } = req.params;
+  await db('user_subregions').where({ user_id: id, subregion }).delete();
+  res.status(204).end();
+});
+
 export default router;

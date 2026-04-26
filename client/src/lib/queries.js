@@ -126,7 +126,22 @@ export async function getUserScoreLocal(db, userId, homeCountryCode) {
     db, userId, homeCountryCode,
   );
   const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
-  return { user_id: userId, ...result };
+
+  const visitedCodes = new Set(visitedCountries.map(({ country }) => country.code));
+  const claimedRows = await db.all(
+    `SELECT subregion FROM user_subregions WHERE user_id = ?`, [userId],
+  );
+  const claimedSubregions = new Set(claimedRows.map(r => r.subregion));
+  const { totalBonusPoints } = calculateSubregionBonuses(
+    homeCountry, allCountries, visitedCodes, claimedSubregions,
+  );
+
+  return {
+    user_id: userId,
+    ...result,
+    totalPoints: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
+    subregionBonusPoints: totalBonusPoints,
+  };
 }
 
 // ---------- Country list (AddCountries, SignUp precedent) ----------
@@ -267,6 +282,12 @@ export async function getLeaderboardLocal(db, currentUserId) {
   const visitsByUser = {};
   for (const v of allVisits) (visitsByUser[v.user_id] ||= []).push(v);
 
+  const allSubregionClaims = await db.all(`SELECT user_id, subregion FROM user_subregions`);
+  const claimedByUser = {};
+  for (const r of allSubregionClaims) {
+    (claimedByUser[r.user_id] ||= new Set()).add(r.subregion);
+  }
+
   const entries = [];
   for (const u of users) {
     const home = allCountries.find((c) => c.code === (u.home_country || '').toUpperCase()) || null;
@@ -295,11 +316,14 @@ export async function getLeaderboardLocal(db, currentUserId) {
     }
 
     const result = calculateTotalTravelPoints(home, allCountries, visitedCountries);
+    const visitedCodes = new Set(visits.map(v => v.country_code));
+    const claimedSubregions = claimedByUser[u.id] || new Set();
+    const { totalBonusPoints } = calculateSubregionBonuses(home, allCountries, visitedCodes, claimedSubregions);
     entries.push({
       user_id: u.id,
       identifier: u.identifier,
       home_country: u.home_country,
-      total_points: result.totalPoints,
+      total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
       countries_visited: visitedCountries.length,
     });
   }
@@ -328,11 +352,12 @@ export async function getSubregionsLocal(db, userId, homeCountryCode) {
   );
   const homeCountry = allCountries.find(c => c.code === homeCountryCode) || null;
 
-  const visitedRows = await db.all(
-    `SELECT country_code FROM user_countries WHERE user_id = ?`,
-    [userId],
-  );
+  const [visitedRows, claimedRows] = await Promise.all([
+    db.all(`SELECT country_code FROM user_countries WHERE user_id = ?`, [userId]),
+    db.all(`SELECT subregion FROM user_subregions WHERE user_id = ?`, [userId]),
+  ]);
   const visitedCodes = new Set(visitedRows.map(r => r.country_code));
+  const claimedSubregions = new Set(claimedRows.map(r => r.subregion));
 
-  return calculateSubregionBonuses(homeCountry, allCountries, visitedCodes);
+  return calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions);
 }

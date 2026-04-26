@@ -104,6 +104,11 @@ const DDL = [
     province_code TEXT,
     visited_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS user_subregions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    subregion TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)`,
 ];
 
@@ -161,6 +166,7 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('user_countries', snap.user_countries || [], ['id', 'user_id', 'country_code', 'visited_at']);
     bulkInsert('user_cities', snap.user_cities || [], ['id', 'user_id', 'city_id', 'visited_at']);
     bulkInsert('user_provinces', snap.user_provinces || [], ['id', 'user_id', 'province_code', 'visited_at']);
+    bulkInsert('user_subregions', snap.user_subregions || [], ['id', 'user_id', 'subregion']);
     db.exec({
       sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
       bind: [String(snap.cursor)],

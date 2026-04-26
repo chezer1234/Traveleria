@@ -129,3 +129,32 @@ export async function removeProvinceOptimistic(db, userId, provinceCode) {
     body: null,
   });
 }
+
+export async function claimSubregionOptimistic(db, userId, subregion) {
+  const id = newId();
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT OR IGNORE INTO user_subregions (id, user_id, subregion) VALUES (?, ?, ?)`,
+        bind: [id, userId, subregion],
+      },
+    ],
+    endpoint: `/api/users/${userId}/subregions`,
+    method: 'POST',
+    body: { subregion },
+  });
+}
+
+export async function unclaimSubregionOptimistic(db, userId, subregion) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_subregions WHERE user_id = ? AND subregion = ?`,
+        bind: [userId, subregion],
+      },
+    ],
+    endpoint: `/api/users/${userId}/subregions/${encodeURIComponent(subregion)}`,
+    method: 'DELETE',
+    body: null,
+  });
+}

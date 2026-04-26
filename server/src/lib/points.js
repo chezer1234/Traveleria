@@ -503,9 +503,11 @@ export function getSubregionVisitBonus(homeCountry, subregionName, subregionCoun
 }
 
 // Full subregion bonus calculation for a user.
-// visitedCodes: Set of alpha-2 country codes the user has visited.
+// visitedCodes:    Set of alpha-2 country codes the user has visited.
+// claimedSubregions: Set of subregion names the user has manually claimed.
+//   Pass an empty Set (or omit) to get potential bonuses with earned=0.
 // Returns { subregions: [...], totalBonusPoints: number }
-export function calculateSubregionBonuses(homeCountry, allCountries, visitedCodes) {
+export function calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions = new Set()) {
   const bySubregion = {};
   for (const c of allCountries) {
     if (!c.subregion) continue;
@@ -521,10 +523,18 @@ export function calculateSubregionBonuses(homeCountry, allCountries, visitedCode
     const completionBonus = visitBonus === 0 ? 5 : visitBonus;
 
     const visitedInSR = srCountries.filter(c => visitedCodes.has(c.code));
-    const visitBonusEarned = visitedInSR.length > 0;
-    const completionBonusEarned = srCountries.length > 0 && visitedInSR.length === srCountries.length;
+    const isClaimed = claimedSubregions.has(name);
+    // Home subregion is never claimed via the normal path (visit bonus = 0)
+    const isClaimable = visitedInSR.length > 0 && visitBonus > 0;
 
-    const earned = (visitBonusEarned ? visitBonus : 0) + (completionBonusEarned ? completionBonus : 0);
+    // Bonuses only count when the user has explicitly claimed this subregion.
+    // Home subregion completion (flat 5 pts) is auto-awarded without claiming.
+    const isHomeSubregion = visitBonus === 0;
+    const completionBonusEarned = srCountries.length > 0 && visitedInSR.length === srCountries.length;
+    const visitBonusEarned = isClaimed && visitedInSR.length > 0;
+    const claimedCompletionBonus = completionBonusEarned && (isClaimed || isHomeSubregion);
+
+    const earned = (visitBonusEarned ? visitBonus : 0) + (claimedCompletionBonus ? completionBonus : 0);
     totalBonusPoints += earned;
 
     subregions.push({
@@ -535,8 +545,10 @@ export function calculateSubregionBonuses(homeCountry, allCountries, visitedCode
       visitBonus,
       completionBonus,
       visitBonusEarned,
-      completionBonusEarned,
+      completionBonusEarned: claimedCompletionBonus,
       earned,
+      isClaimed,
+      isClaimable,
     });
   }
 

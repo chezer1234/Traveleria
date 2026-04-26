@@ -978,11 +978,13 @@ exports.seed = async function (knex) {
   // Generate UUIDs for each province (SQLite has no built-in uuid())
   const provincesWithIds = provinces.map(p => ({ id: crypto.randomUUID(), ...p }));
 
-  // Insert in batches to avoid hitting parameter limits
+  // Insert in a single transaction to avoid per-batch autocommit overhead
   const batchSize = 50;
-  for (let i = 0; i < provincesWithIds.length; i += batchSize) {
-    await knex('provinces').insert(provincesWithIds.slice(i, i + batchSize));
-  }
+  await knex.transaction(async (trx) => {
+    for (let i = 0; i < provincesWithIds.length; i += batchSize) {
+      await trx('provinces').insert(provincesWithIds.slice(i, i + batchSize));
+    }
+  });
 
   console.log(`Seeded ${provinces.length} provinces across 30 countries.`);
 };

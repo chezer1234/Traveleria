@@ -8,6 +8,7 @@ import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Leaderboard from './pages/Leaderboard';
 import Map from './pages/Map';
+import Subregions from './pages/Subregions';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/countries/:code" element={<CountryDetail />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/map" element={<Map />} />
+        <Route path="/subregions" element={<Subregions />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

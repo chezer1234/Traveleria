@@ -447,6 +447,102 @@ export function calculateTotalTravelPoints(homeCountry, allCountries, visitedCou
   };
 }
 
+// ── Subregion bonus points ───────────────────────────────────────────────────
+// UN M.49 subregion centroids (anchor lat/lng for distance calculation)
+
+export const SUBREGION_CENTROIDS = {
+  'Northern Africa':          { lat:  25.0, lng:  17.0 },
+  'Western Africa':           { lat:  12.0, lng:  -2.0 },
+  'Middle Africa':            { lat:   4.0, lng:  22.0 },
+  'Eastern Africa':           { lat:  -2.0, lng:  36.0 },
+  'Southern Africa':          { lat: -29.0, lng:  25.0 },
+  'Northern America':         { lat:  48.0, lng: -100.0 },
+  'Central America':          { lat:  15.0, lng:  -87.0 },
+  'Caribbean':                { lat:  18.0, lng:  -72.0 },
+  'South America':            { lat: -14.0, lng:  -55.0 },
+  'Western Asia':             { lat:  33.0, lng:   44.0 },
+  'Central Asia':             { lat:  43.0, lng:   63.0 },
+  'Southern Asia':            { lat:  25.0, lng:   74.0 },
+  'South-Eastern Asia':       { lat:  13.0, lng:  106.0 },
+  'Eastern Asia':             { lat:  35.0, lng:  115.0 },
+  'Northern Europe':          { lat:  60.0, lng:   15.0 },
+  'Western Europe':           { lat:  50.0, lng:    8.0 },
+  'Southern Europe':          { lat:  42.0, lng:   14.0 },
+  'Eastern Europe':           { lat:  52.0, lng:   30.0 },
+  'Australia and New Zealand':{ lat: -30.0, lng:  145.0 },
+  'Melanesia':                { lat: -10.0, lng:  155.0 },
+  'Micronesia':               { lat:   9.0, lng:  160.0 },
+  'Polynesia':                { lat: -15.0, lng: -170.0 },
+};
+
+// Normalisation constant: log2(20 000 km / 1 000 + 1) ≈ log2(21)
+const SUBREGION_DIST_MAX_LOG = Math.log2(21);
+
+// Visit bonus X: 0–60, scaled by distance from home + average tourism difficulty.
+// Returns 0 if homeCountry is in the subregion (no bonus for going home).
+export function getSubregionVisitBonus(homeCountry, subregionName, subregionCountries) {
+  if (!homeCountry) return 30; // fallback when home unknown
+
+  const isHomeSubregion = subregionCountries.some(c => c.code === homeCountry.code);
+  if (isHomeSubregion) return 0;
+
+  const centroid = SUBREGION_CENTROIDS[subregionName];
+  if (!centroid) return 0;
+
+  const distKm = haversine(
+    Number(homeCountry.lat), Number(homeCountry.lng),
+    centroid.lat, centroid.lng,
+  );
+  const distNorm = Math.log2(distKm / 1000 + 1) / SUBREGION_DIST_MAX_LOG;
+
+  const avgTourism = subregionCountries.reduce((s, c) => s + getTourismScore(c), 0)
+    / subregionCountries.length;
+  const tourismNorm = avgTourism / TOURISM_CAP;
+
+  return Math.round(60 * (0.5 * distNorm + 0.5 * tourismNorm));
+}
+
+// Full subregion bonus calculation for a user.
+// visitedCodes: Set of alpha-2 country codes the user has visited.
+// Returns { subregions: [...], totalBonusPoints: number }
+export function calculateSubregionBonuses(homeCountry, allCountries, visitedCodes) {
+  const bySubregion = {};
+  for (const c of allCountries) {
+    if (!c.subregion) continue;
+    (bySubregion[c.subregion] ||= []).push(c);
+  }
+
+  let totalBonusPoints = 0;
+  const subregions = [];
+
+  for (const [name, srCountries] of Object.entries(bySubregion)) {
+    const visitBonus = getSubregionVisitBonus(homeCountry, name, srCountries);
+    // Home subregion: visit bonus is 0, completion always gives 5
+    const completionBonus = visitBonus === 0 ? 5 : visitBonus;
+
+    const visitedInSR = srCountries.filter(c => visitedCodes.has(c.code));
+    const visitBonusEarned = visitedInSR.length > 0;
+    const completionBonusEarned = srCountries.length > 0 && visitedInSR.length === srCountries.length;
+
+    const earned = (visitBonusEarned ? visitBonus : 0) + (completionBonusEarned ? completionBonus : 0);
+    totalBonusPoints += earned;
+
+    subregions.push({
+      name,
+      countries: srCountries.map(c => ({ code: c.code, name: c.name, visited: visitedCodes.has(c.code) })),
+      visitedCount: visitedInSR.length,
+      totalCount: srCountries.length,
+      visitBonus,
+      completionBonus,
+      visitBonusEarned,
+      completionBonusEarned,
+      earned,
+    });
+  }
+
+  return { subregions, totalBonusPoints };
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function round2(n) { return Math.round(n * 100) / 100; }

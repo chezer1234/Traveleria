@@ -259,7 +259,7 @@ export default function CountryDetail() {
                   <div className="flex-1 flex items-center justify-between">
                     <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                       {province.name}
-                      {province.disputed && <span className="ml-1 text-xs text-amber-600">(disputed)</span>}
+                      {!!province.disputed && <span className="ml-1 text-xs text-amber-600">(disputed)</span>}
                     </span>
                     <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
                       <span className="hidden sm:inline">{Number(province.population).toLocaleString()} pop</span>

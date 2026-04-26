@@ -8,17 +8,46 @@
 PROD_COMPOSE := docker compose -f compose.yaml -f compose.prod-build.yaml
 
 .PHONY: help up down restart logs logs-server logs-client ps shell \
-        migrate seed reset-db \
+        migrate seed reset-db install \
         dev-client test server-test client-test check-points-parity \
         prod-up prod-down prod-logs \
         e2e e2e-install \
-        clean
+        docker-start clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+# -- Docker daemon ---------------------------------------------------------
+# Starts Docker Desktop (Windows) or the daemon (Linux/Mac) if not running.
+# Cross-platform: detects OS via the Make built-in variable.
+ifeq ($(OS),Windows_NT)
+DOCKER_START_CMD := powershell -Command "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"
+else
+DOCKER_START_CMD := open -a Docker 2>/dev/null || true
+endif
+
+docker-start: ## Start Docker Desktop (Windows) / Docker daemon (macOS/Linux)
+	@docker info > /dev/null 2>&1 && echo "Docker already running." || ( \
+	  echo "Starting Docker..."; \
+	  $(DOCKER_START_CMD); \
+	  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do \
+	    docker info > /dev/null 2>&1 && echo "Docker ready." && break; \
+	    sleep 2; \
+	  done \
+	)
+
 # -- Dev stack -------------------------------------------------------------
-up: ## Start dev stack (Vite + Express + sqld) with hot reload
+# Install host node_modules if absent — Docker's anonymous volume is seeded from
+# the bind-mounted host directory on first start, so these must exist on the host.
+server/node_modules/.package-lock.json: server/package-lock.json
+	cd server && npm ci
+
+client/node_modules/.package-lock.json: client/package-lock.json
+	cd client && npm ci --legacy-peer-deps
+
+install: server/node_modules/.package-lock.json client/node_modules/.package-lock.json ## Install host node_modules (auto-run by `make up`)
+
+up: docker-start install ## Start dev stack (Vite + Express + sqld) with hot reload
 	docker compose up -d --build
 
 down: ## Stop dev stack

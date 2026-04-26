@@ -36,6 +36,17 @@ TravelPoints is a web app where users log countries they've visited and earn poi
 
 Every command that a human, an agent, or CI needs to run is a Make target. Don't invoke `docker compose ...` directly — if a command you need isn't there, add a target instead. `make help` lists them all.
 
+### Windows prerequisite: install `make`
+
+`make` is not included with Windows. Install it once via [Chocolatey](https://chocolatey.org/install) in an **elevated** (Administrator) terminal:
+
+```powershell
+# Run PowerShell as Administrator, then:
+choco install make
+```
+
+After that, `make` works from Git Bash, PowerShell, and cmd. No other setup is needed — Docker Desktop already provides `docker compose`.
+
 ```bash
 make up          # start the dev stack (Vite + Express + sqld, hot reload)
 make down        # stop it

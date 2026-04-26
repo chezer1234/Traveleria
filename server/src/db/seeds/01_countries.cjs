@@ -324,9 +324,11 @@ exports.seed = async function (knex) {
     const needsSubregion = await knex('countries').whereNull('subregion').first();
     if (needsSubregion) {
       console.log('Updating countries with subregion data...');
-      for (const [code, subregion] of Object.entries(SUBREGIONS)) {
-        await knex('countries').where({ code }).update({ subregion });
-      }
+      await knex.transaction(async (trx) => {
+        for (const [code, subregion] of Object.entries(SUBREGIONS)) {
+          await trx('countries').where({ code }).update({ subregion });
+        }
+      });
       console.log('Countries subregion updated.');
     } else {
       console.log('Countries already seeded, skipping.');
@@ -334,12 +336,14 @@ exports.seed = async function (knex) {
     return;
   }
 
-  // Insert in batches to avoid hitting parameter limits
+  // Insert in a single transaction to avoid per-batch autocommit overhead
   const batchSize = 50;
   const countriesWithSubregion = countries.map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null }));
-  for (let i = 0; i < countriesWithSubregion.length; i += batchSize) {
-    await knex('countries').insert(countriesWithSubregion.slice(i, i + batchSize));
-  }
+  await knex.transaction(async (trx) => {
+    for (let i = 0; i < countriesWithSubregion.length; i += batchSize) {
+      await trx('countries').insert(countriesWithSubregion.slice(i, i + batchSize));
+    }
+  });
 };
 
 exports.countries = countries;

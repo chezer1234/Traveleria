@@ -326,9 +326,11 @@ exports.seed = async function (knex) {
   const citiesWithIds = cities.map(c => ({ id: crypto.randomUUID(), ...c }));
 
   const batchSize = 50;
-  for (let i = 0; i < citiesWithIds.length; i += batchSize) {
-    await knex('cities').insert(citiesWithIds.slice(i, i + batchSize));
-  }
+  await knex.transaction(async (trx) => {
+    for (let i = 0; i < citiesWithIds.length; i += batchSize) {
+      await trx('cities').insert(citiesWithIds.slice(i, i + batchSize));
+    }
+  });
 };
 
 exports.cities = cities;

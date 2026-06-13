@@ -9,6 +9,7 @@ import SignUp from './pages/SignUp';
 import Leaderboard from './pages/Leaderboard';
 import Map from './pages/Map';
 import Subregions from './pages/Subregions';
+import Territory from './pages/Territory';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/add-countries" element={<AddCountries />} />
         <Route path="/countries/:code" element={<CountryDetail />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/territory/:userId" element={<Territory />} />
         <Route path="/map" element={<Map />} />
         <Route path="/subregions" element={<Subregions />} />
       </Route>

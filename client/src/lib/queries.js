@@ -343,6 +343,43 @@ export async function getLeaderboardLocal(db, currentUserId) {
   return top50;
 }
 
+// ---------- Country time-log visits (territory score, issue #29) ----------
+
+// A user's logged stays in one country, newest-dated first (undated last), plus
+// the summed total days. Drives the "Time spent here" card on CountryDetail.
+export async function getCountryVisitsLocal(db, userId, code) {
+  const upperCode = code.toUpperCase();
+  const visits = await db.all(
+    `SELECT id, days, visited_at FROM user_country_visits
+       WHERE user_id = ? AND country_code = ?
+       ORDER BY (visited_at IS NULL), visited_at DESC`,
+    [userId, upperCode],
+  );
+  const totalDays = visits.reduce((sum, v) => sum + (Number(v.days) || 0), 0);
+  return { visits, totalDays };
+}
+
+// Map of country_code → total logged days for a user. Used by the territory
+// comparison to decide who's spent longer in each country.
+export async function getUserDaysByCountry(db, userId) {
+  const rows = await db.all(
+    `SELECT country_code, SUM(days) AS days FROM user_country_visits
+       WHERE user_id = ? GROUP BY country_code`,
+    [userId],
+  );
+  const byCode = {};
+  for (const r of rows) byCode[r.country_code] = Number(r.days) || 0;
+  return byCode;
+}
+
+// A public user record from the locally-synced users_public table (no network).
+export async function getUserPublicLocal(db, userId) {
+  return db.get(
+    `SELECT id, identifier, home_country FROM users_public WHERE id = ?`,
+    [userId],
+  );
+}
+
 // ── Subregion bonus data ─────────────────────────────────────────────────────
 
 export async function getSubregionsLocal(db, userId, homeCountryCode) {

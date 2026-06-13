@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getLeaderboardLocal } from '../lib/queries';
 
@@ -69,6 +70,7 @@ export default function Leaderboard() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Home</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Points</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Countries</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-500">Battle</th>
               </tr>
             </thead>
             <tbody>
@@ -91,6 +93,17 @@ export default function Leaderboard() {
                       {(Math.round(entry.total_points * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-600">{entry.countries_visited}</td>
+                    <td className="px-4 py-3 text-right">
+                      {!isCurrentUser && (
+                        <Link
+                          to={`/territory/${entry.user_id}`}
+                          className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium"
+                          title={`Territory battle vs ${entry.identifier}`}
+                        >
+                          ⚔<span className="hidden sm:inline">Battle</span>
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -98,7 +111,7 @@ export default function Leaderboard() {
               {outsideUser && (
                 <>
                   <tr className="border-b border-gray-100">
-                    <td colSpan={5} className="px-4 py-2 text-center text-gray-400 text-xs">
+                    <td colSpan={6} className="px-4 py-2 text-center text-gray-400 text-xs">
                       ...
                     </td>
                   </tr>
@@ -115,13 +128,14 @@ export default function Leaderboard() {
                       {(Math.round(outsideUser.total_points * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-600">{outsideUser.countries_visited}</td>
+                    <td className="px-4 py-3"></td>
                   </tr>
                 </>
               )}
 
               {top50.length === 0 && !outsideUser && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     No users on the leaderboard yet. Start exploring!
                   </td>
                 </tr>

@@ -6,10 +6,31 @@ import {
   removeCityOptimistic,
   addProvinceOptimistic,
   removeProvinceOptimistic,
+  addCountryVisitOptimistic,
+  removeCountryVisitOptimistic,
 } from '../lib/mutations';
-import { getCountryLocal, getUserStatusForCountry } from '../lib/queries';
+import { getCountryLocal, getUserStatusForCountry, getCountryVisitsLocal } from '../lib/queries';
 import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
+
+// Dated visits first (newest first), undated ("no date") last. Mirrors the SQL
+// ordering in getCountryVisitsLocal so optimistic inserts land in the right spot.
+function sortVisits(list) {
+  return [...list].sort((a, b) => {
+    if (!a.visited_at && !b.visited_at) return 0;
+    if (!a.visited_at) return 1;
+    if (!b.visited_at) return -1;
+    return b.visited_at.localeCompare(a.visited_at);
+  });
+}
+
+function formatVisitDate(iso) {
+  if (!iso) return 'No date';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? 'No date'
+    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function CountryDetail() {
   const { code } = useParams();
@@ -23,25 +44,73 @@ export default function CountryDetail() {
   const [error, setError] = useState('');
   const [toggling, setToggling] = useState(null);
 
+  // Time-log ("Time spent here") state — territory score, issue #29.
+  const [visits, setVisits] = useState([]);
+  const [totalDays, setTotalDays] = useState(0);
+  const [daysInput, setDaysInput] = useState('');
+  const [dateInput, setDateInput] = useState('');
+  const [savingVisit, setSavingVisit] = useState(false);
+  const [visitError, setVisitError] = useState('');
+
   const loadData = useCallback(async () => {
     if (!db) return;
     setLoading(true);
     setError('');
     try {
-      const [countryData, status] = await Promise.all([
+      const [countryData, status, timeLog] = await Promise.all([
         getCountryLocal(db, code, homeCountry),
         getUserStatusForCountry(db, user.id, code),
+        getCountryVisitsLocal(db, user.id, code),
       ]);
       setCountry(countryData);
       setIsVisited(status.isVisited);
       setVisitedCityIds(status.visitedCityIds);
       setVisitedProvinceCodes(status.visitedProvinceCodes);
+      setVisits(timeLog.visits);
+      setTotalDays(timeLog.totalDays);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [db, code, user.id, homeCountry]);
+
+  async function addVisit(e) {
+    e.preventDefault();
+    setVisitError('');
+    const days = parseInt(daysInput, 10);
+    if (!Number.isInteger(days) || days < 1) {
+      setVisitError('Enter a whole number of days (1 or more).');
+      return;
+    }
+    // <input type="date"> gives YYYY-MM-DD; the API wants a full ISO datetime.
+    const visitedAt = dateInput ? new Date(`${dateInput}T00:00:00Z`).toISOString() : null;
+    setSavingVisit(true);
+    try {
+      const id = await addCountryVisitOptimistic(db, user.id, code, days, visitedAt);
+      setVisits((prev) => sortVisits([...prev, { id, days, visited_at: visitedAt }]));
+      setTotalDays((d) => d + days);
+      setDaysInput('');
+      setDateInput('');
+    } catch (err) {
+      setVisitError(err.message);
+    } finally {
+      setSavingVisit(false);
+    }
+  }
+
+  async function deleteVisit(visit) {
+    setVisitError('');
+    setVisits((prev) => prev.filter((v) => v.id !== visit.id));
+    setTotalDays((d) => d - (Number(visit.days) || 0));
+    try {
+      await removeCountryVisitOptimistic(db, user.id, visit.id);
+    } catch (err) {
+      setVisitError(err.message);
+      setVisits((prev) => sortVisits([...prev, visit]));
+      setTotalDays((d) => d + (Number(visit.days) || 0));
+    }
+  }
 
   useEffect(() => {
     if (dbStatus === 'ready') loadData();
@@ -202,6 +271,88 @@ export default function CountryDetail() {
         visitedProvinceCodes={visitedProvinceCodes}
         visitedCityIds={visitedCityIds}
       />
+
+      {/* Time spent here — feeds the Territory "Time" battle (issue #29). */}
+      {isVisited && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold text-gray-900">Time spent here</h2>
+            <span className="text-sm font-medium text-indigo-600">
+              {totalDays} {totalDays === 1 ? 'day' : 'days'} total
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Log how long you've stayed — add a date if you remember it, or just the days.
+            This powers your Territory battles and never changes your Travel Points.
+          </p>
+
+          {visits.length > 0 && (
+            <ul className="space-y-2 mb-4">
+              {visits.map((v) => (
+                <li
+                  key={v.id}
+                  className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50"
+                >
+                  <span className="text-sm text-gray-800">
+                    <span className="font-medium">{v.days} {Number(v.days) === 1 ? 'day' : 'days'}</span>
+                    <span className="text-gray-400 mx-2">·</span>
+                    <span className={v.visited_at ? 'text-gray-600' : 'text-gray-400 italic'}>
+                      {formatVisitDate(v.visited_at)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteVisit(v)}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium"
+                    aria-label={`Remove ${v.days} day visit`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form onSubmit={addVisit} className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor="visit-days" className="block text-xs text-gray-500 mb-1">Days</label>
+              <input
+                id="visit-days"
+                type="number"
+                min="1"
+                value={daysInput}
+                onChange={(e) => setDaysInput(e.target.value)}
+                placeholder="e.g. 7"
+                className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="visit-date" className="block text-xs text-gray-500 mb-1">
+                Date <span className="text-gray-400">(optional)</span>
+              </label>
+              <input
+                id="visit-date"
+                type="date"
+                value={dateInput}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setDateInput(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingVisit}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {savingVisit ? 'Adding…' : 'Add time'}
+            </button>
+          </form>
+
+          {visitError && (
+            <p role="alert" className="mt-3 text-sm text-red-600">{visitError}</p>
+          )}
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>

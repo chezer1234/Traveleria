@@ -60,6 +60,10 @@ export async function removeCountryOptimistic(db, userId, countryCode) {
         bind: [userId, code],
       },
       {
+        sql: `DELETE FROM user_country_visits WHERE user_id = ? AND country_code = ?`,
+        bind: [userId, code],
+      },
+      {
         sql: `DELETE FROM user_countries WHERE user_id = ? AND country_code = ?`,
         bind: [userId, code],
       },
@@ -154,6 +158,42 @@ export async function unclaimSubregionOptimistic(db, userId, subregion) {
       },
     ],
     endpoint: `/api/users/${userId}/subregions/${encodeURIComponent(subregion)}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+// Territory score (issue #29): log time spent in a country. `days` is required;
+// `visitedAt` (an ISO datetime string) is optional — the user may know how long
+// but not when. Returns the generated visit id so the UI can render it without
+// a re-read.
+export async function addCountryVisitOptimistic(db, userId, countryCode, days, visitedAt) {
+  const id = newId();
+  const code = (countryCode || '').toUpperCase();
+  await db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO user_country_visits (id, user_id, country_code, days, visited_at)
+                VALUES (?, ?, ?, ?, ?)`,
+        bind: [id, userId, code, days, visitedAt || null],
+      },
+    ],
+    endpoint: `/api/users/${userId}/visits`,
+    method: 'POST',
+    body: { id, country_code: code, days, visited_at: visitedAt || undefined },
+  });
+  return id;
+}
+
+export async function removeCountryVisitOptimistic(db, userId, visitId) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_country_visits WHERE user_id = ? AND id = ?`,
+        bind: [userId, visitId],
+      },
+    ],
+    endpoint: `/api/users/${userId}/visits/${visitId}`,
     method: 'DELETE',
     body: null,
   });

@@ -24,6 +24,7 @@ const TABLE_MAP = {
   user_cities: 'user_cities',
   user_provinces: 'user_provinces',
   user_subregions: 'user_subregions',
+  user_country_visits: 'user_country_visits',
 };
 
 const TABLE_COLUMNS = {
@@ -32,6 +33,7 @@ const TABLE_COLUMNS = {
   user_cities: ['id', 'user_id', 'city_id', 'visited_at'],
   user_provinces: ['id', 'user_id', 'province_code', 'visited_at'],
   user_subregions: ['id', 'user_id', 'subregion'],
+  user_country_visits: ['id', 'user_id', 'country_code', 'days', 'visited_at'],
 };
 
 let syncApiBase = '';
@@ -111,6 +113,13 @@ const DDL = [
     user_id TEXT,
     subregion TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS user_country_visits (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    country_code TEXT,
+    days INTEGER,
+    visited_at TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)`,
 ];
 
@@ -169,6 +178,7 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('user_cities', snap.user_cities || [], ['id', 'user_id', 'city_id', 'visited_at']);
     bulkInsert('user_provinces', snap.user_provinces || [], ['id', 'user_id', 'province_code', 'visited_at']);
     bulkInsert('user_subregions', snap.user_subregions || [], ['id', 'user_id', 'subregion']);
+    bulkInsert('user_country_visits', snap.user_country_visits || [], ['id', 'user_id', 'country_code', 'days', 'visited_at']);
     db.exec({
       sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
       bind: [String(snap.cursor)],

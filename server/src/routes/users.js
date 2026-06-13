@@ -7,6 +7,7 @@ import {
   addCountrySchema,
   addCitySchema,
   addProvinceSchema,
+  addVisitSchema,
   validateBody,
 } from '../lib/schemas.js';
 import * as changes from '../lib/changes.js';
@@ -139,6 +140,8 @@ router.delete(
     const provinceVisits = provinceCodes.length
       ? await db('user_provinces').where({ user_id: id }).whereIn('province_code', provinceCodes)
       : [];
+    const timeVisits = await db('user_country_visits')
+      .where({ user_id: id, country_code: upperCode });
 
     let last_change_id;
     await db.transaction(async (trx) => {
@@ -149,6 +152,10 @@ router.delete(
       for (const pv of provinceVisits) {
         await trx('user_provinces').where({ id: pv.id }).del();
         last_change_id = await changes.record(trx, { table: 'user_provinces', pk: pv.id, op: 'delete' });
+      }
+      for (const tv of timeVisits) {
+        await trx('user_country_visits').where({ id: tv.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_country_visits', pk: tv.id, op: 'delete' });
       }
       await trx('user_countries').where({ id: uc.id }).del();
       last_change_id = await changes.record(trx, { table: 'user_countries', pk: uc.id, op: 'delete' });
@@ -319,6 +326,68 @@ router.get('/:id/score', async (req, res) => {
   const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
   res.json({ user_id: id, ...result });
 });
+
+// ── Country time-log visits (territory score, issue #29) ─────────────────────
+
+router.post(
+  '/:id/visits',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addVisitSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, country_code, days, visited_at } = req.body;
+
+    const country = await db('countries').where({ code: country_code }).first();
+    if (!country) return fail(res, 'country_code', 'Unknown country code');
+
+    // Same rule as cities/provinces: the country has to be on your visited list
+    // before you can log time in it. Keeps the territory map honest.
+    const hasCountry = await db('user_countries')
+      .where({ user_id: id, country_code: country.code })
+      .first();
+    if (!hasCountry) return fail(res, 'country_code', 'Add the country before logging time in it');
+
+    const row = {
+      id: clientId || crypto.randomUUID(),
+      user_id: id,
+      country_code: country.code,
+      days,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_country_visits').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_country_visits', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/visits/:visitId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, visitId } = req.params;
+    const existing = await db('user_country_visits')
+      .where({ user_id: id, id: visitId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_country_visits').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_country_visits', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'Visit removed', change_id });
+  }
+);
 
 // ── Subregion claims ─────────────────────────────────────────────────────────
 

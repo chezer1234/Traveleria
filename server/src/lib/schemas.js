@@ -71,6 +71,22 @@ export const addProvinceSchema = z.object({
   visited_at: visitedAtSchema,
 });
 
+// Territory score (issue #29): a single logged stay in a country. `days` is
+// required; `visited_at` is optional (the user may not remember when). 36500 ≈
+// 100 years — a generous sanity cap, not a real-world limit.
+const daysSchema = z
+  .number({ invalid_type_error: 'Days must be a number' })
+  .int('Days must be a whole number')
+  .min(1, 'Days must be at least 1')
+  .max(36500, 'Days is unrealistically large');
+
+export const addVisitSchema = z.object({
+  id: clientIdSchema,
+  country_code: countryCodeSchema,
+  days: daysSchema,
+  visited_at: visitedAtSchema,
+});
+
 // Middleware factory: parse req.body through a schema, short-circuit with 422 on failure.
 export function validateBody(schema) {
   return (req, res, next) => {

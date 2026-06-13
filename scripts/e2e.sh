@@ -11,6 +11,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Timestamped progress marker so the CI console shows which phase is running
+# (and how long each takes) instead of a long silent "Run E2E suite" step.
+step() { echo "==> [$(date -u +%H:%M:%S)] $*"; }
+
+# Run a command with a wall-clock cap when `timeout` is available (GNU coreutils
+# on the CI runner; absent on stock macOS). Prevents a wedged step — e.g. a hung
+# `playwright install` apt fetch — from stalling the whole job silently.
+guard() { local secs="$1"; shift; if command -v timeout >/dev/null 2>&1; then timeout "$secs" "$@"; else "$@"; fi; }
+
 APP_SCHEMA_VERSION="${APP_SCHEMA_VERSION:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
 export APP_SCHEMA_VERSION
 
@@ -34,11 +43,13 @@ trap cleanup EXIT
 
 mkdir -p e2e-report
 
+step "Building prod-shape images"
 "${COMPOSE[@]}" build
+step "Starting stack (sqld + server + client)"
 "${COMPOSE[@]}" up -d sqld server client
 
 # Let the app server finish migrations/seeds before Playwright probes it.
-echo "==> Waiting for API health"
+step "Waiting for API health"
 for i in $(seq 1 30); do
   if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
     echo "API up after ${i}s"
@@ -51,8 +62,12 @@ done
 # npm package version pinned in e2e/package.json, so the browser version is
 # reproducible across machines even without a container.
 cd e2e
-npm install --no-audit --no-fund
-npx playwright install --with-deps chromium
+step "Installing e2e npm deps"
+guard 300 npm install --no-audit --no-fund
+step "Installing Playwright Chromium + system deps"
+guard 420 npx playwright install --with-deps chromium
+step "Running Playwright suite"
 BASE_URL="${BASE_URL:-http://localhost:3000}" \
 API_URL="${API_URL:-http://localhost:3001}" \
   npx playwright test
+step "Playwright suite finished"

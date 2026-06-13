@@ -16,6 +16,9 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
+    # Unit/build job is ~30s; a 15-min cap turns any hang into a fast, clear
+    # failure instead of running to the 360-min GitHub default.
+    timeout-minutes: 15
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.deploy_only }}
 
     steps:
@@ -98,6 +101,10 @@ jobs:
     name: End-to-end (prod-build stack)
     runs-on: ubuntu-latest
     needs: build-and-test
+    # The whole job (docker build + stack up + Playwright) normally runs in
+    # ~1.5 min. 20 min is generous headroom while still surfacing a stuck step
+    # (e.g. a hung `playwright install`) quickly instead of after 6 hours.
+    timeout-minutes: 20
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.deploy_only }}
 
     steps:

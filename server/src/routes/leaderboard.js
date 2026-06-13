@@ -1,6 +1,6 @@
 import express from 'express';
 import db from '../db/connection.js';
-import { calculateTotalTravelPoints, getCountryTier } from '../lib/points.js';
+import { calculateTotalTravelPoints, calculateSubregionBonuses, getCountryTier } from '../lib/points.js';
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
 
     const users = await db('users');
     const allCountries = await db('countries')
-      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
+      .select('code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
 
     // Pre-fetch all provinces grouped by country
     const allProvincesRaw = await db('provinces');
@@ -59,16 +59,28 @@ router.get('/', async (req, res) => {
       allProvincesMap[p.country_code].push(p);
     }
 
+    // Subregion claims, keyed by user, so totals include claimed bonuses — the
+    // client leaderboard (queries.js getLeaderboardLocal) does the same and the
+    // two must agree to the cent (see parity.spec.js + issue #27).
+    const allSubregionClaims = await db('user_subregions').select('user_id', 'subregion');
+    const claimedByUser = {};
+    for (const r of allSubregionClaims) {
+      (claimedByUser[r.user_id] ||= new Set()).add(r.subregion);
+    }
+
     const entries = [];
     for (const u of users) {
       const { homeCountry, visitedCountries } = await getUserTravelData(u.id, u.home_country, allCountries, allProvincesMap);
       const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
+      const visitedCodes = new Set(visitedCountries.map(v => v.country.code));
+      const claimedSubregions = claimedByUser[u.id] || new Set();
+      const { totalBonusPoints } = calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions);
 
       entries.push({
         user_id: u.id,
         identifier: u.identifier,
         home_country: u.home_country,
-        total_points: result.totalPoints,
+        total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
         countries_visited: visitedCountries.length,
       });
     }

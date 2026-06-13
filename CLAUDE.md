@@ -63,7 +63,7 @@ Ports and versions are locked in — if CLAUDE.md, Makefile, compose files, Vite
 - Node **24 LTS** — both Dockerfiles and CI
 - `ghcr.io/tursodatabase/libsql-server` **v0.24.32**
 - `nginx` **1.27-alpine**
-- `@playwright/test` **1.58.2** (runs on host; Chromium pinned by the package)
+- `@playwright/test` **1.60.0** (runs on host; Chromium pinned by the package). Must be ≥1.60.0: earlier versions hang during `playwright install` browser extraction on Node 24.16.0+ (the version on CI runners) — see microsoft/playwright#41000, fixed in 1.60.0.
 
 ## Key Files
 

@@ -23,6 +23,7 @@ const TABLE_MAP = {
   user_countries: 'user_countries',
   user_cities: 'user_cities',
   user_provinces: 'user_provinces',
+  user_subregions: 'user_subregions',
 };
 
 const TABLE_COLUMNS = {
@@ -30,6 +31,7 @@ const TABLE_COLUMNS = {
   user_countries: ['id', 'user_id', 'country_code', 'visited_at'],
   user_cities: ['id', 'user_id', 'city_id', 'visited_at'],
   user_provinces: ['id', 'user_id', 'province_code', 'visited_at'],
+  user_subregions: ['id', 'user_id', 'subregion'],
 };
 
 let syncApiBase = '';

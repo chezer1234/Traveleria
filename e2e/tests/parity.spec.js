@@ -101,9 +101,31 @@ test('client leaderboard matches server /leaderboard', async ({ page, context })
 
   await addCountries(context, user.id, token, ['GB', 'DE', 'JP']);
 
+  // Claim a subregion so this fixture exercises the bonus path — the server
+  // /leaderboard and the client both fold subregion bonuses into the total, so
+  // a divergence here (issue #27 was exactly such a divergence) must fail.
+  // 'Eastern Asia' (JP is visited) is away from the FR home subregion, so it
+  // earns a non-zero visit bonus rather than the zeroed home-subregion case.
+  const claim = await context.request.post(`${API_URL}/api/users/${user.id}/subregions`, {
+    data: { subregion: 'Eastern Asia' },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(claim.status()).toBe(201);
+
   await page.goto('/');
   await page.waitForFunction(() => !!(window).__traveleria?.ready, null, { timeout: 20_000 });
   await waitForLocalCountries(page, user.id, ['GB', 'DE', 'JP']);
+  // And wait for the claim to land locally so the client total includes it.
+  await page.waitForFunction(
+    async (uid) => {
+      const rows = await (window).__traveleria.query(
+        `SELECT subregion FROM user_subregions WHERE user_id = ?`, [uid],
+      );
+      return rows.length > 0;
+    },
+    user.id,
+    { timeout: 20_000 },
+  );
 
   const server = await context.request.get(`${API_URL}/api/leaderboard`);
   expect(server.status()).toBe(200);

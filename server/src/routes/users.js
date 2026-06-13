@@ -324,20 +324,44 @@ router.get('/:id/score', async (req, res) => {
 
 router.post('/:id/subregions', requireAuth, requireOwnership('id'), async (req, res) => {
   const { id } = req.params;
-  const { subregion } = req.body;
+  const { id: clientId, subregion } = req.body;
   if (!subregion || typeof subregion !== 'string') {
     return res.status(400).json({ error: 'subregion is required' });
   }
-  const claimId = crypto.randomUUID();
-  await db('user_subregions')
-    .insert({ id: claimId, user_id: id, subregion })
-    .onConflict(['user_id', 'subregion']).ignore();
-  res.status(201).json({ id: claimId, user_id: id, subregion });
+
+  // Idempotent: if the user already claimed this subregion, return it without
+  // logging a duplicate change.
+  const existing = await db('user_subregions').where({ user_id: id, subregion }).first();
+  if (existing) return res.status(201).json({ ...existing });
+
+  const row = { id: clientId || crypto.randomUUID(), user_id: id, subregion };
+
+  // Like every other user-data mutation, the write and its change-feed entry
+  // ride in one transaction so already-hydrated clients pick it up via
+  // /api/changes polling (see issue #27). The echoed change_id lets the client
+  // fast-forward its sync cursor.
+  let change_id;
+  await db.transaction(async (trx) => {
+    await trx('user_subregions').insert(row);
+    change_id = await changes.record(trx, {
+      table: 'user_subregions', pk: row.id, op: 'insert', row,
+    });
+  });
+  res.status(201).json({ ...row, change_id });
 });
 
 router.delete('/:id/subregions/:subregion', requireAuth, requireOwnership('id'), async (req, res) => {
   const { id, subregion } = req.params;
-  await db('user_subregions').where({ user_id: id, subregion }).delete();
+  const existing = await db('user_subregions').where({ user_id: id, subregion }).first();
+  // Idempotent: nothing claimed means nothing to log.
+  if (!existing) return res.status(204).end();
+
+  await db.transaction(async (trx) => {
+    await trx('user_subregions').where({ id: existing.id }).del();
+    await changes.record(trx, {
+      table: 'user_subregions', pk: existing.id, op: 'delete',
+    });
+  });
   res.status(204).end();
 });
 

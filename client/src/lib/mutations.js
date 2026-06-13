@@ -141,7 +141,7 @@ export async function claimSubregionOptimistic(db, userId, subregion) {
     ],
     endpoint: `/api/users/${userId}/subregions`,
     method: 'POST',
-    body: { subregion },
+    body: { id, subregion },
   });
 }
 

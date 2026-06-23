@@ -47,10 +47,26 @@ step "Building prod-shape images"
 "${COMPOSE[@]}" build
 step "Starting sqld"
 "${COMPOSE[@]}" up -d sqld
-# Give sqld a moment to initialise its internal database before the server
-# tries to connect and run migrations. The server depends_on sqld (container
-# start), but sqld needs a couple of seconds to actually be ready for writes.
-sleep 5
+# Poll sqld HTTP on the host-exposed port until it returns a complete response.
+# depends_on only waits for container start — sqld needs extra time to
+# initialise its internal database before it can serve HTTP properly.
+# compose.prod-build.yaml exposes port 8080 so we can curl it from the host.
+step "Waiting for sqld to be ready"
+SQLD_UP=0
+for i in $(seq 1 60); do
+  # curl exits 0 for any complete HTTP response (including 4xx/5xx).
+  # It exits non-0 for connection-refused and premature-close, which is
+  # exactly what sqld produces while still initialising.
+  if curl -s -o /dev/null http://localhost:8080/; then
+    echo "sqld ready after ${i}s"
+    SQLD_UP=1
+    break
+  fi
+  sleep 1
+done
+if [ "$SQLD_UP" -eq 0 ]; then
+  echo "WARNING: sqld not ready after 60s — proceeding anyway"
+fi
 step "Starting server + client"
 "${COMPOSE[@]}" up -d server client
 

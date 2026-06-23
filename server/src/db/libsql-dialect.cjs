@@ -1,5 +1,14 @@
 const Client_SQLite3 = require('knex/lib/dialects/sqlite3');
 const { createClient } = require('@libsql/client');
+// sqld v0.24.x returns Content-Encoding: gzip but closes the stream prematurely,
+// causing node-fetch's Gunzip decompressor to throw ERR_STREAM_PREMATURE_CLOSE.
+// Using Node's built-in fetch (undici) with Accept-Encoding: identity prevents
+// sqld from sending a compressed response, so the body is never gzip-decoded.
+const noGzipFetch = (url, opts) => {
+  const headers = new Headers(opts && opts.headers ? opts.headers : {});
+  headers.set('Accept-Encoding', 'identity');
+  return fetch(url, { ...opts, headers });
+};
 
 class Client_Libsql extends Client_SQLite3 {
   _driver() {
@@ -13,7 +22,7 @@ class Client_Libsql extends Client_SQLite3 {
   acquireRawConnection() {
     const url = this.connectionSettings.filename;
     return Promise.resolve({
-      client: createClient({ url, intMode: 'number' }),
+      client: createClient({ url, intMode: 'number', fetch: noGzipFetch }),
       tx: null
     });
   }

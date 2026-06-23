@@ -33,10 +33,10 @@ REPO_ROOT="$(pwd)"
 COMPOSE=(docker compose -f compose.yaml -f compose.prod-build.yaml)
 
 cleanup() {
-  echo "==> Tearing down stack"
-  # `cd` back in case a test step (e.g. running Playwright from e2e/) changed dir;
-  # compose -f paths are relative.
+  echo "==> Server container logs (last 100 lines):"
   cd "$REPO_ROOT"
+  "${COMPOSE[@]}" logs --tail=100 server || true
+  echo "==> Tearing down stack"
   "${COMPOSE[@]}" down -v --remove-orphans || true
 }
 trap cleanup EXIT
@@ -45,18 +45,30 @@ mkdir -p e2e-report
 
 step "Building prod-shape images"
 "${COMPOSE[@]}" build
-step "Starting stack (sqld + server + client)"
-"${COMPOSE[@]}" up -d sqld server client
+step "Starting sqld"
+"${COMPOSE[@]}" up -d sqld
+# Give sqld a moment to initialise its internal database before the server
+# tries to connect and run migrations. The server depends_on sqld (container
+# start), but sqld needs a couple of seconds to actually be ready for writes.
+sleep 5
+step "Starting server + client"
+"${COMPOSE[@]}" up -d server client
 
 # Let the app server finish migrations/seeds before Playwright probes it.
 step "Waiting for API health"
-for i in $(seq 1 30); do
+API_UP=0
+for i in $(seq 1 60); do
   if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
     echo "API up after ${i}s"
+    API_UP=1
     break
   fi
   sleep 1
 done
+if [ "$API_UP" -eq 0 ]; then
+  echo "WARNING: API health check did not pass after 60s — dumping server logs:"
+  "${COMPOSE[@]}" logs --tail=50 server || true
+fi
 
 # Install Playwright deps on the host and run the suite. Chromium comes from the
 # npm package version pinned in e2e/package.json, so the browser version is

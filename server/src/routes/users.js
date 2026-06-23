@@ -57,7 +57,7 @@ async function getUserTravelData(userId, homeCountryCode) {
     const allProvinces = provincesByCountry[country.code] || [];
 
     let allCities = [];
-    if (tier === 1 || tier === 3) {
+    if (tier !== 'microstate') {
       allCities = await db('cities')
         .where({ country_code: country.code })
         .orderBy('population', 'desc');

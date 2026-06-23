@@ -79,7 +79,7 @@ async function getUserTravelData(db, userId, homeCountryCode) {
     );
 
     const allProvinces = provincesByCountry[country.code] || [];
-    const allCities = (tier === 1 || tier === 3) ? await loadCitiesForCountry(db, country.code) : [];
+    const allCities = tier !== 'microstate' ? await loadCitiesForCountry(db, country.code) : [];
 
     visitedCountries.push({
       country,
@@ -112,6 +112,8 @@ export async function getUserCountriesLocal(db, userId, homeCountryCode) {
       country_code: country.code,
       country_name: country.name,
       region: country.region,
+      subregion: country.subregion,
+      population: country.population,
       visited_at,
       cities_visited: visitedCities.length,
       provinces_visited: visitedProvinces.length,
@@ -311,7 +313,7 @@ export async function getLeaderboardLocal(db, currentUserId) {
         [u.id, country.code],
       );
       const allProvinces = provincesByCountry[country.code] || [];
-      const allCities = (tier === 1 || tier === 3) ? await loadCitiesForCountry(db, country.code) : [];
+      const allCities = tier !== 'microstate' ? await loadCitiesForCountry(db, country.code) : [];
       visitedCountries.push({ country, visitedCities, visitedProvinces, allProvinces, allCities });
     }
 

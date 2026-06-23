@@ -196,7 +196,7 @@ export default function CountryDetail() {
 
   const tier = country.tier;
   const hasProvinces = (tier === 1 || tier === 2) && country.provinces && country.provinces.length > 0;
-  const showCities = tier === 1 || tier === 3 || tier === 'microstate';
+  const showCities = tier === 1 || tier === 2 || tier === 3;
 
   // Province exploration percentage
   const visitedProvincePoints = hasProvinces
@@ -425,18 +425,13 @@ export default function CountryDetail() {
         </>
       )}
 
-      {/* City list — shown for Tier 1 (bonus) and Tier 3 (exploration) */}
+      {/* City list — all tiers (each city = 0.5 pts) */}
       {showCities && country.cities.length > 0 && (
         <>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
             Cities ({country.cities.length})
-            {tier === 1 && <span className="text-sm font-normal text-gray-500 ml-2">bonus points</span>}
+            <span className="text-sm font-normal text-gray-500 ml-2">0.5 pts each</span>
           </h2>
-          {tier === 3 && (
-            <p className="text-sm text-gray-500 mb-4">
-              Top cities determine your exploration score for this country.
-            </p>
-          )}
 
           <div className="space-y-2">
             {country.cities.map((city) => {
@@ -463,7 +458,7 @@ export default function CountryDetail() {
                     </span>
                     <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
                       <span className="hidden sm:inline">{Number(city.population).toLocaleString()} pop</span>
-                      <span>{city.percentage}%</span>
+                      <span className={isChecked ? 'text-indigo-600 font-medium' : ''}>+0.5 pts</span>
                       {toggling === city.id && <span className="text-indigo-600">saving...</span>}
                     </div>
                   </div>
@@ -472,13 +467,6 @@ export default function CountryDetail() {
             })}
           </div>
         </>
-      )}
-
-      {/* Tier 2 has no cities section */}
-      {tier === 2 && !hasProvinces && country.cities.length > 0 && (
-        <p className="text-sm text-gray-500 mt-4">
-          City visits for Tier 2 countries don't contribute to exploration score.
-        </p>
       )}
     </div>
   );

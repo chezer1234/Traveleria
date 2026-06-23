@@ -173,9 +173,28 @@ async function start() {
   });
 }
 
-start().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// Retry startup so transient sqld-not-ready errors (ERR_STREAM_PREMATURE_CLOSE)
+// don't immediately kill the process. sqld accepts HTTP connections before its
+// internal SQLite is ready to serve queries; the server simply needs to wait.
+(async () => {
+  const MAX_ATTEMPTS = 10;
+  const RETRY_DELAY_MS = 3000;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await start();
+      return;
+    } catch (err) {
+      if (attempt === MAX_ATTEMPTS) {
+        console.error('Failed to start server:', err);
+        process.exit(1);
+      }
+      console.warn(
+        `Startup attempt ${attempt}/${MAX_ATTEMPTS} failed (${err.code || err.message})` +
+        ` — retrying in ${RETRY_DELAY_MS / 1000}s`,
+      );
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+})();
 
 export default app;

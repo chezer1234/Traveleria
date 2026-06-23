@@ -51,21 +51,24 @@ step "Starting sqld"
 # depends_on only waits for container start — sqld needs extra time to
 # initialise its internal database before it can serve HTTP properly.
 # compose.prod-build.yaml exposes port 8080 so we can curl it from the host.
-step "Waiting for sqld to be ready"
+step "Waiting for sqld SQL readiness"
+# POST a real SQL query to /v2/pipeline — sqld accepts HTTP connections before
+# its internal SQLite is ready to serve queries, so a plain curl / check is
+# not sufficient. We must confirm the SQL layer itself is responsive.
 SQLD_UP=0
-for i in $(seq 1 60); do
-  # curl exits 0 for any complete HTTP response (including 4xx/5xx).
-  # It exits non-0 for connection-refused and premature-close, which is
-  # exactly what sqld produces while still initialising.
-  if curl -s -o /dev/null http://localhost:8080/; then
-    echo "sqld ready after ${i}s"
+for i in $(seq 1 90); do
+  if curl -sf -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"requests":[{"type":"execute","stmt":{"sql":"SELECT 1"}},{"type":"close"}]}' \
+      http://localhost:8080/v2/pipeline > /dev/null 2>&1; then
+    echo "sqld SQL-ready after ${i}s"
     SQLD_UP=1
     break
   fi
   sleep 1
 done
 if [ "$SQLD_UP" -eq 0 ]; then
-  echo "WARNING: sqld not ready after 60s — proceeding anyway"
+  echo "WARNING: sqld not SQL-ready after 90s — proceeding anyway"
 fi
 step "Starting server + client"
 "${COMPOSE[@]}" up -d server client

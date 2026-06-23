@@ -45,60 +45,41 @@ mkdir -p e2e-report
 
 step "Building prod-shape images"
 "${COMPOSE[@]}" build
-step "Starting sqld"
-"${COMPOSE[@]}" up -d sqld
-# Poll sqld HTTP on the host-exposed port until it returns a complete response.
-# depends_on only waits for container start — sqld needs extra time to
-# initialise its internal database before it can serve HTTP properly.
-# compose.prod-build.yaml exposes port 8080 so we can curl it from the host.
-step "Waiting for sqld SQL readiness"
-# POST a real SQL query to /v2/pipeline and request gzip encoding via
-# --compressed, matching the Accept-Encoding: gzip that node-fetch sends.
-# sqld returns HTTP 200 but a truncated gzip body during startup, so a plain
-# curl check succeeds too early. --compressed makes curl decompress the body;
-# it fails (exit non-0) if the gzip stream is truncated.
-SQLD_UP=0
-for i in $(seq 1 120); do
-  if curl -sf --compressed -X POST \
-      -H "Content-Type: application/json" \
-      -d '{"requests":[{"type":"execute","stmt":{"sql":"SELECT 1"}},{"type":"close"}]}' \
-      http://localhost:8080/v2/pipeline > /dev/null 2>&1; then
-    echo "sqld SQL-ready (gzip OK) after ${i}s"
-    SQLD_UP=1
-    break
-  fi
-  sleep 1
-done
-if [ "$SQLD_UP" -eq 0 ]; then
-  echo "WARNING: sqld not SQL-ready after 120s — proceeding anyway"
-fi
-step "Starting server + client"
-"${COMPOSE[@]}" up -d server client
+step "Starting sqld + server + client"
+"${COMPOSE[@]}" up -d sqld server client
+# sqld accepts TCP/HTTP before its SQLite is ready to serve queries — the server
+# container retries internally (up to 30 × 5 s = 150 s). We run npm install and
+# playwright install in parallel so that startup time overlaps with installation,
+# then do a final health-check right before the test run.
 
-# Let the app server finish migrations/seeds before Playwright probes it.
-step "Waiting for API health"
+# Install Playwright deps on the host and run the suite. Chromium comes from the
+# npm package version pinned in e2e/package.json, so the browser version is
+# reproducible across machines even without a container.
+cd e2e
+step "Installing e2e npm deps (server starting in parallel)"
+guard 300 npm install --no-audit --no-fund
+step "Installing Playwright Chromium + system deps"
+guard 420 npx playwright install --with-deps chromium
+
+# By now the server has had 3-4 minutes to come up.  Give it up to 2 more
+# minutes so the combined window covers even the slowest CI sqld init.
+cd "$REPO_ROOT"
+step "Waiting for API health (final gate before tests)"
 API_UP=0
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
-    echo "API up after ${i}s"
+    echo "API up after ${i}s post-install"
     API_UP=1
     break
   fi
   sleep 1
 done
 if [ "$API_UP" -eq 0 ]; then
-  echo "WARNING: API health check did not pass after 60s — dumping server logs:"
+  echo "WARNING: API health check did not pass — dumping server logs:"
   "${COMPOSE[@]}" logs --tail=50 server || true
 fi
 
-# Install Playwright deps on the host and run the suite. Chromium comes from the
-# npm package version pinned in e2e/package.json, so the browser version is
-# reproducible across machines even without a container.
 cd e2e
-step "Installing e2e npm deps"
-guard 300 npm install --no-audit --no-fund
-step "Installing Playwright Chromium + system deps"
-guard 420 npx playwright install --with-deps chromium
 step "Running Playwright suite"
 BASE_URL="${BASE_URL:-http://localhost:3000}" \
 API_URL="${API_URL:-http://localhost:3001}" \

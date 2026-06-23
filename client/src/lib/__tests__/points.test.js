@@ -292,17 +292,17 @@ describe('City Exploration (Tier 3)', () => {
     expect(result.explored).toBe(0);
   });
 
-  test('visiting the largest city earns proportional points', () => {
+  test('visiting the largest city earns 0.5 pts', () => {
     const visited = [{ id: '1', name: 'Lisbon', population: 504718 }];
     const result = calculateCityExploration(50, mockCountry, mockCities, visited);
-    expect(result.explorerPoints).toBeGreaterThan(0);
-    expect(result.explored).toBeGreaterThan(0.4);
+    expect(result.explorerPoints).toBe(0.5);
+    expect(result.explored).toBe(1);
   });
 
-  test('visiting all cities earns full ceiling', () => {
+  test('visiting all 4 cities earns 2.0 pts', () => {
     const result = calculateCityExploration(50, mockCountry, mockCities, mockCities);
-    expect(result.explorerPoints).toBeCloseTo(50, 1);
-    expect(result.explored).toBeCloseTo(1.0, 3);
+    expect(result.explorerPoints).toBe(2.0);
+    expect(result.explored).toBe(1);
   });
 });
 

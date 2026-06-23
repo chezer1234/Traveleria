@@ -177,8 +177,8 @@ async function start() {
 // don't immediately kill the process. sqld accepts HTTP connections before its
 // internal SQLite is ready to serve queries; the server simply needs to wait.
 (async () => {
-  const MAX_ATTEMPTS = 10;
-  const RETRY_DELAY_MS = 3000;
+  const MAX_ATTEMPTS = 30;
+  const RETRY_DELAY_MS = 5000;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       await start();

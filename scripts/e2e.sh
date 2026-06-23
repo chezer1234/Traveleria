@@ -52,23 +52,25 @@ step "Starting sqld"
 # initialise its internal database before it can serve HTTP properly.
 # compose.prod-build.yaml exposes port 8080 so we can curl it from the host.
 step "Waiting for sqld SQL readiness"
-# POST a real SQL query to /v2/pipeline — sqld accepts HTTP connections before
-# its internal SQLite is ready to serve queries, so a plain curl / check is
-# not sufficient. We must confirm the SQL layer itself is responsive.
+# POST a real SQL query to /v2/pipeline and request gzip encoding via
+# --compressed, matching the Accept-Encoding: gzip that node-fetch sends.
+# sqld returns HTTP 200 but a truncated gzip body during startup, so a plain
+# curl check succeeds too early. --compressed makes curl decompress the body;
+# it fails (exit non-0) if the gzip stream is truncated.
 SQLD_UP=0
-for i in $(seq 1 90); do
-  if curl -sf -X POST \
+for i in $(seq 1 120); do
+  if curl -sf --compressed -X POST \
       -H "Content-Type: application/json" \
       -d '{"requests":[{"type":"execute","stmt":{"sql":"SELECT 1"}},{"type":"close"}]}' \
       http://localhost:8080/v2/pipeline > /dev/null 2>&1; then
-    echo "sqld SQL-ready after ${i}s"
+    echo "sqld SQL-ready (gzip OK) after ${i}s"
     SQLD_UP=1
     break
   fi
   sleep 1
 done
 if [ "$SQLD_UP" -eq 0 ]; then
-  echo "WARNING: sqld not SQL-ready after 90s — proceeding anyway"
+  echo "WARNING: sqld not SQL-ready after 120s — proceeding anyway"
 fi
 step "Starting server + client"
 "${COMPOSE[@]}" up -d server client

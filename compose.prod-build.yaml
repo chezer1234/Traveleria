@@ -3,6 +3,10 @@
 # APP_SCHEMA_VERSION is baked into both images at build time; set it in CI to $(git rev-parse --short HEAD).
 
 services:
+  sqld:
+    ports:
+      - "8080:8080"
+
   server:
     build:
       context: ./server

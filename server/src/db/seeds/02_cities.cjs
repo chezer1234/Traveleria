@@ -307,6 +307,187 @@ const cities = [
   { country_code: 'AR', name: 'Salta', population: 617516 },
   { country_code: 'AR', name: 'Santa Fe', population: 490171 },
   { country_code: 'AR', name: 'Bariloche', population: 133500 },
+
+  // Pakistan (PK) - population: 220,892,340
+  { country_code: 'PK', name: 'Karachi',      population: 14910352 },
+  { country_code: 'PK', name: 'Lahore',       population: 11126285 },
+  { country_code: 'PK', name: 'Faisalabad',   population:  3203846 },
+  { country_code: 'PK', name: 'Rawalpindi',   population:  2098231 },
+  { country_code: 'PK', name: 'Gujranwala',   population:  2027001 },
+  { country_code: 'PK', name: 'Peshawar',     population:  1970042 },
+  { country_code: 'PK', name: 'Multan',       population:  1871843 },
+  { country_code: 'PK', name: 'Islamabad',    population:  1015000 },
+  { country_code: 'PK', name: 'Hyderabad',    population:  1732693 },
+  { country_code: 'PK', name: 'Quetta',       population:   909010 },
+
+  // Bangladesh (BD) - population: 164,689,383
+  { country_code: 'BD', name: 'Dhaka',        population: 8906039 },
+  { country_code: 'BD', name: 'Chittagong',   population: 2592439 },
+  { country_code: 'BD', name: 'Sylhet',       population:  526412 },
+  { country_code: 'BD', name: 'Rajshahi',     population:  700133 },
+  { country_code: 'BD', name: 'Khulna',       population:  663342 },
+  { country_code: 'BD', name: 'Barisal',      population:  202242 },
+  { country_code: 'BD', name: 'Cumilla',      population:  358691 },
+  { country_code: 'BD', name: 'Narayanganj',  population:  222989 },
+
+  // Ethiopia (ET) - population: 114,963,588
+  { country_code: 'ET', name: 'Addis Ababa',  population: 3352000 },
+  { country_code: 'ET', name: 'Dire Dawa',    population:  491000 },
+  { country_code: 'ET', name: 'Mekelle',      population:  323700 },
+  { country_code: 'ET', name: 'Gondar',       population:  323900 },
+  { country_code: 'ET', name: 'Hawassa',      population:  358100 },
+  { country_code: 'ET', name: 'Bahir Dar',    population:  343374 },
+  { country_code: 'ET', name: 'Jimma',        population:  207905 },
+  { country_code: 'ET', name: 'Adama',        population:  324000 },
+
+  // Philippines (PH) - population: 109,581,078
+  { country_code: 'PH', name: 'Manila',       population: 1780148 },
+  { country_code: 'PH', name: 'Quezon City',  population: 2960048 },
+  { country_code: 'PH', name: 'Caloocan',     population: 1583978 },
+  { country_code: 'PH', name: 'Davao',        population: 1632991 },
+  { country_code: 'PH', name: 'Cebu City',    population:  964169 },
+  { country_code: 'PH', name: 'Zamboanga',    population:  977234 },
+  { country_code: 'PH', name: 'Antipolo',     population:  776386 },
+  { country_code: 'PH', name: 'Taguig',       population:  886722 },
+  { country_code: 'PH', name: 'Cagayan de Oro', population: 675950 },
+  { country_code: 'PH', name: 'Pasig',        population:  755300 },
+
+  // Vietnam (VN) - population: 97,338,579
+  { country_code: 'VN', name: 'Ho Chi Minh City', population: 9166793 },
+  { country_code: 'VN', name: 'Hanoi',         population: 8053663 },
+  { country_code: 'VN', name: 'Da Nang',       population: 1134310 },
+  { country_code: 'VN', name: 'Can Tho',       population: 1235171 },
+  { country_code: 'VN', name: 'Haiphong',      population: 2028514 },
+  { country_code: 'VN', name: 'Bien Hoa',      population:  798020 },
+  { country_code: 'VN', name: 'Hue',           population:  340000 },
+  { country_code: 'VN', name: 'Nha Trang',     population:  392000 },
+  { country_code: 'VN', name: 'Hoi An',        population:   93200 },
+
+  // DR Congo (CD) - population: 89,561,403
+  { country_code: 'CD', name: 'Kinshasa',      population: 14342439 },
+  { country_code: 'CD', name: 'Lubumbashi',    population:  2590000 },
+  { country_code: 'CD', name: 'Mbuji-Mayi',   population:  2600000 },
+  { country_code: 'CD', name: 'Kananga',       population:  1072893 },
+  { country_code: 'CD', name: 'Kisangani',     population:   939000 },
+  { country_code: 'CD', name: 'Goma',          population:   670000 },
+  { country_code: 'CD', name: 'Bukavu',        population:   835605 },
+  { country_code: 'CD', name: 'Kolwezi',       population:   453000 },
+
+  // Tanzania (TZ) - population: 59,734,218
+  { country_code: 'TZ', name: 'Dar es Salaam',population: 3133000 },
+  { country_code: 'TZ', name: 'Dodoma',       population:  410956 },
+  { country_code: 'TZ', name: 'Mwanza',       population:  706453 },
+  { country_code: 'TZ', name: 'Arusha',       population:  416442 },
+  { country_code: 'TZ', name: 'Mbeya',        population:  385279 },
+  { country_code: 'TZ', name: 'Morogoro',     population:  315866 },
+  { country_code: 'TZ', name: 'Zanzibar',     population:  501312 },
+  { country_code: 'TZ', name: 'Tanga',        population:  273332 },
+
+  // Myanmar (MM) - population: 54,409,800
+  { country_code: 'MM', name: 'Yangon',       population: 5209541 },
+  { country_code: 'MM', name: 'Mandalay',     population: 1225546 },
+  { country_code: 'MM', name: 'Naypyidaw',    population:  924608 },
+  { country_code: 'MM', name: 'Mawlamyine',   population:  289044 },
+  { country_code: 'MM', name: 'Bago',         population:  244376 },
+  { country_code: 'MM', name: 'Pathein',      population:  169773 },
+  { country_code: 'MM', name: 'Taunggyi',     population:  143272 },
+
+  // Kenya (KE) - population: 53,771,296
+  { country_code: 'KE', name: 'Nairobi',      population: 4397073 },
+  { country_code: 'KE', name: 'Mombasa',      population: 1208333 },
+  { country_code: 'KE', name: 'Kisumu',       population:  409928 },
+  { country_code: 'KE', name: 'Nakuru',       population:  570674 },
+  { country_code: 'KE', name: 'Eldoret',      population:  475716 },
+  { country_code: 'KE', name: 'Thika',        population:  139853 },
+  { country_code: 'KE', name: 'Malindi',      population:  119859 },
+
+  // Iran (IR) - population: 83,992,949
+  { country_code: 'IR', name: 'Tehran',       population: 9259000 },
+  { country_code: 'IR', name: 'Mashhad',      population: 3372660 },
+  { country_code: 'IR', name: 'Isfahan',      population: 2220000 },
+  { country_code: 'IR', name: 'Karaj',        population: 1592492 },
+  { country_code: 'IR', name: 'Shiraz',       population: 1565572 },
+  { country_code: 'IR', name: 'Tabriz',       population: 1558693 },
+  { country_code: 'IR', name: 'Qom',          population: 1201158 },
+  { country_code: 'IR', name: 'Ahvaz',        population: 1136989 },
+  { country_code: 'IR', name: 'Kerman',       population:  821374 },
+  { country_code: 'IR', name: 'Yazd',         population:  529673 },
+
+  // Colombia (CO) - population: 50,882,891
+  { country_code: 'CO', name: 'Bogotá',       population: 7412566 },
+  { country_code: 'CO', name: 'Medellín',     population: 2529403 },
+  { country_code: 'CO', name: 'Cali',         population: 2227642 },
+  { country_code: 'CO', name: 'Barranquilla', population: 1232766 },
+  { country_code: 'CO', name: 'Cartagena',    population: 1028736 },
+  { country_code: 'CO', name: 'Cúcuta',       population:  742679 },
+  { country_code: 'CO', name: 'Bucaramanga',  population:  528763 },
+  { country_code: 'CO', name: 'Ibagué',       population:  562114 },
+
+  // Austria (AT) - population: 9,006,398
+  { country_code: 'AT', name: 'Vienna',       population: 1897491 },
+  { country_code: 'AT', name: 'Graz',         population:  291072 },
+  { country_code: 'AT', name: 'Linz',         population:  204846 },
+  { country_code: 'AT', name: 'Salzburg',     population:  154211 },
+  { country_code: 'AT', name: 'Innsbruck',    population:  132493 },
+  { country_code: 'AT', name: 'Klagenfurt',   population:  101403 },
+  { country_code: 'AT', name: 'Villach',      population:   61354 },
+
+  // Netherlands (NL) - population: 17,134,872
+  { country_code: 'NL', name: 'Amsterdam',    population:  872680 },
+  { country_code: 'NL', name: 'Rotterdam',    population:  651446 },
+  { country_code: 'NL', name: 'The Hague',    population:  548320 },
+  { country_code: 'NL', name: 'Utrecht',      population:  357276 },
+  { country_code: 'NL', name: 'Eindhoven',    population:  234456 },
+  { country_code: 'NL', name: 'Groningen',    population:  232723 },
+  { country_code: 'NL', name: 'Tilburg',      population:  222977 },
+  { country_code: 'NL', name: 'Almere',       population:  213909 },
+  { country_code: 'NL', name: 'Breda',        population:  183704 },
+  { country_code: 'NL', name: 'Maastricht',   population:  122486 },
+
+  // Czech Republic (CZ) - population: 10,708,981
+  { country_code: 'CZ', name: 'Prague',       population: 1308632 },
+  { country_code: 'CZ', name: 'Brno',         population:  381346 },
+  { country_code: 'CZ', name: 'Ostrava',      population:  284982 },
+  { country_code: 'CZ', name: 'Plzeň',        population:  174149 },
+  { country_code: 'CZ', name: 'Liberec',      population:  104802 },
+  { country_code: 'CZ', name: 'Olomouc',      population:  100514 },
+  { country_code: 'CZ', name: 'České Budějovice', population: 94229 },
+  { country_code: 'CZ', name: 'Hradec Králové', population: 91448 },
+  { country_code: 'CZ', name: 'Karlovy Vary',  population:  49304 },
+
+  // New Zealand (NZ) - population: 4,822,233
+  { country_code: 'NZ', name: 'Auckland',     population:  467000 },
+  { country_code: 'NZ', name: 'Christchurch', population:  381800 },
+  { country_code: 'NZ', name: 'Wellington',   population:  215100 },
+  { country_code: 'NZ', name: 'Hamilton',     population:  169300 },
+  { country_code: 'NZ', name: 'Tauranga',     population:  143000 },
+  { country_code: 'NZ', name: 'Dunedin',      population:  126300 },
+  { country_code: 'NZ', name: 'Palmerston North', population: 88100 },
+  { country_code: 'NZ', name: 'Queenstown',   population:   16600 },
+
+  // Romania (RO) - population: 19,237,691
+  { country_code: 'RO', name: 'Bucharest',    population: 1883425 },
+  { country_code: 'RO', name: 'Cluj-Napoca',  population:  324576 },
+  { country_code: 'RO', name: 'Timișoara',    population:  319279 },
+  { country_code: 'RO', name: 'Iași',         population:  290422 },
+  { country_code: 'RO', name: 'Constanța',    population:  283872 },
+  { country_code: 'RO', name: 'Craiova',      population:  269506 },
+  { country_code: 'RO', name: 'Brașov',       population:  253200 },
+  { country_code: 'RO', name: 'Galați',       population:  249432 },
+  { country_code: 'RO', name: 'Sibiu',        population:  147245 },
+  { country_code: 'RO', name: 'Sinaia',       population:   11000 },
+
+  // Peru (PE) - population: 32,971,854
+  { country_code: 'PE', name: 'Lima',         population: 9562280 },
+  { country_code: 'PE', name: 'Arequipa',     population:  869351 },
+  { country_code: 'PE', name: 'Trujillo',     population:  799550 },
+  { country_code: 'PE', name: 'Chiclayo',     population:  552508 },
+  { country_code: 'PE', name: 'Iquitos',      population:  437376 },
+  { country_code: 'PE', name: 'Piura',        population:  424759 },
+  { country_code: 'PE', name: 'Huancayo',     population:  336280 },
+  { country_code: 'PE', name: 'Cusco',        population:  428450 },
+  { country_code: 'PE', name: 'Puno',         population:  125663 },
+  { country_code: 'PE', name: 'Tacna',        population:  329705 },
 ];
 
 /**

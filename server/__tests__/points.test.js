@@ -275,9 +275,9 @@ describe('Province Exploration', () => {
   });
 });
 
-// ── City exploration (Tier 3) ───────────────────────────────────────────────
+// ── City exploration (flat 0.5 per city, all tiers) ────────────────────────
 
-describe('City Exploration (Tier 3)', () => {
+describe('City Exploration (flat 0.5 pts/city)', () => {
   const mockCountry = { code: 'PT', population: 10196709 };
   const mockCities = [
     { id: '1', name: 'Lisbon', population: 504718 },
@@ -292,17 +292,17 @@ describe('City Exploration (Tier 3)', () => {
     expect(result.explored).toBe(0);
   });
 
-  test('visiting the largest city earns proportional points', () => {
+  test('visiting 1 city = 0.5 pts', () => {
     const visited = [{ id: '1', name: 'Lisbon', population: 504718 }];
     const result = calculateCityExploration(50, mockCountry, mockCities, visited);
-    expect(result.explorerPoints).toBeGreaterThan(0);
-    expect(result.explored).toBeGreaterThan(0.4);
+    expect(result.explorerPoints).toBe(0.5);
+    expect(result.explored).toBe(1);
   });
 
-  test('visiting all cities earns full ceiling', () => {
+  test('visiting 4 cities = 2.0 pts', () => {
     const result = calculateCityExploration(50, mockCountry, mockCities, mockCities);
-    expect(result.explorerPoints).toBeCloseTo(50, 1);
-    expect(result.explored).toBeCloseTo(1.0, 3);
+    expect(result.explorerPoints).toBe(2.0);
+    expect(result.explored).toBe(1);
   });
 });
 

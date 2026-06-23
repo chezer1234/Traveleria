@@ -1,5 +1,13 @@
 const Client_SQLite3 = require('knex/lib/dialects/sqlite3');
 const { createClient } = require('@libsql/client');
+const nodeFetch = require('node-fetch');
+// sqld v0.24.x returns Content-Encoding: gzip on /v2/pipeline but closes the
+// stream prematurely, causing ERR_STREAM_PREMATURE_CLOSE. compress:false tells
+// node-fetch not to send Accept-Encoding and not to decompress responses, so
+// sqld returns plain JSON and the truncated-gzip issue is bypassed entirely.
+// node-fetch must be used (not globalThis.fetch) because hrana-client passes
+// cross-fetch Request objects which are node-fetch Requests on Node.js.
+const noGzipFetch = (input, opts) => nodeFetch(input, { ...opts, compress: false });
 
 class Client_Libsql extends Client_SQLite3 {
   _driver() {
@@ -13,7 +21,7 @@ class Client_Libsql extends Client_SQLite3 {
   acquireRawConnection() {
     const url = this.connectionSettings.filename;
     return Promise.resolve({
-      client: createClient({ url, intMode: 'number' }),
+      client: createClient({ url, intMode: 'number', fetch: noGzipFetch }),
       tx: null
     });
   }

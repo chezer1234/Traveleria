@@ -29,6 +29,7 @@ export const TIER_1_CODES = new Set([
 export const TIER_2_CODES = new Set([
   'JP', 'ET', 'PH', 'EG', 'VN', 'CD', 'TR', 'IR', 'DE', 'TH',
   'GB', 'FR', 'IT', 'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO', 'ES',
+  'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
 ]);
 
 // Flat points for microstates — bypass all exploration formulas
@@ -167,6 +168,7 @@ export function getExplorerCeiling(baseline, country, allCountries) {
 // ── Province points (Tiers 1 & 2) ──────────────────────────────────────────
 
 const TOP_CITIES_PER_COUNTRY = 15;
+export const CITY_FLAT_POINTS = 0.5;
 
 export function calculateProvinceExploration(explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities) {
   const nationalPop = Number(country.population) || 1;
@@ -202,29 +204,19 @@ export function calculateProvinceExploration(explorerCeiling, country, allProvin
   };
 }
 
-// ── Tier 3: city-based exploration ──────────────────────────────────────────
+// ── City points (all tiers) ─────────────────────────────────────────────────
+// Flat 0.5 pts per visited city, regardless of tier or population weight.
 
-export function calculateCityExploration(explorerCeiling, _country, allCities, visitedCities) {
-  const sorted = [...allCities].sort((a, b) => Number(b.population) - Number(a.population));
-  const top15 = sorted.slice(0, TOP_CITIES_PER_COUNTRY);
+export function calculateCityPoints(visitedCities) {
+  return round2(visitedCities.length * CITY_FLAT_POINTS);
+}
 
-  if (top15.length === 0) {
-    return { explorerPoints: 0, explored: 0 };
-  }
-
-  const top15TotalPop = top15.reduce((sum, c) => sum + Number(c.population), 0);
-  const visitedCityIds = new Set(visitedCities.map(c => c.id));
-
-  const visitedTop15Pop = top15
-    .filter(c => visitedCityIds.has(c.id))
-    .reduce((sum, c) => sum + Number(c.population), 0);
-
-  const explorationRatio = top15TotalPop > 0 ? visitedTop15Pop / top15TotalPop : 0;
-  const explorerPoints = explorationRatio * explorerCeiling;
-
+// Kept for legacy callers / tests — now delegates to flat formula.
+export function calculateCityExploration(_explorerCeiling, _country, _allCities, visitedCities) {
+  const pts = calculateCityPoints(visitedCities);
   return {
-    explorerPoints: round2(explorerPoints),
-    explored: round4(Math.min(explorationRatio, 1.0)),
+    explorerPoints: pts,
+    explored: visitedCities.length > 0 ? 1 : 0,
   };
 }
 
@@ -325,9 +317,9 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
       ceiling: round2(explorerCeiling),
       earned: round2(explorerEarned || 0),
       ...(explorationDetail || {}),
-      explanation: explorerCeiling > 0
-        ? `Explore ${(tier === 1 || tier === 2) ? 'provinces' : 'major cities'} within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points`
-        : 'This country has no exploration bonus',
+      explanation: (tier === 1 || tier === 2)
+        ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
+        : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
     },
   };
 }
@@ -388,19 +380,19 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     explorationPoints = result.explorerPoints;
     explored = result.explored;
     provinceBreakdown = result.provinceBreakdown;
-  } else {
-    const result = calculateCityExploration(explorerCeiling, country, allCities, visitedCities);
-    explorationPoints = result.explorerPoints;
-    explored = result.explored;
   }
+
+  // City bonus applies to all tiers: flat 0.5 pts per visited city
+  const cityPoints = calculateCityPoints(visitedCities);
 
   const pointsResult = {
     tier,
     baseline: round2(baseline),
     explorerCeiling: round2(explorerCeiling),
     explorationPoints: round2(explorationPoints),
+    cityPoints: round2(cityPoints),
     explored: round4(explored),
-    total: round2(baseline + explorationPoints),
+    total: round2(baseline + explorationPoints + cityPoints),
     ...(provinceBreakdown ? { provinceBreakdown } : {}),
   };
 
@@ -409,11 +401,9 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     if (tier === 1 || tier === 2) {
       explorationDetail.total = allProvinces.length;
       explorationDetail.visited = visitedProvinces.length;
-    } else {
-      const sorted = [...allCities].sort((a, b) => Number(b.population) - Number(a.population));
-      explorationDetail.total = Math.min(sorted.length, TOP_CITIES_PER_COUNTRY);
-      explorationDetail.visited = visitedCities.length;
     }
+    explorationDetail.citiesVisited = visitedCities.length;
+    explorationDetail.cityPoints = cityPoints;
     pointsResult.breakdown = getScoreBreakdown(
       country, homeObj, allCountries, explorerCeiling, explorationPoints, explorationDetail,
     );

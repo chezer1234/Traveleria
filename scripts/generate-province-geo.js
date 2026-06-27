@@ -16,6 +16,8 @@ const COUNTRIES = [
   'CN', 'IN', 'US', 'ID', 'PK', 'BR', 'NG', 'BD', 'RU', 'MX',
   'JP', 'ET', 'PH', 'EG', 'VN', 'CD', 'TR', 'IR', 'DE', 'TH',
   'GB', 'FR', 'IT', 'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO', 'ES',
+  // Tier 2 additions
+  'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
 ];
 
 // ── Merge maps ───────────────────────────────────────────────────────────────
@@ -156,6 +158,22 @@ const GB_NATIONS = { 'GB-ENG': 'England', 'GB-SCT': 'Scotland', 'GB-WLS': 'Wales
 // Philippines: NE has many sub-provinces — we use 82 province codes (ISO 3166-2)
 // These should match directly since NE iso_3166_2 matches our codes
 
+// Romania: 42 county features → 8 development regions
+const RO_COUNTY_TO_REGION = {
+  'RO-BH':'RO-NW','RO-BN':'RO-NW','RO-CJ':'RO-NW','RO-MM':'RO-NW','RO-SM':'RO-NW','RO-SJ':'RO-NW',
+  'RO-AB':'RO-CE','RO-BV':'RO-CE','RO-CV':'RO-CE','RO-HR':'RO-CE','RO-MS':'RO-CE','RO-SB':'RO-CE',
+  'RO-BC':'RO-NE','RO-BT':'RO-NE','RO-IS':'RO-NE','RO-NT':'RO-NE','RO-SV':'RO-NE','RO-VS':'RO-NE','RO-VN':'RO-NE',
+  'RO-BR':'RO-SE','RO-BZ':'RO-SE','RO-CT':'RO-SE','RO-GL':'RO-SE','RO-TL':'RO-SE',
+  'RO-AG':'RO-SM','RO-CL':'RO-SM','RO-DB':'RO-SM','RO-GR':'RO-SM','RO-IL':'RO-SM','RO-PH':'RO-SM','RO-TR':'RO-SM',
+  'RO-B':'RO-BU','RO-IF':'RO-BU',
+  'RO-DJ':'RO-SW','RO-GJ':'RO-SW','RO-MH':'RO-SW','RO-OT':'RO-SW','RO-VL':'RO-SW',
+  'RO-AR':'RO-WS','RO-CS':'RO-WS','RO-HD':'RO-WS','RO-TM':'RO-WS',
+};
+const RO_REGION_NAMES = {
+  'RO-NW':'North-West','RO-CE':'Centre','RO-NE':'North-East','RO-SE':'South-East',
+  'RO-SM':'South Muntenia','RO-BU':'Bucharest-Ilfov','RO-SW':'South-West Oltenia','RO-WS':'West',
+};
+
 // ── Merge config: which countries need feature merging? ──────────────────────
 
 const MERGE_CONFIGS = {
@@ -164,6 +182,14 @@ const MERGE_CONFIGS = {
   ES: { map: ES_PROV_TO_COMMUNITY, names: Object.fromEntries(Object.entries(ES_COMMUNITIES).map(([k,v]) => [k, v.name])) },
   TH: { map: TH_PROV_TO_GROUP, names: Object.fromEntries(Object.entries(TH_GROUPS).map(([k,v]) => [k, v.name])) },
   TR: { map: TR_PROV_TO_NUTS1, names: Object.fromEntries(Object.entries(TR_NUTS1).map(([k,v]) => [k, v.name])) },
+  RO: { map: RO_COUNTY_TO_REGION, names: RO_REGION_NAMES },
+};
+
+// Countries where NE codes match our codes but some features should be excluded
+// (overseas territories, remote islands, etc.)
+const ALLOWED_CODES = {
+  NL: new Set(['NL-DR','NL-FL','NL-FR','NL-GE','NL-GR','NL-LI','NL-NB','NL-NH','NL-OV','NL-UT','NL-ZE','NL-ZH']),
+  NZ: new Set(['NZ-NTL','NZ-AUK','NZ-WKO','NZ-BOP','NZ-GIS','NZ-HKB','NZ-TKI','NZ-MWT','NZ-WGN','NZ-TAS','NZ-NSN','NZ-MBH','NZ-WTC','NZ-CAN','NZ-OTA','NZ-STL']),
 };
 
 // ── Helper functions ─────────────────────────────────────────────────────────
@@ -310,17 +336,29 @@ async function main() {
       outputFeatures = mergeFeatures(features, map, names);
     } else {
       // Standard: each NE feature = one province
-      outputFeatures = features.map(f => ({
-        type: 'Feature',
-        properties: {
-          code: f.properties.iso_3166_2 || `${cc}-${f.properties.postal || 'XX'}`,
-          name: f.properties.name || f.properties.name_en || 'Unknown',
-        },
-        geometry: {
-          type: f.geometry.type,
-          coordinates: simplifyCoords(normalizeAntimeridian(f.geometry.coordinates), 3),
-        },
-      }));
+      const allowed = ALLOWED_CODES[cc]; // undefined = allow all
+      let seenLim = false;
+      outputFeatures = features
+        .map(f => {
+          let code = f.properties.iso_3166_2 || `${cc}-${f.properties.postal || 'XX'}`;
+          // CZ: NE uses CZ-ST for Central Bohemian; our seed uses CZ-SC
+          if (cc === 'CZ' && code === 'CZ-ST') code = 'CZ-SC';
+          // PE: two NE features share code PE-LIM — Lima Province → PE-LMA
+          if (cc === 'PE' && code === 'PE-LIM') {
+            const name = (f.properties.name || '');
+            if (name.includes('Province') || seenLim) { code = 'PE-LMA'; } else { seenLim = true; }
+          }
+          if (allowed && !allowed.has(code)) return null;
+          return {
+            type: 'Feature',
+            properties: { code, name: f.properties.name || f.properties.name_en || 'Unknown' },
+            geometry: {
+              type: f.geometry.type,
+              coordinates: simplifyCoords(normalizeAntimeridian(f.geometry.coordinates), 3),
+            },
+          };
+        })
+        .filter(Boolean);
     }
 
     // No explicit winding fix — preserve original Natural Earth winding order.

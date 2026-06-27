@@ -382,6 +382,29 @@ export async function getUserPublicLocal(db, userId) {
   );
 }
 
+// ── Province + city visit helpers ───────────────────────────────────────────
+
+// All province codes this user has visited (any country).
+export async function getUserVisitedProvinceCodesLocal(db, userId) {
+  const rows = await db.all(
+    `SELECT province_code FROM user_provinces WHERE user_id = ?`,
+    [userId],
+  );
+  return new Set(rows.map(r => r.province_code));
+}
+
+// All cities the user has visited, as {name, country_code} pairs.
+export async function getUserVisitedCityNamesLocal(db, userId) {
+  const rows = await db.all(
+    `SELECT c.name, c.country_code
+       FROM user_cities uc
+       JOIN cities c ON c.id = uc.city_id
+       WHERE uc.user_id = ?`,
+    [userId],
+  );
+  return rows;
+}
+
 // ── Subregion bonus data ─────────────────────────────────────────────────────
 
 export async function getSubregionsLocal(db, userId, homeCountryCode) {

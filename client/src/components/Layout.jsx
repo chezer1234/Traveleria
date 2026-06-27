@@ -31,6 +31,9 @@ export default function Layout() {
             <Link to="/subregions" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
               Subregions
             </Link>
+            <Link to="/groups" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
+              Groups
+            </Link>
             {user && (
               <>
                 <span className="text-sm text-gray-500">{user.identifier}</span>
@@ -78,6 +81,9 @@ export default function Layout() {
             </Link>
             <Link to="/subregions" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
               Subregions
+            </Link>
+            <Link to="/groups" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
+              Groups
             </Link>
             {user && (
               <>

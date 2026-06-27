@@ -7,15 +7,22 @@ import {
   getUserDaysByCountry,
   getUserPublicLocal,
 } from '../lib/queries';
-import { computeTerritory, OWNER } from '../lib/territory';
+import { computeTerritory, OWNER, hexToRgba, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
 
 // Battle colours. You = blue, opponent = red, contested = purple, unvisited = grey.
+const BASE_COLORS = {
+  [OWNER.A]: { hex: '#3b82f6', hover: '#2563eb' },
+  [OWNER.B]: { hex: '#ef4444', hover: '#dc2626' },
+  [OWNER.CONTESTED]: { hex: '#a855f7', hover: '#9333ea' },
+  [OWNER.NONE]: { hex: '#d1d5db', hover: '#9ca3af' },
+};
+// Kept for non-gradient uses (key, chips, bar).
 const COLORS = {
-  [OWNER.A]: { fill: '#3b82f6', hover: '#2563eb' },
-  [OWNER.B]: { fill: '#ef4444', hover: '#dc2626' },
-  [OWNER.CONTESTED]: { fill: '#a855f7', hover: '#9333ea' },
-  [OWNER.NONE]: { fill: '#d1d5db', hover: '#9ca3af' },
+  [OWNER.A]: { fill: BASE_COLORS[OWNER.A].hex, hover: BASE_COLORS[OWNER.A].hover },
+  [OWNER.B]: { fill: BASE_COLORS[OWNER.B].hex, hover: BASE_COLORS[OWNER.B].hover },
+  [OWNER.CONTESTED]: { fill: BASE_COLORS[OWNER.CONTESTED].hex, hover: BASE_COLORS[OWNER.CONTESTED].hover },
+  [OWNER.NONE]: { fill: BASE_COLORS[OWNER.NONE].hex, hover: BASE_COLORS[OWNER.NONE].hover },
 };
 
 const flag = (code) =>
@@ -98,12 +105,16 @@ export default function Territory() {
   function getFill(geo) {
     const code = getAlpha2(geo);
     const owner = result.ownerByCode[code] || OWNER.NONE;
+    if (owner === OWNER.A || owner === OWNER.B) {
+      const grade = result.gradeByCode[code] || 'full';
+      return hexToRgba(BASE_COLORS[owner].hex, gradeOpacity(grade));
+    }
     return COLORS[owner].fill;
   }
   function getHoverFill(geo) {
     const code = getAlpha2(geo);
     const owner = result.ownerByCode[code] || OWNER.NONE;
-    return COLORS[owner].hover;
+    return BASE_COLORS[owner].hover;
   }
   function handleEnter(geo) {
     const code = getAlpha2(geo);

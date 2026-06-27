@@ -382,6 +382,42 @@ export async function getUserPublicLocal(db, userId) {
   );
 }
 
+// ── Groups (issue #37) ───────────────────────────────────────────────────────
+
+// All groups the given user belongs to, with their members.
+export async function getUserGroupsLocal(db, userId) {
+  const memberRows = await db.all(
+    `SELECT gm.group_id FROM group_members gm WHERE gm.user_id = ?`,
+    [userId],
+  );
+  if (!memberRows.length) return [];
+
+  const groupIds = memberRows.map((r) => r.group_id);
+  const placeholders = groupIds.map(() => '?').join(',');
+
+  const [groupRows, allMembers] = await Promise.all([
+    db.all(`SELECT * FROM groups WHERE id IN (${placeholders})`, groupIds),
+    db.all(`SELECT * FROM group_members WHERE group_id IN (${placeholders})`, groupIds),
+  ]);
+
+  const userIds = [...new Set(allMembers.map((m) => m.user_id))];
+  const userPlaceholders = userIds.map(() => '?').join(',');
+  const users = userIds.length
+    ? await db.all(`SELECT id, identifier, home_country FROM users_public WHERE id IN (${userPlaceholders})`, userIds)
+    : [];
+  const userById = Object.fromEntries(users.map((u) => [u.id, u]));
+
+  const membersByGroup = {};
+  for (const m of allMembers) {
+    (membersByGroup[m.group_id] ||= []).push({ ...m, user: userById[m.user_id] || null });
+  }
+
+  return groupRows.map((g) => ({
+    ...g,
+    members: (membersByGroup[g.id] || []).sort((a, b) => a.joined_at.localeCompare(b.joined_at)),
+  }));
+}
+
 // ── Province + city visit helpers ───────────────────────────────────────────
 
 // All province codes this user has visited (any country).

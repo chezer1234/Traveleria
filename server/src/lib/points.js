@@ -24,12 +24,12 @@ const EUROPE_ANCHOR = 50000;
 
 export const TIER_1_CODES = new Set([
   'CN', 'IN', 'US', 'ID', 'PK', 'BR', 'NG', 'BD', 'RU', 'MX',
+  'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
 ]);
 
 export const TIER_2_CODES = new Set([
   'JP', 'ET', 'PH', 'EG', 'VN', 'CD', 'TR', 'IR', 'DE', 'TH',
   'GB', 'FR', 'IT', 'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO', 'ES',
-  'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
 ]);
 
 // Flat points for microstates — bypass all exploration formulas

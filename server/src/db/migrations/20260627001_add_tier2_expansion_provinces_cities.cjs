@@ -173,6 +173,16 @@ const CITIES = [
 exports.up = async function (knex) {
   const crypto = require('crypto');
 
+  // On a fresh database, migrations run before seeds. The provinces table has
+  // a FK to countries, which is also empty at migration time. Seeds will
+  // populate everything for fresh DBs — only backfill on existing databases
+  // that already have country rows.
+  const countryCount = await knex('countries').count('* as count').first();
+  if (parseInt(countryCount.count, 10) === 0) {
+    console.log('Migration: countries table empty (fresh DB), seeds will handle provinces/cities.');
+    return;
+  }
+
   // --- Provinces ---
   // The `code` column has a UNIQUE constraint, so we batch-insert and ignore
   // any rows that already exist (safe to re-run).

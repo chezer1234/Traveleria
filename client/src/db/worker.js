@@ -25,6 +25,8 @@ const TABLE_MAP = {
   user_provinces: 'user_provinces',
   user_subregions: 'user_subregions',
   user_country_visits: 'user_country_visits',
+  groups: 'groups',
+  group_members: 'group_members',
 };
 
 const TABLE_COLUMNS = {
@@ -34,6 +36,8 @@ const TABLE_COLUMNS = {
   user_provinces: ['id', 'user_id', 'province_code', 'visited_at'],
   user_subregions: ['id', 'user_id', 'subregion'],
   user_country_visits: ['id', 'user_id', 'country_code', 'days', 'visited_at'],
+  groups: ['id', 'name', 'created_by', 'created_at'],
+  group_members: ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'],
 };
 
 let syncApiBase = '';
@@ -120,6 +124,20 @@ const DDL = [
     days INTEGER,
     visited_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS groups (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    created_by TEXT,
+    created_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS group_members (
+    id TEXT PRIMARY KEY,
+    group_id TEXT,
+    user_id TEXT,
+    primary_colour TEXT,
+    secondary_colour TEXT,
+    joined_at TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)`,
 ];
 
@@ -179,6 +197,8 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('user_provinces', snap.user_provinces || [], ['id', 'user_id', 'province_code', 'visited_at']);
     bulkInsert('user_subregions', snap.user_subregions || [], ['id', 'user_id', 'subregion']);
     bulkInsert('user_country_visits', snap.user_country_visits || [], ['id', 'user_id', 'country_code', 'days', 'visited_at']);
+    bulkInsert('groups', snap.groups || [], ['id', 'name', 'created_by', 'created_at']);
+    bulkInsert('group_members', snap.group_members || [], ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at']);
     db.exec({
       sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
       bind: [String(snap.cursor)],

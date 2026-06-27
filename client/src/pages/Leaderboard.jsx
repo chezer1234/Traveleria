@@ -70,7 +70,7 @@ export default function Leaderboard() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Home</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Points</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Countries</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Battle</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-500">Battle / Group</th>
               </tr>
             </thead>
             <tbody>
@@ -95,13 +95,22 @@ export default function Leaderboard() {
                     <td className="px-4 py-3 text-right text-gray-600">{entry.countries_visited}</td>
                     <td className="px-4 py-3 text-right">
                       {!isCurrentUser && (
-                        <Link
-                          to={`/territory/${entry.user_id}`}
-                          className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium"
-                          title={`Territory battle vs ${entry.identifier}`}
-                        >
-                          ⚔<span className="hidden sm:inline">Battle</span>
-                        </Link>
+                        <div className="inline-flex items-center gap-2">
+                          <Link
+                            to={`/territory/${entry.user_id}`}
+                            className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium"
+                            title={`Territory battle vs ${entry.identifier}`}
+                          >
+                            ⚔<span className="hidden sm:inline">Battle</span>
+                          </Link>
+                          <Link
+                            to={`/groups?add=${entry.user_id}`}
+                            className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium"
+                            title={`Add ${entry.identifier} to a group`}
+                          >
+                            +<span className="hidden sm:inline">Group</span>
+                          </Link>
+                        </div>
                       )}
                     </td>
                   </tr>

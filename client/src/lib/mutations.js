@@ -198,3 +198,130 @@ export async function removeCountryVisitOptimistic(db, userId, visitId) {
     body: null,
   });
 }
+
+// ── Groups (issue #37) ────────────────────────────────────────────────────────
+
+// Create a group with the current user as creator + initial other members.
+// `members` is [{id?, user_id, primary_colour, secondary_colour}].
+export async function createGroupOptimistic(
+  db,
+  userId,
+  name,
+  primaryColour,
+  secondaryColour,
+  members,
+) {
+  const groupId = newId();
+  const creatorMemberId = newId();
+  const now = new Date().toISOString();
+  const otherMembers = members.map((m) => ({ ...m, id: m.id || newId() }));
+
+  const preSteps = [
+    {
+      sql: `INSERT INTO groups (id, name, created_by, created_at) VALUES (?, ?, ?, ?)`,
+      bind: [groupId, name, userId, now],
+    },
+    {
+      sql: `INSERT INTO group_members (id, group_id, user_id, primary_colour, secondary_colour, joined_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+      bind: [creatorMemberId, groupId, userId, primaryColour, secondaryColour, now],
+    },
+    ...otherMembers.map((m) => ({
+      sql: `INSERT INTO group_members (id, group_id, user_id, primary_colour, secondary_colour, joined_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+      bind: [m.id, groupId, m.user_id, m.primary_colour, m.secondary_colour, now],
+    })),
+  ];
+
+  await db.mutate({
+    preSteps,
+    endpoint: `/api/groups`,
+    method: 'POST',
+    body: {
+      id: groupId,
+      name,
+      primary_colour: primaryColour,
+      secondary_colour: secondaryColour,
+      creator_member_id: creatorMemberId,
+      members: otherMembers,
+    },
+  });
+  return groupId;
+}
+
+export async function renameGroupOptimistic(db, groupId, name) {
+  return db.mutate({
+    preSteps: [
+      { sql: `UPDATE groups SET name = ? WHERE id = ?`, bind: [name, groupId] },
+    ],
+    endpoint: `/api/groups/${groupId}`,
+    method: 'PATCH',
+    body: { name },
+  });
+}
+
+export async function deleteGroupOptimistic(db, groupId) {
+  return db.mutate({
+    preSteps: [
+      { sql: `DELETE FROM group_members WHERE group_id = ?`, bind: [groupId] },
+      { sql: `DELETE FROM groups WHERE id = ?`, bind: [groupId] },
+    ],
+    endpoint: `/api/groups/${groupId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+export async function addGroupMemberOptimistic(db, groupId, member) {
+  const memberId = member.id || newId();
+  const now = new Date().toISOString();
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO group_members (id, group_id, user_id, primary_colour, secondary_colour, joined_at)
+                VALUES (?, ?, ?, ?, ?, ?)`,
+        bind: [memberId, groupId, member.user_id, member.primary_colour, member.secondary_colour, now],
+      },
+    ],
+    endpoint: `/api/groups/${groupId}/members`,
+    method: 'POST',
+    body: { id: memberId, ...member },
+  });
+}
+
+export async function leaveGroupOptimistic(db, groupId, userId) {
+  return db.mutate({
+    preSteps: [
+      { sql: `DELETE FROM group_members WHERE group_id = ? AND user_id = ?`, bind: [groupId, userId] },
+    ],
+    endpoint: `/api/groups/${groupId}/members/${userId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+export async function removeGroupMemberOptimistic(db, groupId, targetUserId) {
+  return db.mutate({
+    preSteps: [
+      { sql: `DELETE FROM group_members WHERE group_id = ? AND user_id = ?`, bind: [groupId, targetUserId] },
+    ],
+    endpoint: `/api/groups/${groupId}/members/${targetUserId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+export async function updateGroupColoursOptimistic(db, groupId, userId, primaryColour, secondaryColour) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `UPDATE group_members SET primary_colour = ?, secondary_colour = ?
+                WHERE group_id = ? AND user_id = ?`,
+        bind: [primaryColour, secondaryColour, groupId, userId],
+      },
+    ],
+    endpoint: `/api/groups/${groupId}/members/${userId}/colours`,
+    method: 'PATCH',
+    body: { primary_colour: primaryColour, secondary_colour: secondaryColour },
+  });
+}

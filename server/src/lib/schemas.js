@@ -87,6 +87,44 @@ export const addVisitSchema = z.object({
   visited_at: visitedAtSchema,
 });
 
+const hexColourSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a 6-digit hex string e.g. #3b82f6');
+
+const groupNameSchema = z.string().trim().min(1, 'Name is required').max(60, 'Name too long');
+
+export const createGroupSchema = z.object({
+  id: clientIdSchema,
+  name: groupNameSchema,
+  members: z
+    .array(
+      z.object({
+        id: clientIdSchema,
+        user_id: z.string().uuid(),
+        primary_colour: hexColourSchema,
+        secondary_colour: hexColourSchema,
+      }),
+    )
+    .min(1, 'A group needs at least one other member'),
+  creator_member_id: clientIdSchema,
+  primary_colour: hexColourSchema,
+  secondary_colour: hexColourSchema,
+});
+
+export const renameGroupSchema = z.object({ name: groupNameSchema });
+
+export const addGroupMemberSchema = z.object({
+  id: clientIdSchema,
+  user_id: z.string().uuid(),
+  primary_colour: hexColourSchema,
+  secondary_colour: hexColourSchema,
+});
+
+export const updateColoursSchema = z.object({
+  primary_colour: hexColourSchema,
+  secondary_colour: hexColourSchema,
+});
+
 // Middleware factory: parse req.body through a schema, short-circuit with 422 on failure.
 export function validateBody(schema) {
   return (req, res, next) => {

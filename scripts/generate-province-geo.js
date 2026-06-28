@@ -18,6 +18,11 @@ const COUNTRIES = [
   'GB', 'FR', 'IT', 'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO', 'ES',
   // Tier 2 additions
   'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
+  // V1.4: Canada, Australia, all Europe
+  'CA', 'AU',
+  'AL', 'BA', 'BE', 'BG', 'BY', 'CH', 'CY', 'DK', 'EE', 'FI',
+  'GR', 'HR', 'HU', 'IE', 'IS', 'LT', 'LU', 'LV', 'MD', 'ME',
+  'MK', 'MT', 'NO', 'PL', 'PT', 'RS', 'SE', 'SI', 'SK', 'UA', 'XK',
 ];
 
 // ── Merge maps ───────────────────────────────────────────────────────────────
@@ -174,6 +179,58 @@ const RO_REGION_NAMES = {
   'RO-SM':'South Muntenia','RO-BU':'Bucharest-Ilfov','RO-SW':'South-West Oltenia','RO-WS':'West',
 };
 
+// Bulgaria: 28 oblasts → 6 NUTS-2 planning regions
+const BG_OBLAST_TO_REGION = {
+  'BG-24':'BG-NW','BG-09':'BG-NW','BG-26':'BG-NW','BG-08':'BG-NW','BG-12':'BG-NW',
+  'BG-15':'BG-NC','BG-14':'BG-NC','BG-23':'BG-NC','BG-04':'BG-NC','BG-25':'BG-NC',
+  'BG-03':'BG-NE','BG-05':'BG-NE','BG-16':'BG-NE','BG-17':'BG-NE',
+  'BG-02':'BG-SE','BG-27':'BG-SE','BG-18':'BG-SE','BG-22':'BG-SE',
+  'BG-13':'BG-SC','BG-06':'BG-SC','BG-19':'BG-SC','BG-28':'BG-SC','BG-10':'BG-SC',
+  'BG-20':'BG-SW','BG-21':'BG-SW','BG-01':'BG-SW','BG-11':'BG-SW','BG-07':'BG-SW',
+};
+const BG_REGION_NAMES = {
+  'BG-NW':'Northwest','BG-NC':'North-Central','BG-NE':'Northeast',
+  'BG-SE':'Southeast','BG-SC':'South-Central','BG-SW':'Southwest',
+};
+
+// Ireland: 26 counties → 4 historical provinces
+const IE_COUNTY_TO_PROVINCE = {
+  // Connacht
+  'IE-G':'IE-C','IE-LM':'IE-C','IE-MO':'IE-C','IE-RN':'IE-C','IE-SO':'IE-C',
+  // Leinster
+  'IE-CW':'IE-L','IE-D':'IE-L','IE-KE':'IE-L','IE-KK':'IE-L','IE-LS':'IE-L',
+  'IE-LD':'IE-L','IE-LH':'IE-L','IE-MH':'IE-L','IE-OY':'IE-L','IE-WH':'IE-L',
+  'IE-WX':'IE-L','IE-WW':'IE-L',
+  // Munster
+  'IE-CE':'IE-M','IE-CO':'IE-M','IE-KY':'IE-M','IE-LK':'IE-M','IE-TA':'IE-M','IE-WD':'IE-M',
+  // Ulster (Republic counties only)
+  'IE-CN':'IE-U','IE-DL':'IE-U','IE-MN':'IE-U',
+};
+const IE_PROVINCE_NAMES = {
+  'IE-C':'Connacht','IE-L':'Leinster','IE-M':'Munster','IE-U':'Ulster',
+};
+
+// Portugal: 18 districts + 2 autonomous regions → 7 NUTS-2 regions
+// NE uses district-level ISO 3166-2 codes; our provinces use custom NUTS-2 codes
+const PT_DISTRICT_TO_PROVINCE = {
+  // Norte (PT-01)
+  'PT-16':'PT-01','PT-03':'PT-01','PT-13':'PT-01','PT-17':'PT-01','PT-04':'PT-01',
+  // Centro (PT-02)
+  'PT-01':'PT-02','PT-06':'PT-02','PT-10':'PT-02','PT-18':'PT-02','PT-09':'PT-02','PT-05':'PT-02',
+  // Lisboa (PT-06)
+  'PT-11':'PT-06','PT-15':'PT-06',
+  // Alentejo (PT-07)
+  'PT-07':'PT-07','PT-02':'PT-07','PT-12':'PT-07','PT-14':'PT-07',
+  // Algarve (PT-08)
+  'PT-08':'PT-08',
+  // Azores (PT-20) and Madeira (PT-30) match directly
+  'PT-20':'PT-20','PT-30':'PT-30',
+};
+const PT_PROVINCE_NAMES = {
+  'PT-01':'Norte','PT-02':'Centro','PT-06':'Lisboa (Área Metropolitana)',
+  'PT-07':'Alentejo','PT-08':'Algarve','PT-20':'Azores','PT-30':'Madeira',
+};
+
 // ── Merge config: which countries need feature merging? ──────────────────────
 
 const MERGE_CONFIGS = {
@@ -183,6 +240,9 @@ const MERGE_CONFIGS = {
   TH: { map: TH_PROV_TO_GROUP, names: Object.fromEntries(Object.entries(TH_GROUPS).map(([k,v]) => [k, v.name])) },
   TR: { map: TR_PROV_TO_NUTS1, names: Object.fromEntries(Object.entries(TR_NUTS1).map(([k,v]) => [k, v.name])) },
   RO: { map: RO_COUNTY_TO_REGION, names: RO_REGION_NAMES },
+  BG: { map: BG_OBLAST_TO_REGION, names: BG_REGION_NAMES },
+  IE: { map: IE_COUNTY_TO_PROVINCE, names: IE_PROVINCE_NAMES },
+  PT: { map: PT_DISTRICT_TO_PROVINCE, names: PT_PROVINCE_NAMES },
 };
 
 // Countries where NE codes match our codes but some features should be excluded
@@ -190,6 +250,9 @@ const MERGE_CONFIGS = {
 const ALLOWED_CODES = {
   NL: new Set(['NL-DR','NL-FL','NL-FR','NL-GE','NL-GR','NL-LI','NL-NB','NL-NH','NL-OV','NL-UT','NL-ZE','NL-ZH']),
   NZ: new Set(['NZ-NTL','NZ-AUK','NZ-WKO','NZ-BOP','NZ-GIS','NZ-HKB','NZ-TKI','NZ-MWT','NZ-WGN','NZ-TAS','NZ-NSN','NZ-MBH','NZ-WTC','NZ-CAN','NZ-OTA','NZ-STL']),
+  AU: new Set(['AU-NSW','AU-QLD','AU-SA','AU-TAS','AU-VIC','AU-WA','AU-ACT','AU-NT']),
+  // GR: exclude Mount Athos (GR-69) which NE treats as a separate entity
+  GR: new Set(['GR-A','GR-B','GR-C','GR-D','GR-E','GR-F','GR-G','GR-H','GR-I','GR-J','GR-K','GR-L','GR-M']),
 };
 
 // ── Helper functions ─────────────────────────────────────────────────────────
@@ -343,6 +406,10 @@ async function main() {
           let code = f.properties.iso_3166_2 || `${cc}-${f.properties.postal || 'XX'}`;
           // CZ: NE uses CZ-ST for Central Bohemian; our seed uses CZ-SC
           if (cc === 'CZ' && code === 'CZ-ST') code = 'CZ-SC';
+          // GR: NE uses GR-A1 for Attica; our seed uses GR-I
+          if (cc === 'GR' && code === 'GR-A1') code = 'GR-I';
+          // IS: NE has IS-0 (Reykjavík city) as separate from IS-1 (Capital Region); merge to IS-1
+          if (cc === 'IS' && code === 'IS-0') code = 'IS-1';
           // PE: two NE features share code PE-LIM — Lima Province → PE-LMA
           if (cc === 'PE' && code === 'PE-LIM') {
             const name = (f.properties.name || '');

@@ -488,6 +488,266 @@ const cities = [
   { country_code: 'PE', name: 'Cusco',        population:  428450 },
   { country_code: 'PE', name: 'Puno',         population:  125663 },
   { country_code: 'PE', name: 'Tacna',        population:  329705 },
+
+  // Albania (AL) - population: 2,877,797
+  { country_code: 'AL', name: 'Tirana',    population: 418495 },
+  { country_code: 'AL', name: 'Durrës',    population: 175110 },
+  { country_code: 'AL', name: 'Vlorë',     population:  79513 },
+  { country_code: 'AL', name: 'Shkodër',   population:  77075 },
+  { country_code: 'AL', name: 'Elbasan',   population:  78703 },
+  { country_code: 'AL', name: 'Korçë',     population:  51152 },
+
+  // Bosnia and Herzegovina (BA) - population: 3,280,819
+  { country_code: 'BA', name: 'Sarajevo',   population: 275524 },
+  { country_code: 'BA', name: 'Banja Luka', population: 185042 },
+  { country_code: 'BA', name: 'Tuzla',      population:  110979 },
+  { country_code: 'BA', name: 'Zenica',     population:  70553 },
+  { country_code: 'BA', name: 'Mostar',     population:  96828 },
+
+  // Belgium (BE) - population: 11,589,623
+  { country_code: 'BE', name: 'Brussels',  population: 1208542 },
+  { country_code: 'BE', name: 'Antwerp',   population:  529247 },
+  { country_code: 'BE', name: 'Ghent',     population:  263815 },
+  { country_code: 'BE', name: 'Charleroi', population:  201816 },
+  { country_code: 'BE', name: 'Liège',     population:  197013 },
+  { country_code: 'BE', name: 'Bruges',    population:  118708 },
+  { country_code: 'BE', name: 'Namur',     population:  112097 },
+  { country_code: 'BE', name: 'Leuven',    population:  101960 },
+
+  // Bulgaria (BG) - population: 6,519,789
+  { country_code: 'BG', name: 'Sofia',        population: 1241675 },
+  { country_code: 'BG', name: 'Plovdiv',      population:  346893 },
+  { country_code: 'BG', name: 'Varna',        population:  336505 },
+  { country_code: 'BG', name: 'Burgas',       population:  211599 },
+  { country_code: 'BG', name: 'Stara Zagora', population:  138272 },
+  { country_code: 'BG', name: 'Ruse',         population:  134657 },
+  { country_code: 'BG', name: 'Pleven',       population:  100848 },
+
+  // Belarus (BY) - population: 9,449,323
+  { country_code: 'BY', name: 'Minsk',     population: 1982444 },
+  { country_code: 'BY', name: 'Gomel',     population:  480951 },
+  { country_code: 'BY', name: 'Mogilev',   population:  360918 },
+  { country_code: 'BY', name: 'Vitebsk',   population:  366350 },
+  { country_code: 'BY', name: 'Grodno',    population:  373547 },
+  { country_code: 'BY', name: 'Brest',     population:  340141 },
+  { country_code: 'BY', name: 'Baranavichy', population: 168800 },
+
+  // Switzerland (CH) - population: 8,654,622
+  { country_code: 'CH', name: 'Zurich',    population: 434335 },
+  { country_code: 'CH', name: 'Geneva',    population: 201818 },
+  { country_code: 'CH', name: 'Basel',     population: 178120 },
+  { country_code: 'CH', name: 'Bern',      population: 134591 },
+  { country_code: 'CH', name: 'Lausanne',  population: 145000 },
+  { country_code: 'CH', name: 'Winterthur',population: 115000 },
+  { country_code: 'CH', name: 'Lucerne',   population:  81691 },
+  { country_code: 'CH', name: 'St. Gallen',population:  75833 },
+
+  // Cyprus (CY) - population: 1,207,359
+  { country_code: 'CY', name: 'Nicosia',   population: 200452 },
+  { country_code: 'CY', name: 'Limassol',  population: 101000 },
+  { country_code: 'CY', name: 'Larnaca',   population:  51468 },
+  { country_code: 'CY', name: 'Paphos',    population:  32814 },
+  { country_code: 'CY', name: 'Famagusta', population:  42526 },
+
+  // Denmark (DK) - population: 5,792,202
+  { country_code: 'DK', name: 'Copenhagen', population: 794128 },
+  { country_code: 'DK', name: 'Aarhus',     population: 285273 },
+  { country_code: 'DK', name: 'Odense',     population: 180863 },
+  { country_code: 'DK', name: 'Aalborg',    population: 115908 },
+  { country_code: 'DK', name: 'Esbjerg',    population:  71609 },
+  { country_code: 'DK', name: 'Randers',    population:  62730 },
+
+  // Estonia (EE) - population: 1,326,535
+  { country_code: 'EE', name: 'Tallinn',  population: 437619 },
+  { country_code: 'EE', name: 'Tartu',    population:  97000 },
+  { country_code: 'EE', name: 'Narva',    population:  58000 },
+  { country_code: 'EE', name: 'Pärnu',    population:  51000 },
+  { country_code: 'EE', name: 'Kohtla-Järve', population: 35000 },
+
+  // Finland (FI) - population: 5,540,720
+  { country_code: 'FI', name: 'Helsinki',  population: 655281 },
+  { country_code: 'FI', name: 'Espoo',     population: 292913 },
+  { country_code: 'FI', name: 'Tampere',   population: 238140 },
+  { country_code: 'FI', name: 'Vantaa',    population: 232620 },
+  { country_code: 'FI', name: 'Oulu',      population: 207993 },
+  { country_code: 'FI', name: 'Turku',     population: 193150 },
+  { country_code: 'FI', name: 'Jyväskylä',population: 141305 },
+  { country_code: 'FI', name: 'Rovaniemi', population:  63164 },
+
+  // Greece (GR) - population: 10,423,054
+  { country_code: 'GR', name: 'Athens',       population: 664046 },
+  { country_code: 'GR', name: 'Thessaloniki', population: 325182 },
+  { country_code: 'GR', name: 'Patras',       population: 167446 },
+  { country_code: 'GR', name: 'Piraeus',      population: 163688 },
+  { country_code: 'GR', name: 'Heraklion',    population: 140730 },
+  { country_code: 'GR', name: 'Larissa',      population: 144651 },
+  { country_code: 'GR', name: 'Volos',        population:  86046 },
+  { country_code: 'GR', name: 'Rhodes',       population:  50636 },
+
+  // Croatia (HR) - population: 4,047,200
+  { country_code: 'HR', name: 'Zagreb',    population: 790017 },
+  { country_code: 'HR', name: 'Split',     population: 178102 },
+  { country_code: 'HR', name: 'Rijeka',    population: 128624 },
+  { country_code: 'HR', name: 'Osijek',    population: 108048 },
+  { country_code: 'HR', name: 'Zadar',     population:  75062 },
+  { country_code: 'HR', name: 'Dubrovnik', population:  42615 },
+
+  // Hungary (HU) - population: 9,660,351
+  { country_code: 'HU', name: 'Budapest',   population: 1752286 },
+  { country_code: 'HU', name: 'Debrecen',   population:  202214 },
+  { country_code: 'HU', name: 'Miskolc',    population:  158178 },
+  { country_code: 'HU', name: 'Szeged',     population:  161879 },
+  { country_code: 'HU', name: 'Pécs',       population:  145347 },
+  { country_code: 'HU', name: 'Győr',       population:  127132 },
+  { country_code: 'HU', name: 'Nyíregyháza',population:  118590 },
+  { country_code: 'HU', name: 'Kecskemét', population:  111961 },
+
+  // Iceland (IS) - population: 341,243
+  { country_code: 'IS', name: 'Reykjavik',  population: 123000 },
+  { country_code: 'IS', name: 'Kópavogur',  population:  36000 },
+  { country_code: 'IS', name: 'Hafnarfjörður', population: 29000 },
+  { country_code: 'IS', name: 'Akureyri',   population:  18000 },
+
+  // Ireland (IE) - population: 4,937,786
+  { country_code: 'IE', name: 'Dublin',     population: 1173179 },
+  { country_code: 'IE', name: 'Cork',       population:  210000 },
+  { country_code: 'IE', name: 'Limerick',   population:   94192 },
+  { country_code: 'IE', name: 'Galway',     population:   80976 },
+  { country_code: 'IE', name: 'Waterford',  population:   53504 },
+  { country_code: 'IE', name: 'Kilkenny',   population:   26512 },
+
+  // Kosovo (XK) - population: 1,810,366
+  { country_code: 'XK', name: 'Pristina',  population: 210040 },
+  { country_code: 'XK', name: 'Prizren',   population:  85000 },
+  { country_code: 'XK', name: 'Ferizaj',   population:  70000 },
+  { country_code: 'XK', name: 'Peja',      population:  64000 },
+  { country_code: 'XK', name: 'Gjakova',   population:  60000 },
+
+  // Latvia (LV) - population: 1,886,198
+  { country_code: 'LV', name: 'Riga',      population: 632614 },
+  { country_code: 'LV', name: 'Daugavpils',population:  80914 },
+  { country_code: 'LV', name: 'Liepāja',   population:  68945 },
+  { country_code: 'LV', name: 'Jelgava',   population:  56978 },
+  { country_code: 'LV', name: 'Jūrmala',   population:  47831 },
+
+  // Lithuania (LT) - population: 2,722,289
+  { country_code: 'LT', name: 'Vilnius',   population: 574147 },
+  { country_code: 'LT', name: 'Kaunas',    population: 289380 },
+  { country_code: 'LT', name: 'Klaipėda', population: 149269 },
+  { country_code: 'LT', name: 'Šiauliai',  population:  99233 },
+  { country_code: 'LT', name: 'Panevėžys', population:  90376 },
+
+  // Luxembourg (LU) - population: 625,978
+  { country_code: 'LU', name: 'Luxembourg City', population: 122273 },
+  { country_code: 'LU', name: 'Esch-sur-Alzette', population: 35000 },
+  { country_code: 'LU', name: 'Differdange',      population: 27000 },
+  { country_code: 'LU', name: 'Diekirch',         population:  7000 },
+
+  // Moldova (MD) - population: 2,657,637
+  { country_code: 'MD', name: 'Chișinău',  population: 532513 },
+  { country_code: 'MD', name: 'Tiraspol',  population: 129500 },
+  { country_code: 'MD', name: 'Bălți',     population:  97988 },
+  { country_code: 'MD', name: 'Bender',    population:  91882 },
+
+  // Montenegro (ME) - population: 628,066
+  { country_code: 'ME', name: 'Podgorica', population: 150977 },
+  { country_code: 'ME', name: 'Nikšić',    population:  56970 },
+  { country_code: 'ME', name: 'Herceg Novi', population: 20000 },
+  { country_code: 'ME', name: 'Bar',       population:  17000 },
+
+  // North Macedonia (MK) - population: 2,083,459
+  { country_code: 'MK', name: 'Skopje',   population: 506926 },
+  { country_code: 'MK', name: 'Bitola',   population:  74550 },
+  { country_code: 'MK', name: 'Kumanovo', population:  70842 },
+  { country_code: 'MK', name: 'Tetovo',   population:  52915 },
+  { country_code: 'MK', name: 'Ohrid',    population:  42000 },
+
+  // Malta (MT) - population: 441,543
+  { country_code: 'MT', name: 'Valletta',  population:  5827 },
+  { country_code: 'MT', name: 'Birkirkara',population: 24000 },
+  { country_code: 'MT', name: 'Mosta',     population: 20000 },
+  { country_code: 'MT', name: 'St. Julian\'s', population: 18000 },
+  { country_code: 'MT', name: 'Victoria',  population: 6500 },
+
+  // Norway (NO) - population: 5,421,241
+  { country_code: 'NO', name: 'Oslo',      population: 693491 },
+  { country_code: 'NO', name: 'Bergen',    population: 285911 },
+  { country_code: 'NO', name: 'Stavanger', population: 144031 },
+  { country_code: 'NO', name: 'Trondheim', population: 207595 },
+  { country_code: 'NO', name: 'Tromsø',    population:  77432 },
+  { country_code: 'NO', name: 'Fredrikstad', population: 84530 },
+  { country_code: 'NO', name: 'Kristiansand', population: 63469 },
+
+  // Poland (PL) - population: 37,950,802
+  { country_code: 'PL', name: 'Warsaw',    population: 1790658 },
+  { country_code: 'PL', name: 'Kraków',   population:  779115 },
+  { country_code: 'PL', name: 'Łódź',     population:  672185 },
+  { country_code: 'PL', name: 'Wrocław',  population:  641607 },
+  { country_code: 'PL', name: 'Poznań',   population:  538633 },
+  { country_code: 'PL', name: 'Gdańsk',   population:  470907 },
+  { country_code: 'PL', name: 'Szczecin', population:  401907 },
+  { country_code: 'PL', name: 'Bydgoszcz',population:  352313 },
+  { country_code: 'PL', name: 'Lublin',   population:  339784 },
+  { country_code: 'PL', name: 'Katowice', population:  291000 },
+
+  // Portugal (PT) - population: 10,196,709
+  { country_code: 'PT', name: 'Lisbon',    population: 505526 },
+  { country_code: 'PT', name: 'Porto',     population: 231800 },
+  { country_code: 'PT', name: 'Braga',     population: 193333 },
+  { country_code: 'PT', name: 'Amadora',   population: 175136 },
+  { country_code: 'PT', name: 'Coimbra',   population: 143052 },
+  { country_code: 'PT', name: 'Funchal',   population:  111892 },
+  { country_code: 'PT', name: 'Setúbal',   population:  89303 },
+  { country_code: 'PT', name: 'Faro',      population:  64560 },
+
+  // Serbia (RS) - population: 6,804,596
+  { country_code: 'RS', name: 'Belgrade',  population: 1694000 },
+  { country_code: 'RS', name: 'Novi Sad',  population:  277522 },
+  { country_code: 'RS', name: 'Niš',       population:  260237 },
+  { country_code: 'RS', name: 'Subotica',  population:  141554 },
+  { country_code: 'RS', name: 'Zemun',     population:  155000 },
+  { country_code: 'RS', name: 'Čačak',     population:  73331 },
+
+  // Sweden (SE) - population: 10,099,265
+  { country_code: 'SE', name: 'Stockholm', population: 975904 },
+  { country_code: 'SE', name: 'Gothenburg',population: 590580 },
+  { country_code: 'SE', name: 'Malmö',     population: 351749 },
+  { country_code: 'SE', name: 'Uppsala',   population: 233839 },
+  { country_code: 'SE', name: 'Västerås',  population: 154049 },
+  { country_code: 'SE', name: 'Örebro',    population: 155101 },
+  { country_code: 'SE', name: 'Linköping', population: 163051 },
+  { country_code: 'SE', name: 'Helsingborg',population: 147643 },
+  { country_code: 'SE', name: 'Umeå',      population: 130224 },
+  { country_code: 'SE', name: 'Kiruna',    population:  23167 },
+
+  // Slovakia (SK) - population: 5,459,642
+  { country_code: 'SK', name: 'Bratislava', population: 475503 },
+  { country_code: 'SK', name: 'Košice',     population: 238593 },
+  { country_code: 'SK', name: 'Prešov',     population:  91782 },
+  { country_code: 'SK', name: 'Žilina',     population:  81104 },
+  { country_code: 'SK', name: 'Banská Bystrica', population: 78327 },
+  { country_code: 'SK', name: 'Nitra',      population:  77095 },
+
+  // Slovenia (SI) - population: 2,100,126
+  { country_code: 'SI', name: 'Ljubljana', population: 295504 },
+  { country_code: 'SI', name: 'Maribor',   population: 111497 },
+  { country_code: 'SI', name: 'Celje',     population:  49669 },
+  { country_code: 'SI', name: 'Kranj',     population:  56132 },
+  { country_code: 'SI', name: 'Koper',     population:  25000 },
+
+  // Ukraine (UA) - population: 43,733,762
+  { country_code: 'UA', name: 'Kyiv',         population: 2967360 },
+  { country_code: 'UA', name: 'Kharkiv',      population: 1443210 },
+  { country_code: 'UA', name: 'Odessa',       population: 1015826 },
+  { country_code: 'UA', name: 'Dnipro',       population: 993094 },
+  { country_code: 'UA', name: 'Donetsk',      population: 929063 },
+  { country_code: 'UA', name: 'Zaporizhzhia', population: 722713 },
+  { country_code: 'UA', name: 'Lviv',         population: 724314 },
+  { country_code: 'UA', name: 'Mykolaiv',     population: 476101 },
+  { country_code: 'UA', name: 'Mariupol',     population: 431859 },
+  { country_code: 'UA', name: 'Vinnytsia',    population: 370606 },
+  { country_code: 'UA', name: 'Cherkasy',     population: 279915 },
+  { country_code: 'UA', name: 'Poltava',      population: 288674 },
 ];
 
 /**

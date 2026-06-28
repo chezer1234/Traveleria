@@ -61,15 +61,15 @@ describe('Country Tiers', () => {
 
   test('Tier 2: ranks 11-30', () => {
     expect(getCountryTier('JP')).toBe(2);
-    expect(getCountryTier('DE')).toBe(2);
-    expect(getCountryTier('FR')).toBe(2);
-    expect(getCountryTier('ES')).toBe(2);
+    expect(getCountryTier('ET')).toBe(2);
+    expect(getCountryTier('KR')).toBe(2);
+    expect(getCountryTier('ZA')).toBe(2);
   });
 
   test('Tier 3: all others', () => {
-    expect(getCountryTier('PT')).toBe(3);
-    expect(getCountryTier('IS')).toBe(3);
-    expect(getCountryTier('AU')).toBe(3);
+    expect(getCountryTier('LA')).toBe(3);
+    expect(getCountryTier('BO')).toBe(3);
+    expect(getCountryTier('GH')).toBe(3);
   });
 
   test('Microstates', () => {
@@ -353,7 +353,7 @@ describe('Full Country Points Calculation', () => {
     expect(pts.explorationPoints).toBe(0);
   });
 
-  test('Tier 2 country (France) with provinces', () => {
+  test('Tier 1 country (France) with provinces', () => {
     const france = sampleCountries.find(c => c.code === 'FR');
     const allProvinces = [
       { code: 'FR-IDF', name: 'Île-de-France', population: 12278210, country_code: 'FR' },
@@ -368,7 +368,7 @@ describe('Full Country Points Calculation', () => {
       allCities: [],
     });
 
-    expect(pts.tier).toBe(2);
+    expect(pts.tier).toBe(1);
     expect(pts.baseline).toBeGreaterThan(0);
     expect(pts.explorationPoints).toBeGreaterThan(0);
     expect(pts.total).toBeCloseTo(pts.baseline + pts.explorationPoints, 2);
@@ -377,9 +377,9 @@ describe('Full Country Points Calculation', () => {
   });
 
   test('Tier 3 country with no cities returns baseline only', () => {
-    const portugal = sampleCountries.find(c => c.code === 'PT');
-    const pts = calculateCountryPoints(portugal, homeGB, sampleCountries, {
-      allCities: [{ id: '1', name: 'Lisbon', population: 504718 }],
+    const la = sampleCountries.find(c => c.code === 'LA');
+    const pts = calculateCountryPoints(la, homeGB, sampleCountries, {
+      allCities: [{ id: '1', name: 'Vientiane', population: 820000 }],
     });
 
     expect(pts.tier).toBe(3);

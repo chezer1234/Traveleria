@@ -306,7 +306,7 @@ jobs:
                 --data-urlencode "direction=backward" 2>/dev/null || echo '{}')
               echo "$LOGS" | jq -r '.logs[]? | "\(.timestamp) \(.message)"' 2>/dev/null \
                 || echo "(no logs parsed; raw response below)"
-              echo "$LOGS" | head -c 500
+              echo "$LOGS" | head -c 500 || true
             else
               echo "(could not resolve ownerId for ${SVC_ID} — skipping log fetch)"
             fi

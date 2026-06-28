@@ -157,7 +157,7 @@ describe('Points Calculation — Integration', () => {
     const homeGB = allCountries.find(c => c.code === 'GB');
 
     const pts = calculateCountryPoints(france, homeGB, allCountries, {});
-    expect(pts.tier).toBe(2);
+    expect(pts.tier).toBe(1);
     expect(pts.baseline).toBeGreaterThan(0);
     expect(pts.explorationPoints).toBe(0);
     expect(pts.total).toBe(pts.baseline);

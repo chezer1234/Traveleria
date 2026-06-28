@@ -23,13 +23,24 @@ const EUROPE_ANCHOR = 50000;
 // ── Country tier classification ─────────────────────────────────────────────
 
 export const TIER_1_CODES = new Set([
+  // World top-10 by population
   'CN', 'IN', 'US', 'ID', 'PK', 'BR', 'NG', 'BD', 'RU', 'MX',
-  'AT', 'NL', 'CZ', 'NZ', 'RO', 'PE',
+  // Oceania
+  'NZ', 'AU',
+  // North America
+  'CA',
+  // South America
+  'PE',
+  // Europe — all countries except microstates (VA, MC, SM, LI, AD)
+  'AL', 'AT', 'BA', 'BE', 'BG', 'BY', 'CH', 'CY', 'CZ', 'DE',
+  'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE',
+  'IS', 'IT', 'LT', 'LU', 'LV', 'MD', 'ME', 'MK', 'MT', 'NL',
+  'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK', 'UA', 'XK',
 ]);
 
 export const TIER_2_CODES = new Set([
-  'JP', 'ET', 'PH', 'EG', 'VN', 'CD', 'TR', 'IR', 'DE', 'TH',
-  'GB', 'FR', 'IT', 'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO', 'ES',
+  'JP', 'ET', 'PH', 'EG', 'VN', 'CD', 'TR', 'IR', 'TH',
+  'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO',
 ]);
 
 // Flat points for microstates — bypass all exploration formulas

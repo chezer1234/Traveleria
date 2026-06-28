@@ -1,18 +1,35 @@
 import { useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ChecklistOverlay from './ChecklistOverlay';
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
   const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <nav aria-label="Main navigation" className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/dashboard" className="text-xl font-bold text-indigo-600">
-            TravelPoints
-          </Link>
+          <div className="flex items-center gap-3">
+            {user && (
+              <button
+                onClick={() => setChecklistOpen((o) => !o)}
+                className="relative p-1.5 text-gray-500 hover:text-indigo-600 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Open explorer checklist"
+                aria-expanded={checklistOpen}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </button>
+            )}
+            <Link to="/dashboard" className="text-xl font-bold text-indigo-600">
+              TravelPoints
+            </Link>
+          </div>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-4">
@@ -99,6 +116,8 @@ export default function Layout() {
           </div>
         )}
       </nav>
+
+      <ChecklistOverlay isOpen={checklistOpen} onClose={() => setChecklistOpen(false)} />
 
       <main className="flex-1">
         <Outlet />

@@ -441,6 +441,23 @@ export async function getUserVisitedCityNamesLocal(db, userId) {
   return rows;
 }
 
+// ── Checklist progress (issue #44) ──────────────────────────────────────────
+
+export async function getChecklistStatusLocal(db, userId) {
+  const [countryCount, provinceCount, cityCount, subregionCount] = await Promise.all([
+    db.value(`SELECT COUNT(*) FROM user_countries WHERE user_id = ?`, [userId]),
+    db.value(`SELECT COUNT(*) FROM user_provinces WHERE user_id = ?`, [userId]),
+    db.value(`SELECT COUNT(*) FROM user_cities WHERE user_id = ?`, [userId]),
+    db.value(`SELECT COUNT(*) FROM user_subregions WHERE user_id = ?`, [userId]),
+  ]);
+  return {
+    hasCountry: (Number(countryCount) || 0) > 0,
+    hasProvince: (Number(provinceCount) || 0) > 0,
+    hasCity: (Number(cityCount) || 0) > 0,
+    hasSubregion: (Number(subregionCount) || 0) > 0,
+  };
+}
+
 // ── Subregion bonus data ─────────────────────────────────────────────────────
 
 export async function getSubregionsLocal(db, userId, homeCountryCode) {

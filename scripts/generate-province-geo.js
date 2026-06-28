@@ -134,25 +134,80 @@ for (const [groupCode, { codes }] of Object.entries(TH_GROUPS)) {
   for (const provCode of codes) TH_PROV_TO_GROUP[provCode] = groupCode;
 }
 
-// Turkey: 81 provinces → 12 NUTS-1 regions
+// Turkey: 81 provinces → 12 NUTS-1 regions (using our DB alphabetic codes)
 const TR_PROV_TO_NUTS1 = {};
 const TR_NUTS1 = {
-  'TR-1':  { name: 'Istanbul', codes: ['TR-34'] },
-  'TR-2':  { name: 'West Marmara', codes: ['TR-10','TR-17','TR-22','TR-39','TR-59','TR-11','TR-14'] },
-  'TR-3':  { name: 'Aegean', codes: ['TR-03','TR-09','TR-20','TR-35','TR-45','TR-48','TR-64','TR-15'] },
-  'TR-4':  { name: 'East Marmara', codes: ['TR-16','TR-26','TR-41','TR-43','TR-53','TR-77','TR-81','TR-74'] },
-  'TR-5':  { name: 'West Anatolia', codes: ['TR-06','TR-42','TR-05','TR-68','TR-70','TR-71','TR-25'] },
-  'TR-6':  { name: 'Mediterranean', codes: ['TR-07','TR-32','TR-33','TR-01','TR-31','TR-80','TR-46'] },
-  'TR-7':  { name: 'Central Anatolia', codes: ['TR-18','TR-19','TR-37','TR-40','TR-50','TR-51','TR-52','TR-55','TR-58','TR-60','TR-66','TR-72','TR-38'] },
-  'TR-8':  { name: 'West Black Sea', codes: ['TR-28','TR-61','TR-67','TR-78'] },
-  'TR-9':  { name: 'East Black Sea', codes: ['TR-08','TR-29','TR-36','TR-53','TR-54','TR-62'] },
-  'TR-10': { name: 'Northeast Anatolia', codes: ['TR-04','TR-24','TR-25','TR-44','TR-46','TR-49','TR-69','TR-75'] },
-  'TR-11': { name: 'Central East Anatolia', codes: ['TR-12','TR-13','TR-23','TR-76','TR-02','TR-21','TR-30','TR-79','TR-65'] },
-  'TR-12': { name: 'Southeast Anatolia', codes: ['TR-27','TR-47','TR-56','TR-63','TR-73'] },
+  'TR-IST': { name: 'Istanbul',             codes: ['TR-34'] },
+  'TR-WMA': { name: 'West Marmara',         codes: ['TR-10','TR-17','TR-22','TR-39','TR-59','TR-11','TR-14'] },
+  'TR-AEG': { name: 'Aegean',               codes: ['TR-03','TR-09','TR-20','TR-35','TR-45','TR-48','TR-64','TR-15'] },
+  'TR-EMA': { name: 'East Marmara',         codes: ['TR-16','TR-26','TR-41','TR-43','TR-53','TR-77','TR-81','TR-74'] },
+  'TR-WAN': { name: 'West Anatolia',        codes: ['TR-06','TR-42','TR-05','TR-68','TR-70','TR-71','TR-25'] },
+  'TR-MED': { name: 'Mediterranean',        codes: ['TR-07','TR-32','TR-33','TR-01','TR-31','TR-80','TR-46'] },
+  'TR-CAN': { name: 'Central Anatolia',     codes: ['TR-18','TR-19','TR-37','TR-40','TR-50','TR-51','TR-52','TR-55','TR-58','TR-60','TR-66','TR-72','TR-38'] },
+  'TR-WBS': { name: 'West Black Sea',       codes: ['TR-28','TR-61','TR-67','TR-78'] },
+  'TR-EBS': { name: 'East Black Sea',       codes: ['TR-08','TR-29','TR-36','TR-53','TR-54','TR-62'] },
+  'TR-NEA': { name: 'Northeast Anatolia',   codes: ['TR-04','TR-24','TR-25','TR-44','TR-46','TR-49','TR-69','TR-75'] },
+  'TR-CEA': { name: 'Central East Anatolia',codes: ['TR-12','TR-13','TR-23','TR-76','TR-02','TR-21','TR-30','TR-79','TR-65'] },
+  'TR-SEA': { name: 'Southeast Anatolia',   codes: ['TR-27','TR-47','TR-56','TR-63','TR-73'] },
 };
 for (const [nutsCode, { codes }] of Object.entries(TR_NUTS1)) {
   for (const provCode of codes) TR_PROV_TO_NUTS1[provCode] = nutsCode;
 }
+
+// Norway: 19 pre-2018 counties → 11 post-2018 regions (our DB codes)
+const NO_OLD_TO_NEW = {};
+const NO_REGIONS = {
+  'NO-03': { name: 'Oslo',                  codes: ['NO-03'] },
+  'NO-11': { name: 'Rogaland',              codes: ['NO-11'] },
+  'NO-15': { name: 'Møre og Romsdal',       codes: ['NO-15'] },
+  'NO-18': { name: 'Nordland',              codes: ['NO-18'] },
+  'NO-30': { name: 'Viken',                 codes: ['NO-01','NO-02','NO-06'] },
+  'NO-34': { name: 'Innlandet',             codes: ['NO-04','NO-05'] },
+  'NO-38': { name: 'Vestfold og Telemark',  codes: ['NO-07','NO-08'] },
+  'NO-42': { name: 'Agder',                 codes: ['NO-09','NO-10'] },
+  'NO-46': { name: 'Vestland',              codes: ['NO-12','NO-14'] },
+  'NO-50': { name: 'Trøndelag',             codes: ['NO-16','NO-17'] },
+  'NO-54': { name: 'Troms og Finnmark',     codes: ['NO-19','NO-20'] },
+  // NO-21 (Svalbard) and NO-X01~ (Bouvet Island) are intentionally excluded
+};
+for (const [regionCode, { codes }] of Object.entries(NO_REGIONS)) {
+  for (const oldCode of codes) NO_OLD_TO_NEW[oldCode] = regionCode;
+}
+
+// North Macedonia: 84 municipalities → 8 planning regions (our DB codes)
+const MK_MUN_TO_REGION = {
+  // Vardar Region (MK-01)
+  'MK-13':'MK-01','MK-20':'MK-01','MK-24':'MK-01','MK-36':'MK-01',
+  'MK-49':'MK-01','MK-54':'MK-01','MK-67':'MK-01','MK-69':'MK-01','MK-80':'MK-01',
+  // East Region (MK-02)
+  'MK-03':'MK-02','MK-14':'MK-02','MK-23':'MK-02','MK-33':'MK-02','MK-37':'MK-02',
+  'MK-42':'MK-02','MK-51':'MK-02','MK-60':'MK-02','MK-63':'MK-02','MK-81':'MK-02','MK-83':'MK-02',
+  // Southwest Region (MK-03)
+  'MK-12':'MK-03','MK-15':'MK-03','MK-21':'MK-03','MK-22':'MK-03','MK-28':'MK-03',
+  'MK-31':'MK-03','MK-40':'MK-03','MK-50':'MK-03','MK-52':'MK-03','MK-57':'MK-03',
+  'MK-58':'MK-03','MK-61':'MK-03','MK-72':'MK-03','MK-78':'MK-03',
+  // Southeast Region (MK-04)
+  'MK-05':'MK-04','MK-07':'MK-04','MK-10':'MK-04','MK-11':'MK-04','MK-18':'MK-04',
+  'MK-26':'MK-04','MK-41':'MK-04','MK-56':'MK-04','MK-64':'MK-04','MK-73':'MK-04',
+  // Pelagonia Region (MK-05)
+  'MK-04':'MK-05','MK-25':'MK-05','MK-27':'MK-05','MK-45':'MK-05','MK-46':'MK-05',
+  'MK-53':'MK-05','MK-55':'MK-05','MK-62':'MK-05','MK-66':'MK-05',
+  // Polog Region (MK-06)
+  'MK-06':'MK-06','MK-08':'MK-06','MK-16':'MK-06','MK-19':'MK-06',
+  'MK-30':'MK-06','MK-35':'MK-06','MK-75':'MK-06','MK-76':'MK-06',
+  // Northeast Region (MK-07)
+  'MK-43':'MK-07','MK-44':'MK-07','MK-47':'MK-07','MK-48':'MK-07','MK-65':'MK-07','MK-71':'MK-07',
+  // Skopje Region (MK-08)
+  'MK-01':'MK-08','MK-02':'MK-08','MK-09':'MK-08','MK-17':'MK-08','MK-29':'MK-08',
+  'MK-32':'MK-08','MK-34':'MK-08','MK-38':'MK-08','MK-39':'MK-08','MK-68':'MK-08',
+  'MK-70':'MK-08','MK-74':'MK-08','MK-77':'MK-08','MK-79':'MK-08','MK-82':'MK-08',
+  'MK-84':'MK-08','MK-85':'MK-08',
+};
+const MK_REGION_NAMES = {
+  'MK-01':'Vardar Region','MK-02':'East Region','MK-03':'Southwest Region',
+  'MK-04':'Southeast Region','MK-05':'Pelagonia Region','MK-06':'Polog Region',
+  'MK-07':'Northeast Region','MK-08':'Skopje Region',
+};
 
 // UK: counties/regions → 4 nations
 const GB_NAME_TO_NATION = {};
@@ -239,6 +294,8 @@ const MERGE_CONFIGS = {
   ES: { map: ES_PROV_TO_COMMUNITY, names: Object.fromEntries(Object.entries(ES_COMMUNITIES).map(([k,v]) => [k, v.name])) },
   TH: { map: TH_PROV_TO_GROUP, names: Object.fromEntries(Object.entries(TH_GROUPS).map(([k,v]) => [k, v.name])) },
   TR: { map: TR_PROV_TO_NUTS1, names: Object.fromEntries(Object.entries(TR_NUTS1).map(([k,v]) => [k, v.name])) },
+  NO: { map: NO_OLD_TO_NEW, names: Object.fromEntries(Object.entries(NO_REGIONS).map(([k,v]) => [k, v.name])) },
+  MK: { map: MK_MUN_TO_REGION, names: MK_REGION_NAMES },
   RO: { map: RO_COUNTY_TO_REGION, names: RO_REGION_NAMES },
   BG: { map: BG_OBLAST_TO_REGION, names: BG_REGION_NAMES },
   IE: { map: IE_COUNTY_TO_PROVINCE, names: IE_PROVINCE_NAMES },
@@ -253,6 +310,10 @@ const ALLOWED_CODES = {
   AU: new Set(['AU-NSW','AU-QLD','AU-SA','AU-TAS','AU-VIC','AU-WA','AU-ACT','AU-NT']),
   // GR: exclude Mount Athos (GR-69) which NE treats as a separate entity
   GR: new Set(['GR-A','GR-B','GR-C','GR-D','GR-E','GR-F','GR-G','GR-H','GR-I','GR-J','GR-K','GR-L','GR-M']),
+  // HU: NE includes county-level cities carved out of counties; only keep the 20 county regions + Budapest
+  // (HU-TO is renamed to HU-TE above before this filter runs)
+  HU: new Set(['HU-BA','HU-BE','HU-BK','HU-BU','HU-BZ','HU-CS','HU-FE','HU-GS','HU-HB','HU-HE',
+               'HU-JN','HU-KE','HU-NO','HU-PE','HU-SO','HU-SZ','HU-TE','HU-VA','HU-VE','HU-ZA']),
 };
 
 // ── Helper functions ─────────────────────────────────────────────────────────
@@ -415,17 +476,69 @@ async function main() {
             const name = (f.properties.name || '');
             if (name.includes('Province') || seenLim) { code = 'PE-LMA'; } else { seenLim = true; }
           }
+          // AL: NE uses numeric codes (AL-01..12); our seed uses ISO alphabetic codes
+          if (cc === 'AL') {
+            const AL_RENAME = {
+              'AL-01':'AL-BR','AL-02':'AL-DU','AL-03':'AL-EL','AL-04':'AL-FI',
+              'AL-05':'AL-GJ','AL-06':'AL-KO','AL-07':'AL-KU','AL-08':'AL-LE',
+              'AL-09':'AL-DI','AL-10':'AL-SH','AL-11':'AL-TI','AL-12':'AL-VL',
+            };
+            if (AL_RENAME[code]) code = AL_RENAME[code];
+          }
+          // DK: NE uses ISO-correct codes; our seed uses different codes for 4 of 5 regions
+          if (cc === 'DK') {
+            const DK_RENAME = {
+              'DK-82':'DK-84', // Midtjylland → Central Denmark
+              'DK-83':'DK-85', // Syddanmark → Southern Denmark
+              'DK-84':'DK-01', // Hovedstaden → Capital Region
+              'DK-85':'DK-82', // Sjælland → Zealand
+            };
+            if (DK_RENAME[code]) code = DK_RENAME[code];
+          }
+          // HU: NE uses HU-TO for Tolna County; our seed uses HU-TE
+          if (cc === 'HU' && code === 'HU-TO') code = 'HU-TE';
           if (allowed && !allowed.has(code)) return null;
+
+          // HU: strip inner rings (holes cut for county-level cities) to avoid blank spots on the map
+          let coords = simplifyCoords(normalizeAntimeridian(f.geometry.coordinates), 3);
+          let geomType = f.geometry.type;
+          if (cc === 'HU') {
+            if (geomType === 'Polygon') {
+              coords = [coords[0]]; // keep only outer ring
+            } else if (geomType === 'MultiPolygon') {
+              coords = coords.map(poly => [poly[0]]); // outer ring only for each polygon
+            }
+          }
+
           return {
             type: 'Feature',
             properties: { code, name: f.properties.name || f.properties.name_en || 'Unknown' },
-            geometry: {
-              type: f.geometry.type,
-              coordinates: simplifyCoords(normalizeAntimeridian(f.geometry.coordinates), 3),
-            },
+            geometry: { type: geomType, coordinates: coords },
           };
         })
         .filter(Boolean);
+
+      // AU: NE has two features with code AU-NSW (mainland + Lord Howe Island); merge into one MultiPolygon
+      if (cc === 'AU') {
+        const seen = new Map();
+        for (const feat of outputFeatures) {
+          const c = feat.properties.code;
+          if (!seen.has(c)) {
+            seen.set(c, feat);
+          } else {
+            const existing = seen.get(c);
+            const allPolys = [];
+            const addPolys = (geom) => {
+              if (geom.type === 'Polygon') allPolys.push([geom.coordinates[0]]);
+              else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(p => allPolys.push([p[0]]));
+            };
+            addPolys(existing.geometry);
+            addPolys(feat.geometry);
+            existing.geometry = { type: 'MultiPolygon', coordinates: allPolys };
+          }
+        }
+        outputFeatures = [...seen.values()];
+      }
     }
 
     // No explicit winding fix — preserve original Natural Earth winding order.

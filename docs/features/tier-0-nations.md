@@ -227,10 +227,37 @@ while Texas stayed A's. The ownership map's election-style gradient opacity
 (California "medium" margin vs. Texas "full" margin) came for free from reusing
 `computeTerritory` unmodified.
 
-**Phase 3 — Full rollout & polish**
-- Remaining 45 US states / 31 China provinces of experiences + additional cities
-- China provincial flag assets
-- Sub-region UI, Hong Kong/Macau special-casing in UI
+**Phase 3 — Full rollout (data) — done; flags/polish still open**
+- All 47 remaining US states + all 31 remaining China provinces/regions
+  (including Macau) now have experiences and enough cities to hit the
+  4-city minimum, using the same sourcing rigor as the pilot (real, famous,
+  verifiable landmarks; real city names).
+- `server/src/db/seeds/03_cities.cjs` and `04_province_experiences.cjs` are
+  the single source of truth (each now exports its array); the backfill
+  migration `20260703001_add_tier0_phase3_rollout.cjs` reads from those
+  exports and inserts whatever's missing, instead of duplicating ~600 rows
+  a second time inline (the Phase 1 pilot migration did duplicate its much
+  smaller dataset — not worth it at this size). Verified idempotent and
+  correct via a direct backfill simulation (deleted a few Phase 3 rows,
+  re-ran the migration, confirmed exactly those rows came back and nothing
+  duplicated).
+- DC/Shanghai/Chongqing/Tianjin (single-city administrative units, like
+  Beijing) use real districts/neighbourhoods as their "additional cities"
+  rather than inventing separate municipalities.
+- **Confidence caveat:** US data (city names + populations, landmarks) is
+  high-confidence — well-known cities/sites, standard 2020-census-era
+  population figures. China data is real but **lower confidence** —
+  landmark lists per province are shorter (3-4 vs 5-8 for US) and city
+  population figures are approximate prefecture-level estimates, not
+  pulled from a single verified dataset the way `01_countries.js` is.
+  **Recommend a spot-check pass on the China population figures before
+  treating this as final production data** — flagging per CLAUDE.md's data
+  quality principle rather than silently presenting equal confidence.
+- Still open: China provincial flag assets (believed available, not yet
+  sourced/integrated), sub-region UI polish, Hong Kong/Macau special-casing
+  in the UI (they already work data-wise — no cities, experiences only —
+  but haven't had a UI pass to call out that they're intentionally
+  city-less rather than incomplete).
 
 ---
 

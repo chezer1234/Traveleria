@@ -7,7 +7,9 @@ import {
   addCountrySchema,
   addCitySchema,
   addProvinceSchema,
+  addProvinceExperienceSchema,
   addVisitSchema,
+  addProvinceVisitSchema,
   validateBody,
 } from '../lib/schemas.js';
 import * as changes from '../lib/changes.js';
@@ -47,7 +49,7 @@ async function getUserTravelData(userId, homeCountryCode) {
     const visitedCities = await db('user_cities')
       .join('cities', 'user_cities.city_id', 'cities.id')
       .where({ 'user_cities.user_id': userId, 'cities.country_code': country.code })
-      .select('cities.id', 'cities.name', 'cities.population');
+      .select('cities.id', 'cities.name', 'cities.population', 'cities.province_code', 'cities.city_type');
 
     const visitedProvinces = await db('user_provinces')
       .join('provinces', 'user_provinces.province_code', 'provinces.code')
@@ -63,12 +65,26 @@ async function getUserTravelData(userId, homeCountryCode) {
         .orderBy('population', 'desc');
     }
 
+    let allExperiences = [];
+    let visitedExperienceIds = [];
+    if (tier === 0) {
+      allExperiences = await db('province_experiences')
+        .whereIn('province_code', allProvinces.map(p => p.code));
+      visitedExperienceIds = await db('user_province_experiences')
+        .join('province_experiences', 'user_province_experiences.experience_id', 'province_experiences.id')
+        .where({ 'user_province_experiences.user_id': userId })
+        .whereIn('province_experiences.province_code', allProvinces.map(p => p.code))
+        .pluck('province_experiences.id');
+    }
+
     visitedCountries.push({
       country,
       visitedCities,
       visitedProvinces,
       allProvinces,
       allCities,
+      allExperiences,
+      visitedExperienceIds,
       visited_at: uc.visited_at,
     });
   }
@@ -140,14 +156,31 @@ router.delete(
     const provinceVisits = provinceCodes.length
       ? await db('user_provinces').where({ user_id: id }).whereIn('province_code', provinceCodes)
       : [];
+    const experienceIds = provinceCodes.length
+      ? await db('province_experiences').whereIn('province_code', provinceCodes).pluck('id')
+      : [];
+    const experienceVisits = experienceIds.length
+      ? await db('user_province_experiences').where({ user_id: id }).whereIn('experience_id', experienceIds)
+      : [];
     const timeVisits = await db('user_country_visits')
       .where({ user_id: id, country_code: upperCode });
+    const provinceTimeVisits = provinceCodes.length
+      ? await db('user_province_visits').where({ user_id: id }).whereIn('province_code', provinceCodes)
+      : [];
 
     let last_change_id;
     await db.transaction(async (trx) => {
       for (const cv of cityVisits) {
         await trx('user_cities').where({ id: cv.id }).del();
         last_change_id = await changes.record(trx, { table: 'user_cities', pk: cv.id, op: 'delete' });
+      }
+      for (const ev of experienceVisits) {
+        await trx('user_province_experiences').where({ id: ev.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_province_experiences', pk: ev.id, op: 'delete' });
+      }
+      for (const ptv of provinceTimeVisits) {
+        await trx('user_province_visits').where({ id: ptv.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_province_visits', pk: ptv.id, op: 'delete' });
       }
       for (const pv of provinceVisits) {
         await trx('user_provinces').where({ id: pv.id }).del();
@@ -173,12 +206,14 @@ router.get('/:id/countries', async (req, res) => {
   const data = await getUserTravelData(id, req.query.home_country);
   const { homeCountry, allCountries, visitedCountries } = data;
 
-  const result = visitedCountries.map(({ country, visitedCities, visitedProvinces, allProvinces, allCities, visited_at }) => {
+  const result = visitedCountries.map(({ country, visitedCities, visitedProvinces, allProvinces, allCities, allExperiences, visitedExperienceIds, visited_at }) => {
     const pts = calculateCountryPoints(country, homeCountry, allCountries, {
       visitedProvinces,
       visitedCities,
       allProvinces,
       allCities,
+      allExperiences,
+      visitedExperienceIds,
     });
     return {
       country_code: country.code,
@@ -319,6 +354,100 @@ router.get('/:id/provinces', async (req, res) => {
   res.json(visited);
 });
 
+// ── Tier 0 province experiences (issue #46) ─────────────────────────────────
+// Logging a state/province's first experience auto-marks the province as
+// visited too, so the 0.9x visit baseline is never missed (see
+// docs/features/tier-0-nations.md, "Visit trigger").
+
+router.post(
+  '/:id/province-experiences',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addProvinceExperienceSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, experience_id, visited_at, province_visit_id } = req.body;
+
+    const experience = await db('province_experiences').where({ id: experience_id }).first();
+    if (!experience) return fail(res, 'experience_id', 'Unknown experience');
+
+    const province = await db('provinces').where({ code: experience.province_code }).first();
+    const hasCountry = await db('user_countries')
+      .where({ user_id: id, country_code: province.country_code })
+      .first();
+    if (!hasCountry) return fail(res, 'experience_id', 'Add the country before logging an experience');
+
+    const existing = await db('user_province_experiences')
+      .where({ user_id: id, experience_id })
+      .first();
+    if (existing) return fail(res, 'experience_id', 'Already logged');
+
+    const row = {
+      id: clientId || crypto.randomUUID(),
+      user_id: id,
+      experience_id,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_experiences').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_province_experiences', pk: row.id, op: 'insert', row,
+      });
+
+      // Auto-mark the province visited if it isn't already.
+      const provinceVisit = await trx('user_provinces')
+        .where({ user_id: id, province_code: province.code })
+        .first();
+      if (!provinceVisit) {
+        const provinceRow = {
+          id: province_visit_id || crypto.randomUUID(),
+          user_id: id,
+          province_code: province.code,
+          visited_at: null,
+        };
+        await trx('user_provinces').insert(provinceRow);
+        change_id = await changes.record(trx, {
+          table: 'user_provinces', pk: provinceRow.id, op: 'insert', row: provinceRow,
+        });
+      }
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/province-experiences/:experienceId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, experienceId } = req.params;
+    const existing = await db('user_province_experiences')
+      .where({ user_id: id, experience_id: experienceId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Experience visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_experiences').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_province_experiences', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'Experience visit removed', change_id });
+  }
+);
+
+router.get('/:id/province-experiences', async (req, res) => {
+  const { id } = req.params;
+  const visited = await db('user_province_experiences')
+    .join('province_experiences', 'user_province_experiences.experience_id', 'province_experiences.id')
+    .where({ 'user_province_experiences.user_id': id })
+    .select('province_experiences.*', 'user_province_experiences.visited_at');
+  res.json(visited);
+});
+
 router.get('/:id/score', async (req, res) => {
   const { id } = req.params;
   const data = await getUserTravelData(id, req.query.home_country);
@@ -383,6 +512,69 @@ router.delete(
       await trx('user_country_visits').where({ id: existing.id }).del();
       change_id = await changes.record(trx, {
         table: 'user_country_visits', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'Visit removed', change_id });
+  }
+);
+
+// ── Province time-log visits (Tier 0, issue #46 Phase 2) ─────────────────────
+// Mirrors the country time-log routes above exactly, scoped to a province.
+
+router.post(
+  '/:id/province-visits',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addProvinceVisitSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, province_code, days, visited_at } = req.body;
+
+    const province = await db('provinces').where({ code: province_code }).first();
+    if (!province) return fail(res, 'province_code', 'Unknown province code');
+
+    // Same rule as the country time-log: the province has to be on your
+    // visited list before you can log time in it.
+    const hasProvince = await db('user_provinces')
+      .where({ user_id: id, province_code: province.code })
+      .first();
+    if (!hasProvince) return fail(res, 'province_code', 'Add the province before logging time in it');
+
+    const row = {
+      id: clientId || crypto.randomUUID(),
+      user_id: id,
+      province_code: province.code,
+      days,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_visits').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_province_visits', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/province-visits/:visitId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, visitId } = req.params;
+    const existing = await db('user_province_visits')
+      .where({ user_id: id, id: visitId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_visits').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_province_visits', pk: existing.id, op: 'delete',
       });
     });
     res.json({ message: 'Visit removed', change_id });

@@ -15,6 +15,9 @@ import {
   getCityPercentage,
   calculateProvinceExploration,
   calculateCityExploration,
+  calculateCityPoints,
+  calculateTier0ProvinceExploration,
+  calculateTier0SubregionBonus,
   calculateCountryPoints,
   calculateTotalTravelPoints,
   computeRegionalValues,
@@ -25,6 +28,10 @@ import {
   TOURISM_CAP,
   FLOOR,
   BASE_CAP,
+  TIER0_VISIT_RATIO,
+  TIER0_EXPERIENCE_RATIO,
+  CITY_MAJOR_POINTS,
+  CITY_ADDITIONAL_POINTS,
 } from '../points.js';
 
 // Sample countries for testing (with lat/lng)
@@ -52,9 +59,12 @@ beforeEach(() => {
 // ── Tier classification ─────────────────────────────────────────────────────
 
 describe('Country Tiers', () => {
-  test('Tier 1: top 10 by population', () => {
-    expect(getCountryTier('US')).toBe(1);
-    expect(getCountryTier('CN')).toBe(1);
+  test('Tier 0: US and China (issue #46)', () => {
+    expect(getCountryTier('US')).toBe(0);
+    expect(getCountryTier('CN')).toBe(0);
+  });
+
+  test('Tier 1: top 10 by population (excluding Tier 0)', () => {
     expect(getCountryTier('BR')).toBe(1);
     expect(getCountryTier('MX')).toBe(1);
   });
@@ -275,6 +285,112 @@ describe('Province Exploration', () => {
   });
 });
 
+// ── Tier 0 province exploration (issue #46) ────────────────────────────────
+
+describe('Tier 0 Province Exploration', () => {
+  const mockCountry = { code: 'US', population: 331002651 };
+  const mockProvinces = [
+    { code: 'US-CA', name: 'California', population: 39538223 },
+    { code: 'US-WY', name: 'Wyoming', population: 576851 },
+  ];
+  const mockCities = [
+    { id: 'c1', province_code: 'US-CA', city_type: 'major' },
+    { id: 'c2', province_code: 'US-CA', city_type: 'major' },
+  ];
+  const mockExperiences = [
+    { id: 'e1', province_code: 'US-CA', name: 'Golden Gate Bridge' },
+    { id: 'e2', province_code: 'US-CA', name: 'Alcatraz Island' },
+  ];
+
+  test('unvisited province earns nothing', () => {
+    const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], [], [], [], []);
+    expect(result.explorerPoints).toBe(0);
+    const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
+    expect(ca.visited).toBe(false);
+    expect(ca.earnedPoints).toBe(0);
+  });
+
+  test('visiting a province with no experiences/cities logged earns exactly 90% of x', () => {
+    const visited = [{ code: 'US-CA' }];
+    const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, []);
+    const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
+    const x = (39538223 / 331002651) * 100;
+    expect(ca.earnedPoints).toBeCloseTo(x * TIER0_VISIT_RATIO, 2);
+  });
+
+  test('logging all experiences earns the remaining 50% pool on top of the 90% baseline', () => {
+    const visited = [{ code: 'US-CA' }];
+    const result = calculateTier0ProvinceExploration(
+      100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, ['e1', 'e2'],
+    );
+    const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
+    const x = (39538223 / 331002651) * 100;
+    expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO), 2);
+    expect(ca.experiences.visited).toBe(2);
+    expect(ca.experiences.earned).toBeCloseTo(x * TIER0_EXPERIENCE_RATIO, 2);
+  });
+
+  test('cities are a bonus on top of the 1.4x ceiling, pushing maxPoints above 1.4x', () => {
+    const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], mockCities, [], mockExperiences, []);
+    const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
+    const x = (39538223 / 331002651) * 100;
+    expect(ca.maxPoints).toBeCloseTo(x * 1.4 + 1.0, 2); // 2 major cities = 1.0 pt
+  });
+
+  test('city points logged count toward percentExplored but not toward country-level explorationPoints', () => {
+    const visitedCities = [{ id: 'c1', province_code: 'US-CA', city_type: 'major' }];
+    const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], mockCities, visitedCities, mockExperiences, []);
+    const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
+    expect(ca.cities.earned).toBe(0.5);
+    expect(ca.earnedPoints).toBe(0.5); // city points folded into per-province earnedPoints for % explored
+    expect(result.explorerPoints).toBe(0); // but excluded from the country-level total (avoids double count with calculateCityPoints)
+  });
+
+  test('experience value splits evenly regardless of experience count', () => {
+    const threeExperiences = [
+      { id: 'e1', province_code: 'US-WY', name: 'A' },
+      { id: 'e2', province_code: 'US-WY', name: 'B' },
+      { id: 'e3', province_code: 'US-WY', name: 'C' },
+    ];
+    const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], [], [], threeExperiences, ['e1']);
+    const wy = result.provinceBreakdown.find(p => p.code === 'US-WY');
+    const x = (576851 / 331002651) * 100;
+    // pointsEach is rounded to 2dp in the implementation (round2)
+    expect(wy.experiences.pointsEach).toBeCloseTo((x * TIER0_EXPERIENCE_RATIO) / 3, 2);
+  });
+});
+
+describe('Tier 0 Subregion Bonus', () => {
+  const mockCountry = { code: 'US', population: 331002651 };
+  const mockProvinces = [
+    { code: 'US-CA', name: 'California', population: 39538223, subregion: 'West' },
+    { code: 'US-WY', name: 'Wyoming', population: 576851, subregion: 'West' },
+    { code: 'US-NY', name: 'New York', population: 20201249, subregion: 'Northeast' },
+  ];
+
+  test('no bonus until every state in the sub-region is visited', () => {
+    const result = calculateTier0SubregionBonus(100, mockCountry, mockProvinces, [{ code: 'US-CA' }]);
+    const west = result.subregionBreakdown.find(s => s.name === 'West');
+    expect(west.earned).toBe(false);
+    expect(result.totalBonus).toBe(0);
+  });
+
+  test('visiting every state in a sub-region earns half the sum of their base x values', () => {
+    const result = calculateTier0SubregionBonus(100, mockCountry, mockProvinces, [{ code: 'US-CA' }, { code: 'US-WY' }]);
+    const west = result.subregionBreakdown.find(s => s.name === 'West');
+    const xCA = (39538223 / 331002651) * 100;
+    const xWY = (576851 / 331002651) * 100;
+    expect(west.earned).toBe(true);
+    expect(west.bonus).toBeCloseTo(0.5 * (xCA + xWY), 2);
+    expect(result.totalBonus).toBeCloseTo(0.5 * (xCA + xWY), 2);
+  });
+
+  test('sub-region bonus trigger is visiting, not fully exploring', () => {
+    const result = calculateTier0SubregionBonus(100, mockCountry, mockProvinces, [{ code: 'US-CA' }, { code: 'US-WY' }]);
+    expect(result.totalBonus).toBeGreaterThan(0);
+  });
+});
+
 // ── City exploration (Tier 3) ───────────────────────────────────────────────
 
 describe('City Exploration (Tier 3)', () => {
@@ -303,6 +419,28 @@ describe('City Exploration (Tier 3)', () => {
     const result = calculateCityExploration(50, mockCountry, mockCities, mockCities);
     expect(result.explorerPoints).toBe(2.0);
     expect(result.explored).toBe(1);
+  });
+});
+
+describe('calculateCityPoints (major vs Tier 0 additional)', () => {
+  test('major cities are worth 0.5 pts each', () => {
+    const cities = [{ id: '1', city_type: 'major' }, { id: '2', city_type: 'major' }];
+    expect(calculateCityPoints(cities)).toBe(2 * CITY_MAJOR_POINTS);
+  });
+
+  test('Tier 0 additional cities are worth 0.25 pts each', () => {
+    const cities = [{ id: '1', city_type: 'additional' }, { id: '2', city_type: 'additional' }];
+    expect(calculateCityPoints(cities)).toBe(2 * CITY_ADDITIONAL_POINTS);
+  });
+
+  test('mixed major + additional cities sum correctly', () => {
+    const cities = [{ id: '1', city_type: 'major' }, { id: '2', city_type: 'additional' }];
+    expect(calculateCityPoints(cities)).toBeCloseTo(CITY_MAJOR_POINTS + CITY_ADDITIONAL_POINTS, 2);
+  });
+
+  test('cities with no city_type default to major (back-compat)', () => {
+    const cities = [{ id: '1' }];
+    expect(calculateCityPoints(cities)).toBe(CITY_MAJOR_POINTS);
   });
 });
 
@@ -400,6 +538,37 @@ describe('Full Country Points Calculation', () => {
     expect(pts.breakdown.distance.km).toBeGreaterThan(8000);
     expect(pts.breakdown.tourism.difficulty).toBe('Moderate');
     expect(pts.breakdown.size.comparison).toContain('the UK');
+  });
+
+  test('Tier 0 country (US) end-to-end: visit + experiences + city + subregion bonus', () => {
+    const us = sampleCountries.find(c => c.code === 'US');
+    const allProvinces = [
+      { code: 'US-CA', name: 'California', population: 39538223, subregion: 'West' },
+      { code: 'US-WY', name: 'Wyoming', population: 576851, subregion: 'West' },
+    ];
+    const allExperiences = [
+      { id: 'e1', province_code: 'US-CA', name: 'Golden Gate Bridge' },
+      { id: 'e2', province_code: 'US-CA', name: 'Alcatraz Island' },
+    ];
+    const allCities = [{ id: 'c1', province_code: 'US-CA', city_type: 'major' }];
+
+    const pts = calculateCountryPoints(us, homeGB, sampleCountries, {
+      allProvinces,
+      visitedProvinces: [{ code: 'US-CA' }, { code: 'US-WY' }],
+      allExperiences,
+      visitedExperienceIds: ['e1'],
+      allCities,
+      visitedCities: [{ id: 'c1', province_code: 'US-CA', city_type: 'major' }],
+      includeBreakdown: true,
+    });
+
+    expect(pts.tier).toBe(0);
+    expect(pts.subregionBonus).toBeGreaterThan(0);
+    expect(pts.cityPoints).toBe(0.5);
+    expect(pts.total).toBeCloseTo(
+      pts.baseline + pts.explorationPoints + pts.cityPoints + pts.subregionBonus, 2,
+    );
+    expect(pts.breakdown.exploration.method).toBe('tier0');
   });
 });
 

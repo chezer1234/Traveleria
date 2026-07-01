@@ -71,6 +71,18 @@ export const addProvinceSchema = z.object({
   visited_at: visitedAtSchema,
 });
 
+// Tier 0 (issue #46): logging a single experience/landmark within a state/province.
+// province_visit_id lets the client pre-generate the id for the auto-created
+// user_provinces row (if the province wasn't already visited) so the local
+// optimistic row and the server row share a PK — same invariant as every
+// other Phase 5 mutation.
+export const addProvinceExperienceSchema = z.object({
+  id: clientIdSchema,
+  experience_id: z.string().trim().min(1, 'experience_id is required'),
+  visited_at: visitedAtSchema,
+  province_visit_id: clientIdSchema,
+});
+
 // Territory score (issue #29): a single logged stay in a country. `days` is
 // required; `visited_at` is optional (the user may not remember when). 36500 ≈
 // 100 years — a generous sanity cap, not a real-world limit.
@@ -83,6 +95,14 @@ const daysSchema = z
 export const addVisitSchema = z.object({
   id: clientIdSchema,
   country_code: countryCodeSchema,
+  days: daysSchema,
+  visited_at: visitedAtSchema,
+});
+
+// Per-province time logging (issue #46, Phase 2) — same shape as addVisitSchema.
+export const addProvinceVisitSchema = z.object({
+  id: clientIdSchema,
+  province_code: z.string().trim().min(1, 'province_code is required'),
   days: daysSchema,
   visited_at: visitedAtSchema,
 });

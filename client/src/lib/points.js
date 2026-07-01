@@ -43,6 +43,20 @@ export const TIER_2_CODES = new Set([
   'TZ', 'ZA', 'MM', 'KE', 'KR', 'CO',
 ]);
 
+// Tier 0 (issue #46): US and China get a deeper state/province exploration
+// system (experiences, expanded cities, sub-region bonuses). They're also in
+// TIER_1_CODES above (true — they're top-10 by population) but getCountryTier
+// checks Tier 0 first, so this takes priority.
+export const TIER_0_CODES = new Set(['US', 'CN']);
+
+// Tier 0 province value split: visiting a state/province immediately awards
+// TIER0_VISIT_RATIO of its base value x; logging all its experiences earns
+// the remaining TIER0_EXPERIENCE_RATIO. Cities are a bonus on top of both.
+// See docs/features/tier-0-nations.md.
+export const TIER0_VISIT_RATIO = 0.9;
+export const TIER0_EXPERIENCE_RATIO = 0.5;
+export const TIER0_SUBREGION_BONUS_RATIO = 0.5;
+
 // Flat points for microstates — bypass all exploration formulas
 export const MICROSTATE_POINTS = {
   VA: 1,  // Vatican City
@@ -55,6 +69,7 @@ export const MICROSTATE_POINTS = {
 
 export function getCountryTier(code) {
   if (MICROSTATE_POINTS[code] !== undefined) return 'microstate';
+  if (TIER_0_CODES.has(code)) return 0;
   if (TIER_1_CODES.has(code)) return 1;
   if (TIER_2_CODES.has(code)) return 2;
   return 3;
@@ -179,7 +194,13 @@ export function getExplorerCeiling(baseline, country, allCountries) {
 // ── Province points (Tiers 1 & 2) ──────────────────────────────────────────
 
 const TOP_CITIES_PER_COUNTRY = 15;
-export const CITY_FLAT_POINTS = 0.5;
+export const CITY_FLAT_POINTS = 0.5; // major cities, all tiers — historical name, kept for callers
+export const CITY_MAJOR_POINTS = CITY_FLAT_POINTS;
+export const CITY_ADDITIONAL_POINTS = 0.25; // Tier 0 "additional" cities (issue #46)
+
+export function getCityPointValue(city) {
+  return city.city_type === 'additional' ? CITY_ADDITIONAL_POINTS : CITY_MAJOR_POINTS;
+}
 
 export function calculateProvinceExploration(explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities) {
   const nationalPop = Number(country.population) || 1;
@@ -215,11 +236,118 @@ export function calculateProvinceExploration(explorerCeiling, country, allProvin
   };
 }
 
+// ── Tier 0 province exploration (issue #46) ─────────────────────────────────
+// A state/province's base value x is split into a visit baseline (90%,
+// awarded the moment it's marked visited) and an experience pool (50%,
+// unlocked gradually by logging that state's landmarks). Cities are a bonus
+// on top of both. See docs/features/tier-0-nations.md for the full spec.
+
+export function calculateTier0ProvinceExploration(
+  explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities, allExperiences, visitedExperienceIds,
+) {
+  const nationalPop = Number(country.population) || 1;
+  const visitedProvinceCodes = new Set(visitedProvinces.map(p => p.code));
+  const visitedCityIds = new Set(visitedCities.map(c => c.id));
+  const visitedExpIds = new Set(visitedExperienceIds);
+
+  const citiesByProvince = {};
+  for (const city of allCities) {
+    if (!city.province_code) continue;
+    (citiesByProvince[city.province_code] ||= []).push(city);
+  }
+  const experiencesByProvince = {};
+  for (const exp of allExperiences) {
+    (experiencesByProvince[exp.province_code] ||= []).push(exp);
+  }
+
+  let totalEarned = 0; // visit + experience only — cities are tallied separately, see calculateCityPoints
+  let totalCeiling = 0;
+  const provinceBreakdown = [];
+
+  for (const province of allProvinces) {
+    const provincePop = Number(province.population) || 0;
+    const x = (provincePop / nationalPop) * explorerCeiling;
+    const visited = visitedProvinceCodes.has(province.code);
+
+    const experiences = experiencesByProvince[province.code] || [];
+    const experiencePool = TIER0_EXPERIENCE_RATIO * x;
+    const experienceValue = experiences.length > 0 ? experiencePool / experiences.length : 0;
+    const visitedExpCount = experiences.filter(e => visitedExpIds.has(e.id)).length;
+    const experiencePoints = experienceValue * visitedExpCount;
+
+    const cities = citiesByProvince[province.code] || [];
+    const cityMax = cities.reduce((s, c) => s + getCityPointValue(c), 0);
+    const cityEarned = cities.filter(c => visitedCityIds.has(c.id)).reduce((s, c) => s + getCityPointValue(c), 0);
+
+    const visitBaseline = visited ? TIER0_VISIT_RATIO * x : 0;
+    const earned = visitBaseline + experiencePoints; // cities excluded, see note above
+    const ceilingForProvince = (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO) * x;
+    const totalAvailable = ceilingForProvince + cityMax;
+    const totalEarnedForProvince = visitBaseline + experiencePoints + cityEarned;
+
+    totalEarned += earned;
+    totalCeiling += ceilingForProvince;
+
+    provinceBreakdown.push({
+      code: province.code,
+      name: province.name,
+      visited,
+      maxPoints: round2(totalAvailable),
+      earnedPoints: round2(totalEarnedForProvince),
+      experiences: {
+        total: experiences.length,
+        visited: visitedExpCount,
+        pointsEach: round2(experienceValue),
+        earned: round2(experiencePoints),
+        max: round2(experiencePool),
+      },
+      cities: { max: round2(cityMax), earned: round2(cityEarned) },
+      percentExplored: totalAvailable > 0 ? round4(totalEarnedForProvince / totalAvailable) : 0,
+    });
+  }
+
+  const explored = totalCeiling > 0 ? Math.min(totalEarned / totalCeiling, 1.0) : 0;
+
+  return {
+    explorerPoints: round2(totalEarned),
+    explored: round4(explored),
+    provinceBreakdown,
+  };
+}
+
+// Sub-region bonus (issue #46): visiting every state/province in a sub-region
+// (Census regions for the US, economic zones for China) earns a bonus equal
+// to half the sum of those states' base x values. Visiting, not fully
+// exploring, is the trigger.
+export function calculateTier0SubregionBonus(explorerCeiling, country, allProvinces, visitedProvinces) {
+  const nationalPop = Number(country.population) || 1;
+  const visitedCodes = new Set(visitedProvinces.map(p => p.code));
+
+  const bySubregion = {};
+  for (const p of allProvinces) {
+    if (!p.subregion) continue;
+    (bySubregion[p.subregion] ||= []).push(p);
+  }
+
+  let totalBonus = 0;
+  const subregionBreakdown = [];
+  for (const [name, provinces] of Object.entries(bySubregion)) {
+    const sumX = provinces.reduce((s, p) => s + ((Number(p.population) || 0) / nationalPop) * explorerCeiling, 0);
+    const bonus = round2(TIER0_SUBREGION_BONUS_RATIO * sumX);
+    const visitedCount = provinces.filter(p => visitedCodes.has(p.code)).length;
+    const complete = provinces.length > 0 && visitedCount === provinces.length;
+    if (complete) totalBonus += bonus;
+    subregionBreakdown.push({ name, total: provinces.length, visited: visitedCount, bonus, earned: complete });
+  }
+
+  return { totalBonus: round2(totalBonus), subregionBreakdown };
+}
+
 // ── City points (all tiers) ─────────────────────────────────────────────────
-// Flat 0.5 pts per visited city, regardless of tier or population weight.
+// 0.5 pts per visited major city, 0.25 for Tier 0 "additional" cities.
 
 export function calculateCityPoints(visitedCities) {
-  return round2(visitedCities.length * CITY_FLAT_POINTS);
+  return round2(visitedCities.reduce((sum, c) => sum + getCityPointValue(c), 0));
 }
 
 // Kept for legacy callers / tests — now delegates to flat formula.
@@ -324,13 +452,15 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
       explanation: `Larger countries have more to see and take more effort to travel across`,
     },
     exploration: {
-      method: (tier === 1 || tier === 2) ? 'provinces' : 'cities',
+      method: tier === 0 ? 'tier0' : (tier === 1 || tier === 2) ? 'provinces' : 'cities',
       ceiling: round2(explorerCeiling),
       earned: round2(explorerEarned || 0),
       ...(explorationDetail || {}),
-      explanation: (tier === 1 || tier === 2)
-        ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
-        : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
+      explanation: tier === 0
+        ? `${country.name} is a Tier 0 nation. Visiting a state/province earns ${Math.round(TIER0_VISIT_RATIO * 100)}% of its value immediately; logging all its experiences earns the remaining ${Math.round(TIER0_EXPERIENCE_RATIO * 100)}%. Cities add ${CITY_MAJOR_POINTS} pts (major) or ${CITY_ADDITIONAL_POINTS} pts (additional) on top, and visiting every state in a sub-region earns a bonus.`
+        : (tier === 1 || tier === 2)
+          ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
+          : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
     },
   };
 }
@@ -350,6 +480,8 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     visitedCities = [],
     allProvinces = [],
     allCities = [],
+    allExperiences = [],
+    visitedExperienceIds = [],
     includeBreakdown = false,
   } = opts;
 
@@ -383,8 +515,17 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
   let explorationPoints = 0;
   let explored = 0;
   let provinceBreakdown = undefined;
+  let subregionBonus = { totalBonus: 0, subregionBreakdown: [] };
 
-  if (tier === 1 || tier === 2) {
+  if (tier === 0) {
+    const result = calculateTier0ProvinceExploration(
+      explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities, allExperiences, visitedExperienceIds,
+    );
+    explorationPoints = result.explorerPoints;
+    explored = result.explored;
+    provinceBreakdown = result.provinceBreakdown;
+    subregionBonus = calculateTier0SubregionBonus(explorerCeiling, country, allProvinces, visitedProvinces);
+  } else if (tier === 1 || tier === 2) {
     const result = calculateProvinceExploration(
       explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities,
     );
@@ -393,7 +534,7 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     provinceBreakdown = result.provinceBreakdown;
   }
 
-  // City bonus applies to all tiers: flat 0.5 pts per visited city
+  // City bonus applies to all tiers: 0.5 pts (major) or 0.25 pts (Tier 0 additional) per visited city
   const cityPoints = calculateCityPoints(visitedCities);
 
   const pointsResult = {
@@ -403,15 +544,20 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     explorationPoints: round2(explorationPoints),
     cityPoints: round2(cityPoints),
     explored: round4(explored),
-    total: round2(baseline + explorationPoints + cityPoints),
+    total: round2(baseline + explorationPoints + cityPoints + subregionBonus.totalBonus),
     ...(provinceBreakdown ? { provinceBreakdown } : {}),
+    ...(tier === 0 ? { subregionBonus: subregionBonus.totalBonus, subregionBreakdown: subregionBonus.subregionBreakdown } : {}),
   };
 
   if (includeBreakdown && homeObj) {
     const explorationDetail = {};
-    if (tier === 1 || tier === 2) {
+    if (tier === 0 || tier === 1 || tier === 2) {
       explorationDetail.total = allProvinces.length;
       explorationDetail.visited = visitedProvinces.length;
+    }
+    if (tier === 0) {
+      explorationDetail.subregionBonus = subregionBonus.totalBonus;
+      explorationDetail.subregionBreakdown = subregionBonus.subregionBreakdown;
     }
     explorationDetail.citiesVisited = visitedCities.length;
     explorationDetail.cityPoints = cityPoints;
@@ -426,12 +572,17 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
 // ── User total travel points ────────────────────────────────────────────────
 
 export function calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries) {
-  const countryBreakdown = visitedCountries.map(({ country, visitedCities = [], visitedProvinces = [], allProvinces = [], allCities = [] }) => {
+  const countryBreakdown = visitedCountries.map(({
+    country, visitedCities = [], visitedProvinces = [], allProvinces = [], allCities = [],
+    allExperiences = [], visitedExperienceIds = [],
+  }) => {
     const pts = calculateCountryPoints(country, homeCountry, allCountries, {
       visitedProvinces,
       visitedCities,
       allProvinces,
       allCities,
+      allExperiences,
+      visitedExperienceIds,
     });
     return {
       countryCode: country.code,

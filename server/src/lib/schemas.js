@@ -71,6 +71,13 @@ export const addProvinceSchema = z.object({
   visited_at: visitedAtSchema,
 });
 
+// Tier 0 (issue #46): logging a single experience/landmark within a state/province.
+export const addProvinceExperienceSchema = z.object({
+  id: clientIdSchema,
+  experience_id: z.string().trim().min(1, 'experience_id is required'),
+  visited_at: visitedAtSchema,
+});
+
 // Territory score (issue #29): a single logged stay in a country. `days` is
 // required; `visited_at` is optional (the user may not remember when). 36500 ≈
 // 100 years — a generous sanity cap, not a real-world limit.

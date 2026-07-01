@@ -148,13 +148,32 @@ No image-asset pipeline exists today (country flags are emoji, generated from IS
 
 Per team's own workflow (one feature, tested in phases, single PR at the end):
 
-**Phase 1 — Scoring core**
-- `province_code`/`city_type` on `cities`, `subregion` on `provinces`
+**Phase 1a — Server scoring core (done)**
+- `province_code`/`city_type` on `cities`, `subregion` on `provinces` — migrations `20260701001`/`20260701002`
 - `province_experiences` + `user_province_experiences` tables
-- Gradual-unlock scoring + % explored formula in `points.js`
+- Gradual-unlock scoring + % explored formula in `server/src/lib/points.js` (`calculateTier0ProvinceExploration`, `calculateTier0SubregionBonus`)
 - Pilot data: California, Texas, Wyoming, Rhode Island, Beijing, Hong Kong (experiences + expanded cities)
-- Tier 0 badge/flag banner on country page, hover % explored on existing province map
-- Tests for the new formula (unit) + pilot data
+- `server/src/routes/countries.js` + `users.js`: Tier 0 detail response, experience logging endpoints
+- 57 new/updated unit tests in `points.test.js`, all passing (117/117 server suite)
+
+**Phase 1b — Local-first client mirror (not started — important finding)**
+This app is local-first: `client/src/pages/CountryDetail.jsx` reads exclusively from a
+browser-side SQLite mirror (`client/src/db/worker.js`) and computes scores via a
+**full duplicate** of the scoring engine (`client/src/lib/points.js`), independent
+of the Express API. The server-side Phase 1a work above is inert for the actual
+UI until it's mirrored client-side:
+- `client/src/db/worker.js`: add `province_code`/`city_type` to `cities`, `subregion`
+  to `provinces`, new `province_experiences`/`user_province_experiences` tables,
+  and a schema-version bump (the worker wipes + resnapshots on mismatch).
+- `client/src/lib/points.js`: port `TIER_0_CODES` + the same Tier 0 functions.
+- `client/src/lib/queries.js` / `mutations.js`: new experience query/mutation helpers.
+- `ProvinceMap.jsx` hover tooltip + `CountryDetail.jsx` badge + experience-logging UI.
+
+**Important:** flipping `getCountryTier` to return 0 for US/CN client-side
+*before* the local schema/experience data exists would regress real scores —
+existing visited provinces would drop from `x` to `0.9x` with no way to earn
+the missing 0.5x experience pool. Do not ship the tier bump without the full
+local mirror landing in the same change.
 
 **Phase 2 — Time & Battles**
 - Per-province time logging

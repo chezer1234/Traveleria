@@ -69,12 +69,15 @@ router.get('/:code', async (req, res) => {
       id: city.id,
       name: city.name,
       population: city.population,
+      province_code: city.province_code,
+      city_type: city.city_type,
       percentage: Math.round(getCityPercentage(city.population, country.population) * 10000) / 100,
     }));
 
-    // Include provinces for Tier 1 & 2 countries
+    // Include provinces for Tier 0, 1 & 2 countries
     let provinces = [];
-    if (tier === 1 || tier === 2) {
+    let experiences = [];
+    if (tier === 0 || tier === 1 || tier === 2) {
       const rawProvinces = await db('provinces').where({ country_code: country.code }).orderBy('population', 'desc');
       const nationalPop = Number(country.population) || 1;
       provinces = rawProvinces.map(p => ({
@@ -83,13 +86,20 @@ router.get('/:code', async (req, res) => {
         population: p.population,
         area_km2: p.area_km2,
         disputed: p.disputed,
+        subregion: p.subregion,
         maxPoints: Math.round(((Number(p.population) / nationalPop) * explorerCeiling) * 100) / 100,
       }));
+
+      if (tier === 0) {
+        experiences = await db('province_experiences')
+          .whereIn('province_code', rawProvinces.map(p => p.code))
+          .select('id', 'province_code', 'name', 'description');
+      }
     }
 
     // Score breakdown for transparency UI
     const explorationDetail = {};
-    if (tier === 1 || tier === 2) {
+    if (tier === 0 || tier === 1 || tier === 2) {
       explorationDetail.total = provinces.length;
       explorationDetail.visited = 0; // Will be populated per-user on the frontend
     } else if (tier !== 'microstate') {
@@ -105,10 +115,12 @@ router.get('/:code', async (req, res) => {
     res.json({
       ...country,
       tier,
+      isTier0: tier === 0,
       baseline_points: Math.round(baseline * 100) / 100,
       explorer_ceiling: Math.round(explorerCeiling * 100) / 100,
       cities: citiesWithPercentage,
       provinces,
+      ...(tier === 0 ? { experiences } : {}),
       breakdown,
     });
   } catch (err) {

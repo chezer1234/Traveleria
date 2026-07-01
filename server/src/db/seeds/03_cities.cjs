@@ -8,26 +8,38 @@
 
 const cities = [
   // United States (US) - population: 331,002,651
-  { country_code: 'US', name: 'New York City', population: 8336817 },
-  { country_code: 'US', name: 'Los Angeles', population: 3979576 },
-  { country_code: 'US', name: 'Chicago', population: 2693976 },
-  { country_code: 'US', name: 'Houston', population: 2320268 },
-  { country_code: 'US', name: 'Phoenix', population: 1680992 },
-  { country_code: 'US', name: 'Philadelphia', population: 1603797 },
-  { country_code: 'US', name: 'San Antonio', population: 1547253 },
-  { country_code: 'US', name: 'San Diego', population: 1423851 },
-  { country_code: 'US', name: 'Dallas', population: 1343573 },
-  { country_code: 'US', name: 'San Jose', population: 1021795 },
-  { country_code: 'US', name: 'Austin', population: 978908 },
-  { country_code: 'US', name: 'Jacksonville', population: 949611 },
-  { country_code: 'US', name: 'San Francisco', population: 873965 },
-  { country_code: 'US', name: 'Seattle', population: 737015 },
-  { country_code: 'US', name: 'Denver', population: 715522 },
-  { country_code: 'US', name: 'Washington D.C.', population: 689545 },
-  { country_code: 'US', name: 'Nashville', population: 689447 },
-  { country_code: 'US', name: 'Boston', population: 675647 },
-  { country_code: 'US', name: 'Las Vegas', population: 641903 },
-  { country_code: 'US', name: 'Miami', population: 442241 },
+  // Tier 0 (issue #46): province_code links each city to its state; city_type
+  // 'major' = pre-existing (0.5 pts), 'additional' = new (0.25 pts).
+  { country_code: 'US', name: 'New York City', population: 8336817, province_code: 'US-NY', city_type: 'major' },
+  { country_code: 'US', name: 'Los Angeles', population: 3979576, province_code: 'US-CA', city_type: 'major' },
+  { country_code: 'US', name: 'Chicago', population: 2693976, province_code: 'US-IL', city_type: 'major' },
+  { country_code: 'US', name: 'Houston', population: 2320268, province_code: 'US-TX', city_type: 'major' },
+  { country_code: 'US', name: 'Phoenix', population: 1680992, province_code: 'US-AZ', city_type: 'major' },
+  { country_code: 'US', name: 'Philadelphia', population: 1603797, province_code: 'US-PA', city_type: 'major' },
+  { country_code: 'US', name: 'San Antonio', population: 1547253, province_code: 'US-TX', city_type: 'major' },
+  { country_code: 'US', name: 'San Diego', population: 1423851, province_code: 'US-CA', city_type: 'major' },
+  { country_code: 'US', name: 'Dallas', population: 1343573, province_code: 'US-TX', city_type: 'major' },
+  { country_code: 'US', name: 'San Jose', population: 1021795, province_code: 'US-CA', city_type: 'major' },
+  { country_code: 'US', name: 'Austin', population: 978908, province_code: 'US-TX', city_type: 'major' },
+  { country_code: 'US', name: 'Jacksonville', population: 949611, province_code: 'US-FL', city_type: 'major' },
+  { country_code: 'US', name: 'San Francisco', population: 873965, province_code: 'US-CA', city_type: 'major' },
+  { country_code: 'US', name: 'Seattle', population: 737015, province_code: 'US-WA', city_type: 'major' },
+  { country_code: 'US', name: 'Denver', population: 715522, province_code: 'US-CO', city_type: 'major' },
+  { country_code: 'US', name: 'Washington D.C.', population: 689545, province_code: 'US-DC', city_type: 'major' },
+  { country_code: 'US', name: 'Nashville', population: 689447, province_code: 'US-TN', city_type: 'major' },
+  { country_code: 'US', name: 'Boston', population: 675647, province_code: 'US-MA', city_type: 'major' },
+  { country_code: 'US', name: 'Las Vegas', population: 641903, province_code: 'US-NV', city_type: 'major' },
+  { country_code: 'US', name: 'Miami', population: 442241, province_code: 'US-FL', city_type: 'major' },
+  // Wyoming and Rhode Island had no pre-existing major cities — these 4 each
+  // are new "additional" cities bringing them to the Tier 0 4-city minimum.
+  { country_code: 'US', name: 'Cheyenne', population: 65132, province_code: 'US-WY', city_type: 'additional' },
+  { country_code: 'US', name: 'Casper', population: 57461, province_code: 'US-WY', city_type: 'additional' },
+  { country_code: 'US', name: 'Laramie', population: 32158, province_code: 'US-WY', city_type: 'additional' },
+  { country_code: 'US', name: 'Gillette', population: 33403, province_code: 'US-WY', city_type: 'additional' },
+  { country_code: 'US', name: 'Providence', population: 190934, province_code: 'US-RI', city_type: 'additional' },
+  { country_code: 'US', name: 'Cranston', population: 82934, province_code: 'US-RI', city_type: 'additional' },
+  { country_code: 'US', name: 'Warwick', population: 82823, province_code: 'US-RI', city_type: 'additional' },
+  { country_code: 'US', name: 'Pawtucket', population: 75604, province_code: 'US-RI', city_type: 'additional' },
 
   // United Kingdom (GB) - population: 67,886,011
   { country_code: 'GB', name: 'London', population: 8982000 },
@@ -132,21 +144,27 @@ const cities = [
   { country_code: 'IN', name: 'Agra', population: 1760000 },
 
   // China (CN) - population: 1,439,323,776
-  { country_code: 'CN', name: 'Shanghai', population: 27058000 },
-  { country_code: 'CN', name: 'Beijing', population: 21540000 },
-  { country_code: 'CN', name: 'Chongqing', population: 16382000 },
-  { country_code: 'CN', name: 'Guangzhou', population: 13501000 },
-  { country_code: 'CN', name: 'Shenzhen', population: 12529000 },
-  { country_code: 'CN', name: 'Tianjin', population: 11210000 },
-  { country_code: 'CN', name: 'Chengdu', population: 10110000 },
-  { country_code: 'CN', name: 'Wuhan', population: 9785000 },
-  { country_code: 'CN', name: 'Hangzhou', population: 7236000 },
-  { country_code: 'CN', name: 'Nanjing', population: 6500000 },
-  { country_code: 'CN', name: "Xi'an", population: 6320000 },
-  { country_code: 'CN', name: 'Suzhou', population: 5345000 },
-  { country_code: 'CN', name: 'Harbin', population: 5242000 },
-  { country_code: 'CN', name: 'Dalian', population: 4490000 },
-  { country_code: 'CN', name: 'Qingdao', population: 4360000 },
+  { country_code: 'CN', name: 'Shanghai', population: 27058000, province_code: 'CN-SH', city_type: 'major' },
+  { country_code: 'CN', name: 'Beijing', population: 21540000, province_code: 'CN-BJ', city_type: 'major' },
+  { country_code: 'CN', name: 'Chongqing', population: 16382000, province_code: 'CN-CQ', city_type: 'major' },
+  { country_code: 'CN', name: 'Guangzhou', population: 13501000, province_code: 'CN-GD', city_type: 'major' },
+  { country_code: 'CN', name: 'Shenzhen', population: 12529000, province_code: 'CN-GD', city_type: 'major' },
+  { country_code: 'CN', name: 'Tianjin', population: 11210000, province_code: 'CN-TJ', city_type: 'major' },
+  { country_code: 'CN', name: 'Chengdu', population: 10110000, province_code: 'CN-SC', city_type: 'major' },
+  { country_code: 'CN', name: 'Wuhan', population: 9785000, province_code: 'CN-HB', city_type: 'major' },
+  { country_code: 'CN', name: 'Hangzhou', population: 7236000, province_code: 'CN-ZJ', city_type: 'major' },
+  { country_code: 'CN', name: 'Nanjing', population: 6500000, province_code: 'CN-JS', city_type: 'major' },
+  { country_code: 'CN', name: "Xi'an", population: 6320000, province_code: 'CN-SN', city_type: 'major' },
+  { country_code: 'CN', name: 'Suzhou', population: 5345000, province_code: 'CN-JS', city_type: 'major' },
+  { country_code: 'CN', name: 'Harbin', population: 5242000, province_code: 'CN-HL', city_type: 'major' },
+  { country_code: 'CN', name: 'Dalian', population: 4490000, province_code: 'CN-LN', city_type: 'major' },
+  { country_code: 'CN', name: 'Qingdao', population: 4360000, province_code: 'CN-SD', city_type: 'major' },
+  // Beijing is a direct-administered municipality (it IS a city, not a
+  // province containing separate cities), so its "additional" cities toward
+  // the Tier 0 4-city minimum are real districts, not distinct municipalities.
+  { country_code: 'CN', name: 'Chaoyang District', population: 3452000, province_code: 'CN-BJ', city_type: 'additional' },
+  { country_code: 'CN', name: 'Haidian District', population: 3133000, province_code: 'CN-BJ', city_type: 'additional' },
+  { country_code: 'CN', name: 'Fengtai District', population: 2201000, province_code: 'CN-BJ', city_type: 'additional' },
 
   // Canada (CA) - population: 37,742,154
   { country_code: 'CA', name: 'Toronto', population: 2731571 },
@@ -763,8 +781,16 @@ exports.seed = async function (knex) {
     return;
   }
 
-  // Generate UUIDs for each city (SQLite has no built-in uuid())
-  const citiesWithIds = cities.map(c => ({ id: crypto.randomUUID(), ...c }));
+  // Generate UUIDs for each city (SQLite has no built-in uuid()).
+  // province_code/city_type must be explicit on every row (not just Tier 0
+  // ones) — the libsql dialect's batch insert can't fill in missing keys
+  // across a mixed-shape array the way some SQL dialects do.
+  const citiesWithIds = cities.map(c => ({
+    id: crypto.randomUUID(),
+    province_code: null,
+    city_type: 'major',
+    ...c,
+  }));
 
   const batchSize = 50;
   await knex.transaction(async (trx) => {

@@ -174,10 +174,10 @@ Per team's own workflow (one feature, tested in phases, single PR at the end):
 - **Visit baseline / experience split:** 0.9x for visiting, 0.5x pool for experiences (1.4x combined), cities on top. See Scoring Mechanic above.
 - **City minimum:** flat 4 cities for every state, no exceptions for Wyoming/Rhode Island.
 - **Flag assets:** believed to already exist and be usable — US state flags (standard government works) and China's National Games delegation flags. Still needs sourcing/licensing verification in Phase 3, but no new design work expected.
+- **Retroactive credit:** automatic. Existing `visited_at` rows for US/China provinces are untouched; the same data just now computes to 0.9x instead of the old full x, with the 0.5x experience pool and cities still open to unlock. No migration needed beyond the formula change itself.
+- **Visit trigger:** logging a state's first experience or city automatically marks it visited too (auto-sets `visited_at`), so the 0.9x baseline is never missed just because a user went straight to logging specifics without a separate "I've been here" tap.
 
 ## Open Questions
 
 1. **Experience sourcing method** — use real visitor/attendance numbers where publicly available (e.g. national park visitor stats, stadium attendance, state tourism board figures) to choose which 5-10 landmarks per state are "the" experiences, similar rigor to how `01_countries.js` sources population/tourism data. Where no visitor-count data exists for a landmark, fall back to documented notability (e.g. National Register of Historic Places, state tourism board's own "top attractions" list) rather than subjective picks.
-2. **Retroactive credit** — users who already have a Tier 1 US/China province logged as visited today: do they automatically get the 0.9x baseline the moment Tier 0 ships, with 0.5x experience pool + cities still to unlock? (Assumed yes — the underlying `visited_at` row doesn't change, only what it's worth.)
-3. **"Visited" trigger mechanics** — is marking a province visited still a separate, explicit action (as today), or does logging a state's first experience/city auto-mark it visited too? Affects Phase 1 UI flow.
-4. **Battle scope** — is a state-level battle only meaningful between two users who've both traveled the same country, or should it be viewable/comparable more generally?
+2. **Battle scope** — is a state-level battle only meaningful between two users who've both traveled the same country, or should it be viewable/comparable more generally?

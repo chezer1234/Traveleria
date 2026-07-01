@@ -6,7 +6,7 @@ const router = express.Router();
 // GET /api/snapshot — one-shot full dump of reference data + current cursor.
 // Clients call this on cold boot, then poll /api/changes?since=<cursor>.
 router.get('/', async (req, res) => {
-  const [countries, cities, provinces, province_experiences, users_public, user_countries, user_cities, user_provinces, user_subregions, user_country_visits, user_province_experiences, groups, group_members, cursorRow] = await Promise.all([
+  const [countries, cities, provinces, province_experiences, users_public, user_countries, user_cities, user_provinces, user_subregions, user_country_visits, user_province_experiences, user_province_visits, groups, group_members, cursorRow] = await Promise.all([
     db('countries').select('*'),
     db('cities').select('*'),
     db('provinces').select('*'),
@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
     db('user_subregions').select('id', 'user_id', 'subregion'),
     db('user_country_visits').select('id', 'user_id', 'country_code', 'days', 'visited_at'),
     db('user_province_experiences').select('id', 'user_id', 'experience_id', 'visited_at'),
+    db('user_province_visits').select('id', 'user_id', 'province_code', 'days', 'visited_at'),
     db('groups').select('id', 'name', 'created_by', 'created_at'),
     db('group_members').select('id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'),
     db('_changes').max('change_id as max').first(),
@@ -43,6 +44,7 @@ router.get('/', async (req, res) => {
     user_subregions,
     user_country_visits,
     user_province_experiences,
+    user_province_visits,
     groups,
     group_members,
     cursor: (cursorRow && cursorRow.max) || 0,

@@ -4,9 +4,13 @@ import { geoMercator, geoPath } from 'd3-geo';
 /**
  * Interactive province map for a country. Uses d3-geo with fitExtent.
  * Splits features into a main landmass and overseas/outlier insets.
+ *
+ * `getFill`/`getTooltip` (issue #46 Phase 2, state battle) let a caller
+ * override the default visited/not-visited colouring and tooltip content —
+ * used for read-only ownership maps. Omit them for the default behaviour.
  */
 
-export default function ProvinceMap({ countryCode, provinces, visitedCodes, onToggle, disabled }) {
+export default function ProvinceMap({ countryCode, provinces, visitedCodes, onToggle, disabled, getFill, getTooltip, legend }) {
   const [geoData, setGeoData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState(null);
@@ -119,6 +123,8 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
         onHover={setTooltip}
         disabled={disabled}
         padding={20}
+        getFill={getFill}
+        getTooltip={getTooltip}
       />
 
       {/* Outlier insets */}
@@ -141,6 +147,8 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
                 height={120}
                 padding={8}
                 small
+                getFill={getFill}
+                getTooltip={getTooltip}
               />
             </div>
           ))}
@@ -154,9 +162,13 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
           style={{ left: mousePos.x + 12, top: mousePos.y - 40 }}
         >
           <p className="font-medium">{tooltip.name}</p>
-          <p className="text-gray-300">
-            {tooltip.points} pts {tooltip.visited ? '(visited)' : ''}
-          </p>
+          {tooltip.lines ? (
+            tooltip.lines.map((line, i) => <p key={i} className="text-gray-300">{line}</p>)
+          ) : (
+            <p className="text-gray-300">
+              {tooltip.points} pts {tooltip.visited ? '(visited)' : ''}
+            </p>
+          )}
           {tooltip.percentExplored !== undefined && (
             <p className="text-gray-300">{Math.round(tooltip.percentExplored * 1000) / 10}% explored</p>
           )}
@@ -164,20 +176,22 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 px-1">
-        <div className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded-sm bg-indigo-500"></span> Visited
+      {legend || (
+        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 px-1">
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-sm bg-indigo-500"></span> Visited
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-sm bg-gray-300"></span> Not visited
+          </div>
+          <span className="ml-auto">Click provinces to toggle</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded-sm bg-gray-300"></span> Not visited
-        </div>
-        <span className="ml-auto">Click provinces to toggle</span>
-      </div>
+      )}
     </div>
   );
 }
 
-function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, onHover, disabled, width: fixedWidth, height: fixedHeight, padding, small }) {
+function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, onHover, disabled, width: fixedWidth, height: fixedHeight, padding, small, getFill, getTooltip }) {
   const { pathGen, width, height, viewBox } = useMemo(() => {
     if (!features.length) return { pathGen: null, width: 800, height: 500 };
 
@@ -232,11 +246,14 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
           const d = pathGen(feature);
           if (!d) return null;
 
+          const fill = getFill ? getFill(code, province) : (isVisited ? '#6366f1' : '#d1d5db');
+          const hoverFill = getFill ? fill : (isVisited ? '#4f46e5' : '#a5b4fc');
+
           return (
             <path
               key={code || i}
               d={d}
-              fill={!isMatched ? '#f3f4f6' : isVisited ? '#6366f1' : '#d1d5db'}
+              fill={fill}
               stroke="#fff"
               strokeWidth={small ? 0.3 : 0.5}
               style={{
@@ -246,8 +263,8 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
               onClick={() => onClick(code)}
               onMouseEnter={(e) => {
                 if (province) {
-                  e.target.style.fill = isVisited ? '#4f46e5' : '#a5b4fc';
-                  onHover({
+                  e.target.style.fill = hoverFill;
+                  onHover(getTooltip ? getTooltip(code, province) : {
                     name: province.name,
                     code,
                     points: province.maxPoints,
@@ -257,7 +274,7 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
                 }
               }}
               onMouseLeave={(e) => {
-                if (province) e.target.style.fill = isVisited ? '#6366f1' : '#d1d5db';
+                if (province) e.target.style.fill = fill;
                 onHover(null);
               }}
             />

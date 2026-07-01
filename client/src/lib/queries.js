@@ -482,6 +482,49 @@ export async function getUserDaysByCountry(db, userId) {
   return byCode;
 }
 
+// ---------- Province time-log visits (Tier 0, issue #46 Phase 2) ----------
+// Mirrors the country time-log queries above exactly, scoped to a province.
+
+export async function getProvinceVisitsLocal(db, userId, provinceCode) {
+  const visits = await db.all(
+    `SELECT id, days, visited_at FROM user_province_visits
+       WHERE user_id = ? AND province_code = ?
+       ORDER BY (visited_at IS NULL), visited_at DESC`,
+    [userId, provinceCode],
+  );
+  const totalDays = visits.reduce((sum, v) => sum + (Number(v.days) || 0), 0);
+  return { visits, totalDays };
+}
+
+// Map of province_code → total logged days for a user, scoped to one country's
+// provinces. Used by the state-level territory comparison.
+export async function getUserDaysByProvince(db, userId, provinceCodes) {
+  if (!provinceCodes.length) return {};
+  const placeholders = provinceCodes.map(() => '?').join(',');
+  const rows = await db.all(
+    `SELECT province_code, SUM(days) AS days FROM user_province_visits
+       WHERE user_id = ? AND province_code IN (${placeholders}) GROUP BY province_code`,
+    [userId, ...provinceCodes],
+  );
+  const byCode = {};
+  for (const r of rows) byCode[r.province_code] = Number(r.days) || 0;
+  return byCode;
+}
+
+// Other users who've also visited a country — the opponent pool for a state
+// battle (issue #46 Phase 2: battles are only offered between two people who
+// have both been to the country).
+export async function getUsersWhoVisitedCountryLocal(db, countryCode, excludeUserId) {
+  const rows = await db.all(
+    `SELECT u.id, u.identifier, u.home_country
+       FROM user_countries uc
+       JOIN users_public u ON u.id = uc.user_id
+       WHERE uc.country_code = ? AND uc.user_id != ?`,
+    [countryCode, excludeUserId],
+  );
+  return rows;
+}
+
 // A public user record from the locally-synced users_public table (no network).
 export async function getUserPublicLocal(db, userId) {
   return db.get(

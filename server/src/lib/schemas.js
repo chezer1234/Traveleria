@@ -99,6 +99,14 @@ export const addVisitSchema = z.object({
   visited_at: visitedAtSchema,
 });
 
+// Per-province time logging (issue #46, Phase 2) — same shape as addVisitSchema.
+export const addProvinceVisitSchema = z.object({
+  id: clientIdSchema,
+  province_code: z.string().trim().min(1, 'province_code is required'),
+  days: daysSchema,
+  visited_at: visitedAtSchema,
+});
+
 const hexColourSchema = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a 6-digit hex string e.g. #3b82f6');

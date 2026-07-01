@@ -26,6 +26,7 @@ const TABLE_MAP = {
   user_subregions: 'user_subregions',
   user_country_visits: 'user_country_visits',
   user_province_experiences: 'user_province_experiences',
+  user_province_visits: 'user_province_visits',
   groups: 'groups',
   group_members: 'group_members',
 };
@@ -38,6 +39,7 @@ const TABLE_COLUMNS = {
   user_subregions: ['id', 'user_id', 'subregion'],
   user_country_visits: ['id', 'user_id', 'country_code', 'days', 'visited_at'],
   user_province_experiences: ['id', 'user_id', 'experience_id', 'visited_at'],
+  user_province_visits: ['id', 'user_id', 'province_code', 'days', 'visited_at'],
   groups: ['id', 'name', 'created_by', 'created_at'],
   group_members: ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'],
 };
@@ -143,6 +145,13 @@ const DDL = [
     experience_id TEXT,
     visited_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS user_province_visits (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    province_code TEXT,
+    days INTEGER,
+    visited_at TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS groups (
     id TEXT PRIMARY KEY,
     name TEXT,
@@ -221,6 +230,7 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('user_subregions', snap.user_subregions || [], ['id', 'user_id', 'subregion']);
     bulkInsert('user_country_visits', snap.user_country_visits || [], ['id', 'user_id', 'country_code', 'days', 'visited_at']);
     bulkInsert('user_province_experiences', snap.user_province_experiences || [], ['id', 'user_id', 'experience_id', 'visited_at']);
+    bulkInsert('user_province_visits', snap.user_province_visits || [], ['id', 'user_id', 'province_code', 'days', 'visited_at']);
     bulkInsert('groups', snap.groups || [], ['id', 'name', 'created_by', 'created_at']);
     bulkInsert('group_members', snap.group_members || [], ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at']);
     db.exec({

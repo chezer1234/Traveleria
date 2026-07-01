@@ -193,6 +193,40 @@ map hover tooltip and sub-region bonus chips render the same numbers as the list
 - Per-province time logging
 - State/province-level battle (reuse Territory/GroupBattle patterns, scoped to one country)
 
+**Phase 2 — Time & Battles (done)**
+- `user_province_visits` table (migration `20260702001`) — mirrors `user_country_visits`
+  exactly, scoped to a province: `days` + optional `visited_at`, add-the-province-first rule.
+- Server routes `POST`/`DELETE /:id/province-visits`, snapshot payload, worker.js
+  DDL/TABLE_MAP/TABLE_COLUMNS/hydrate, `queries.js`/`mutations.js` helpers — same
+  four-layer plumbing as every other user-data table.
+- `CountryDetail.jsx`: each Tier 0 state/province row gets a "⏱ Log time" toggle
+  that expands an inline mini version of the country-level time-log card
+  (list + add form), scoped to that one state.
+- `client/src/lib/provinceTerritory.js` (new): `computeProvinceTerritory` —
+  a thin adapter over the existing, battle-tested `computeTerritory` (issue #29),
+  reusing it byte-for-byte rather than re-deriving the algorithm. Feeds it each
+  user's Tier 0 `provinceBreakdown` (visited + earnedPoints) instead of country
+  totals, and days from `user_province_visits`.
+- `StateBattle.jsx` (new page, `/state-battle/:userId/:countryCode`) — same
+  tug-of-war bar / time-and-points tabs / contested list as the country-level
+  Territory page, with `ProvinceMap` extended (`getFill`/`getTooltip`/`legend`
+  props) to render read-only two-colour ownership instead of visited/not-visited.
+- Battle entry point: a "⚔ Battle" button on the Tier 0 country page (only
+  shown once the country is visited) opens a picker restricted to other users
+  who've also visited that country (`getUsersWhoVisitedCountryLocal`) — no
+  battle is offered against someone who hasn't been there, per the resolved
+  scope decision.
+- 7 new unit tests for `computeProvinceTerritory`, all passing.
+
+Verified end-to-end with two isolated browser sessions (Playwright, separate
+local DBs): user A visited California + Texas and logged 5 days in California;
+user B visited only California. Time-mode battle correctly gave A both states
+(2-0); switching to points-mode correctly made California contested (both
+earn the same population-ratio baseline unless one of them logs experiences)
+while Texas stayed A's. The ownership map's election-style gradient opacity
+(California "medium" margin vs. Texas "full" margin) came for free from reusing
+`computeTerritory` unmodified.
+
 **Phase 3 — Full rollout & polish**
 - Remaining 45 US states / 31 China provinces of experiences + additional cities
 - China provincial flag assets
@@ -210,7 +244,8 @@ map hover tooltip and sub-region bonus chips render the same numbers as the list
 - **Retroactive credit:** automatic. Existing `visited_at` rows for US/China provinces are untouched; the same data just now computes to 0.9x instead of the old full x, with the 0.5x experience pool and cities still open to unlock. No migration needed beyond the formula change itself.
 - **Visit trigger:** logging a state's first experience or city automatically marks it visited too (auto-sets `visited_at`), so the 0.9x baseline is never missed just because a user went straight to logging specifics without a separate "I've been here" tap.
 
-## Open Questions
+## Resolved (round 3)
 
-1. **Experience sourcing method** — use real visitor/attendance numbers where publicly available (e.g. national park visitor stats, stadium attendance, state tourism board figures) to choose which 5-10 landmarks per state are "the" experiences, similar rigor to how `01_countries.js` sources population/tourism data. Where no visitor-count data exists for a landmark, fall back to documented notability (e.g. National Register of Historic Places, state tourism board's own "top attractions" list) rather than subjective picks.
-2. **Battle scope** — is a state-level battle only meaningful between two users who've both traveled the same country, or should it be viewable/comparable more generally?
+1. **Experience sourcing method (remaining rollout)** — same approach as the pilot: real visitor/attendance numbers where publicly available, documented notability (National Register, state tourism boards) as fallback. Applies to the remaining 45 US states and 27 China provinces/regions in Phase 3.
+2. **Battle scope** — state-level battles are only available between two users who have **both visited the country**. No battle entry point for a country either side hasn't added.
+3. **Provincial flag assets** — confirmed available (US state flags, China's National Games delegation flags). Sourcing the actual files is a Phase 3 task.

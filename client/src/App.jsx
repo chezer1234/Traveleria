@@ -10,6 +10,7 @@ import Leaderboard from './pages/Leaderboard';
 import Map from './pages/Map';
 import Subregions from './pages/Subregions';
 import Territory from './pages/Territory';
+import StateBattle from './pages/StateBattle';
 import Groups from './pages/Groups';
 import GroupBattle from './pages/GroupBattle';
 
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="/countries/:code" element={<CountryDetail />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/territory/:userId" element={<Territory />} />
+        <Route path="/state-battle/:userId/:countryCode" element={<StateBattle />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/:groupId" element={<GroupBattle />} />
         <Route path="/map" element={<Map />} />

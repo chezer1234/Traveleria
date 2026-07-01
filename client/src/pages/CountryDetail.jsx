@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   addCityOptimistic,
@@ -10,12 +10,16 @@ import {
   removeProvinceExperienceOptimistic,
   addCountryVisitOptimistic,
   removeCountryVisitOptimistic,
+  addProvinceVisitOptimistic,
+  removeProvinceVisitOptimistic,
 } from '../lib/mutations';
 import {
   getCountryLocal,
   getUserStatusForCountry,
   getCountryVisitsLocal,
   getUserCountryScoreLocal,
+  getProvinceVisitsLocal,
+  getUsersWhoVisitedCountryLocal,
 } from '../lib/queries';
 import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
@@ -46,6 +50,7 @@ function formatVisitDate(iso) {
 
 export default function CountryDetail() {
   const { code } = useParams();
+  const navigate = useNavigate();
   const { user, db, dbStatus } = useAuth();
   const homeCountry = user.home_country;
   const [country, setCountry] = useState(null);
@@ -65,6 +70,21 @@ export default function CountryDetail() {
   const [dateInput, setDateInput] = useState('');
   const [savingVisit, setSavingVisit] = useState(false);
   const [visitError, setVisitError] = useState('');
+
+  // Per-province time log — Tier 0 (issue #46 Phase 2). Only one state's panel
+  // is expanded at a time, so one set of form/list state is enough.
+  const [expandedProvinceCode, setExpandedProvinceCode] = useState(null);
+  const [provinceVisits, setProvinceVisits] = useState([]);
+  const [provinceTotalDays, setProvinceTotalDays] = useState(0);
+  const [provinceDaysInput, setProvinceDaysInput] = useState('');
+  const [provinceDateInput, setProvinceDateInput] = useState('');
+  const [savingProvinceVisit, setSavingProvinceVisit] = useState(false);
+  const [provinceVisitError, setProvinceVisitError] = useState('');
+
+  // State battle opponent picker — Tier 0 (issue #46 Phase 2). Only offered
+  // between two users who've both visited this country.
+  const [showBattlePicker, setShowBattlePicker] = useState(false);
+  const [battleOpponents, setBattleOpponents] = useState(null); // null = not loaded yet
 
   const loadData = useCallback(async () => {
     if (!db) return;
@@ -135,6 +155,66 @@ export default function CountryDetail() {
       setVisitError(err.message);
       setVisits((prev) => sortVisits([...prev, visit]));
       setTotalDays((d) => d + (Number(visit.days) || 0));
+    }
+  }
+
+  // Per-province time log — Tier 0 (issue #46 Phase 2). Toggling a state's
+  // panel loads its visits on the way open; only one panel is open at a time.
+  async function toggleProvinceTimePanel(provinceCode) {
+    if (expandedProvinceCode === provinceCode) {
+      setExpandedProvinceCode(null);
+      return;
+    }
+    setProvinceVisitError('');
+    setProvinceDaysInput('');
+    setProvinceDateInput('');
+    const timeLog = await getProvinceVisitsLocal(db, user.id, provinceCode);
+    setProvinceVisits(timeLog.visits);
+    setProvinceTotalDays(timeLog.totalDays);
+    setExpandedProvinceCode(provinceCode);
+  }
+
+  async function addProvinceVisit(e, provinceCode) {
+    e.preventDefault();
+    setProvinceVisitError('');
+    const days = parseInt(provinceDaysInput, 10);
+    if (!Number.isInteger(days) || days < 1) {
+      setProvinceVisitError('Enter a whole number of days (1 or more).');
+      return;
+    }
+    const visitedAt = provinceDateInput ? new Date(`${provinceDateInput}T00:00:00Z`).toISOString() : null;
+    setSavingProvinceVisit(true);
+    try {
+      const id = await addProvinceVisitOptimistic(db, user.id, provinceCode, days, visitedAt);
+      setProvinceVisits((prev) => sortVisits([...prev, { id, days, visited_at: visitedAt }]));
+      setProvinceTotalDays((d) => d + days);
+      setProvinceDaysInput('');
+      setProvinceDateInput('');
+    } catch (err) {
+      setProvinceVisitError(err.message);
+    } finally {
+      setSavingProvinceVisit(false);
+    }
+  }
+
+  async function deleteProvinceVisit(visit) {
+    setProvinceVisitError('');
+    setProvinceVisits((prev) => prev.filter((v) => v.id !== visit.id));
+    setProvinceTotalDays((d) => d - (Number(visit.days) || 0));
+    try {
+      await removeProvinceVisitOptimistic(db, user.id, visit.id);
+    } catch (err) {
+      setProvinceVisitError(err.message);
+      setProvinceVisits((prev) => sortVisits([...prev, visit]));
+      setProvinceTotalDays((d) => d + (Number(visit.days) || 0));
+    }
+  }
+
+  async function openBattlePicker() {
+    setShowBattlePicker(true);
+    if (battleOpponents === null) {
+      const opponents = await getUsersWhoVisitedCountryLocal(db, code.toUpperCase(), user.id);
+      setBattleOpponents(opponents);
     }
   }
 
@@ -316,6 +396,55 @@ export default function CountryDetail() {
           >
             {tierLabel}
           </span>
+          {isTier0 && isVisited && (
+            <div className="relative ml-auto">
+              <button
+                type="button"
+                onClick={openBattlePicker}
+                className="text-sm font-medium text-amber-700 hover:text-amber-900 flex items-center gap-1"
+              >
+                ⚔ Battle
+              </button>
+              {showBattlePicker && (
+                <div className="absolute right-0 top-7 z-10 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+                  <p className="text-xs text-gray-500 px-2 py-1">
+                    Only travellers who've also visited {country.name}
+                  </p>
+                  {battleOpponents === null && (
+                    <p className="text-xs text-gray-400 px-2 py-2">Loading…</p>
+                  )}
+                  {battleOpponents !== null && battleOpponents.length === 0 && (
+                    <p className="text-xs text-gray-400 px-2 py-2">No one else has visited {country.name} yet.</p>
+                  )}
+                  {battleOpponents !== null && battleOpponents.length > 0 && (
+                    <ul className="max-h-56 overflow-y-auto">
+                      {battleOpponents.map((opp) => (
+                        <li key={opp.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBattlePicker(false);
+                              navigate(`/state-battle/${opp.id}/${country.code}`);
+                            }}
+                            className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-gray-100"
+                          >
+                            {opp.identifier}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowBattlePicker(false)}
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2 pt-1"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <p className="text-sm text-gray-500 mb-4">{country.region} &middot; {country.code}</p>
 
@@ -501,40 +630,109 @@ export default function CountryDetail() {
               const isChecked = visitedProvinceCodes.has(province.code);
               const tier0 = tier0BreakdownByCode?.[province.code];
               const displayMaxPoints = tier0 ? tier0.maxPoints : province.maxPoints;
+              const isExpanded = expandedProvinceCode === province.code;
               return (
-                <label
+                <div
                   key={province.code}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors cursor-pointer ${
-                    isChecked
-                      ? 'bg-indigo-50 border-indigo-200'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`rounded-lg border transition-colors ${
+                    isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200 hover:border-gray-300'
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    disabled={!isVisited || toggling === province.code}
-                    onChange={() => toggleProvince(province.code)}
-                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                  />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
-                      {province.name}
-                      {!!province.disputed && <span className="ml-1 text-xs text-amber-600">(disputed)</span>}
-                      {!!province.subregion && (
-                        <span className="ml-2 text-xs text-gray-400">{province.subregion}</span>
-                      )}
-                    </span>
-                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
-                      <span className="hidden sm:inline">{Number(province.population).toLocaleString()} pop</span>
-                      {tier0 && (
-                        <span className="text-gray-400">{Math.round(tier0.percentExplored * 1000) / 10}% explored</span>
-                      )}
-                      <span className="font-medium text-indigo-600">{displayMaxPoints} pts</span>
-                      {toggling === province.code && <span className="text-indigo-600">saving...</span>}
-                    </div>
+                  <div className={`flex items-center gap-3 px-4 py-3 ${!isVisited ? 'opacity-50' : ''}`}>
+                    <label className={`flex items-center gap-3 flex-1 ${!isVisited ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={!isVisited || toggling === province.code}
+                        onChange={() => toggleProvince(province.code)}
+                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className={`text-sm ${isChecked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                          {province.name}
+                          {!!province.disputed && <span className="ml-1 text-xs text-amber-600">(disputed)</span>}
+                          {!!province.subregion && (
+                            <span className="ml-2 text-xs text-gray-400">{province.subregion}</span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-shrink-0">
+                          <span className="hidden sm:inline">{Number(province.population).toLocaleString()} pop</span>
+                          {tier0 && (
+                            <span className="text-gray-400">{Math.round(tier0.percentExplored * 1000) / 10}% explored</span>
+                          )}
+                          <span className="font-medium text-indigo-600">{displayMaxPoints} pts</span>
+                          {toggling === province.code && <span className="text-indigo-600">saving...</span>}
+                        </div>
+                      </div>
+                    </label>
+                    {isTier0 && isChecked && (
+                      <button
+                        type="button"
+                        onClick={() => toggleProvinceTimePanel(province.code)}
+                        className="text-xs text-gray-500 hover:text-indigo-600 flex-shrink-0"
+                      >
+                        {isExpanded ? 'Hide time' : '⏱ Log time'}
+                      </button>
+                    )}
                   </div>
-                </label>
+
+                  {isExpanded && (
+                    <div className="px-4 pb-3 pt-1 border-t border-indigo-100">
+                      <p className="text-xs text-gray-500 mb-2">
+                        {provinceTotalDays} {provinceTotalDays === 1 ? 'day' : 'days'} total in {province.name}
+                      </p>
+                      {provinceVisits.length > 0 && (
+                        <ul className="space-y-1.5 mb-2">
+                          {provinceVisits.map((v) => (
+                            <li key={v.id} className="flex items-center justify-between text-xs px-3 py-1.5 rounded border border-gray-200 bg-gray-50">
+                              <span>
+                                <span className="font-medium">{v.days} {Number(v.days) === 1 ? 'day' : 'days'}</span>
+                                <span className="text-gray-400 mx-1.5">·</span>
+                                <span className={v.visited_at ? 'text-gray-600' : 'text-gray-400 italic'}>
+                                  {formatVisitDate(v.visited_at)}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => deleteProvinceVisit(v)}
+                                className="text-red-500 hover:text-red-700 font-medium"
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <form onSubmit={(e) => addProvinceVisit(e, province.code)} className="flex flex-wrap items-end gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={provinceDaysInput}
+                          onChange={(e) => setProvinceDaysInput(e.target.value)}
+                          placeholder="Days"
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <input
+                          type="date"
+                          value={provinceDateInput}
+                          max={new Date().toISOString().slice(0, 10)}
+                          onChange={(e) => setProvinceDateInput(e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={savingProvinceVisit}
+                          className="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {savingProvinceVisit ? 'Adding…' : 'Add time'}
+                        </button>
+                      </form>
+                      {provinceVisitError && (
+                        <p role="alert" className="mt-2 text-xs text-red-600">{provinceVisitError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

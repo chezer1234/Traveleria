@@ -9,6 +9,7 @@ import {
   addProvinceSchema,
   addProvinceExperienceSchema,
   addVisitSchema,
+  addProvinceVisitSchema,
   validateBody,
 } from '../lib/schemas.js';
 import * as changes from '../lib/changes.js';
@@ -163,6 +164,9 @@ router.delete(
       : [];
     const timeVisits = await db('user_country_visits')
       .where({ user_id: id, country_code: upperCode });
+    const provinceTimeVisits = provinceCodes.length
+      ? await db('user_province_visits').where({ user_id: id }).whereIn('province_code', provinceCodes)
+      : [];
 
     let last_change_id;
     await db.transaction(async (trx) => {
@@ -173,6 +177,10 @@ router.delete(
       for (const ev of experienceVisits) {
         await trx('user_province_experiences').where({ id: ev.id }).del();
         last_change_id = await changes.record(trx, { table: 'user_province_experiences', pk: ev.id, op: 'delete' });
+      }
+      for (const ptv of provinceTimeVisits) {
+        await trx('user_province_visits').where({ id: ptv.id }).del();
+        last_change_id = await changes.record(trx, { table: 'user_province_visits', pk: ptv.id, op: 'delete' });
       }
       for (const pv of provinceVisits) {
         await trx('user_provinces').where({ id: pv.id }).del();
@@ -504,6 +512,69 @@ router.delete(
       await trx('user_country_visits').where({ id: existing.id }).del();
       change_id = await changes.record(trx, {
         table: 'user_country_visits', pk: existing.id, op: 'delete',
+      });
+    });
+    res.json({ message: 'Visit removed', change_id });
+  }
+);
+
+// ── Province time-log visits (Tier 0, issue #46 Phase 2) ─────────────────────
+// Mirrors the country time-log routes above exactly, scoped to a province.
+
+router.post(
+  '/:id/province-visits',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addProvinceVisitSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, province_code, days, visited_at } = req.body;
+
+    const province = await db('provinces').where({ code: province_code }).first();
+    if (!province) return fail(res, 'province_code', 'Unknown province code');
+
+    // Same rule as the country time-log: the province has to be on your
+    // visited list before you can log time in it.
+    const hasProvince = await db('user_provinces')
+      .where({ user_id: id, province_code: province.code })
+      .first();
+    if (!hasProvince) return fail(res, 'province_code', 'Add the province before logging time in it');
+
+    const row = {
+      id: clientId || crypto.randomUUID(),
+      user_id: id,
+      province_code: province.code,
+      days,
+      visited_at: visited_at || null,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_visits').insert(row);
+      change_id = await changes.record(trx, {
+        table: 'user_province_visits', pk: row.id, op: 'insert', row,
+      });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/province-visits/:visitId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, visitId } = req.params;
+    const existing = await db('user_province_visits')
+      .where({ user_id: id, id: visitId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_province_visits').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, {
+        table: 'user_province_visits', pk: existing.id, op: 'delete',
       });
     });
     res.json({ message: 'Visit removed', change_id });

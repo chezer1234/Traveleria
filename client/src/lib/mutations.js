@@ -247,6 +247,40 @@ export async function removeCountryVisitOptimistic(db, userId, visitId) {
   });
 }
 
+// ── Province time-log visits (Tier 0, issue #46 Phase 2) ────────────────────
+// Mirrors the country time-log mutations above exactly, scoped to a province.
+
+export async function addProvinceVisitOptimistic(db, userId, provinceCode, days, visitedAt) {
+  const id = newId();
+  await db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO user_province_visits (id, user_id, province_code, days, visited_at)
+                VALUES (?, ?, ?, ?, ?)`,
+        bind: [id, userId, provinceCode, days, visitedAt || null],
+      },
+    ],
+    endpoint: `/api/users/${userId}/province-visits`,
+    method: 'POST',
+    body: { id, province_code: provinceCode, days, visited_at: visitedAt || undefined },
+  });
+  return id;
+}
+
+export async function removeProvinceVisitOptimistic(db, userId, visitId) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_province_visits WHERE user_id = ? AND id = ?`,
+        bind: [userId, visitId],
+      },
+    ],
+    endpoint: `/api/users/${userId}/province-visits/${visitId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
 // ── Groups (issue #37) ────────────────────────────────────────────────────────
 
 // Create a group with the current user as creator + initial other members.

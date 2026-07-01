@@ -14,7 +14,7 @@ US and China get a distinct **Tier 0** — a scoring tier above Tier 1, exclusiv
 - Each state/province shows a **% explored** on hover, plus a state flag (provincial flags for China, based on Chinese National Games delegation flags).
 - States/provinces are grouped into **sub-regions** (Census regions for the US, economic zones for China). Visiting every state in a sub-region earns a bonus.
 - Each state/province gets **5–10 loggable experiences** (stadiums, skyscrapers, etc.), all worth equal points within that state.
-- Every state gets **at least 4 loggable cities** (major cities, already loggable today, worth 0.5 pts; new "additional" cities worth 0.25 pts) — except Wyoming and Rhode Island, which are exempt from the 4-city minimum.
+- Every state gets **at least 4 loggable cities**, no exceptions (major cities, already loggable today, worth 0.5 pts; new "additional" cities worth 0.25 pts).
 - Time can be logged per state/province, and a **battle** feature (reusing the existing territory-battle UI) lets two users compare which states/provinces they control.
 - Hong Kong and Macau are added as provinces with no cities, but experiences are still loggable.
 
@@ -40,28 +40,34 @@ x = (province_population / national_population) × explorer_ceiling
 
 (`explorer_ceiling` per country, from the existing formula in `points.js`.)
 
-**What changes:** instead of being awarded in full the moment a province is marked "visited," `x` is now unlocked gradually by logging that state's experiences.
+**What changes:** `x` is no longer the whole story. A state now has three independently-earned components:
 
-### Experiences
+### 1. Visit baseline — 90% of x
+
+Simply marking the state/province as visited (the same `user_provinces.visited_at` action that exists today for every Tier 1/2 country) awards **0.9x** immediately — no experiences or cities required. This preserves the "you got on a plane and explored somewhere new, it counts" principle: showing up is still worth almost the full old value.
+
+### 2. Experiences — 50% of x, split evenly
 
 - Each state/province has `n` experiences (5–10, real named landmarks — stadiums, skyscrapers, etc.).
-- All experiences within one state are worth the same value:
+- The experience pool is **0.5x total**, split evenly:
   ```
-  experience_value = x / n
+  experience_value = (0.5 × x) / n
   ```
-- Logging an experience awards `experience_value`. Logging all `n` experiences awards exactly `x` — no more, no less.
+- Logging an experience awards `experience_value`. Logging all `n` awards the full `0.5x`.
 
-### Cities (bonus, on top of x)
+Note the baseline (0.9x) and the experience pool (0.5x) together total **1.4x** — visiting *and* fully exploring is worth 40% more than a Tier 1 province visit today.
 
-- Major cities (already loggable today) = **0.5 pts** each.
-- New "additional" cities (added so every state has ≥4 total, except WY/RI) = **0.25 pts** each.
-- City points are **additive on top of x**, not part of it — a state's true ceiling is `x + city_max`, where `city_max` is the sum of all its city values.
+### 3. Cities — bonus, on top of 1.4x
+
+- Major cities (already loggable today) = **0.5 pts** each (unchanged, flat, matches the existing global city-bonus system).
+- New "additional" cities (added so every state has ≥4 loggable cities total — no exceptions) = **0.25 pts** each.
+- City points are **additive on top of 1.4x** — a state's true ceiling is `1.4x + city_max`, where `city_max` is the sum of all its city values. This is the "just over 1.4×" total value increase Charlie described — cities push it a bit further.
 
 ### % Explored
 
 ```
-total_available = x + city_max
-total_earned    = experience_points_logged + city_points_logged
+total_available = 1.4 × x + city_max
+total_earned    = (visited ? 0.9x : 0) + experience_points_logged + city_points_logged
 percent_explored = total_earned / total_available
 ```
 
@@ -69,13 +75,13 @@ This is what's shown on hover over a state/province.
 
 ### Sub-region bonus
 
-Visiting every state/province in a sub-region (see below) earns a bonus:
+Visiting every state/province in a sub-region (see below) earns a bonus — **visiting**, not fully exploring, is the trigger:
 
 ```
 subregion_bonus = 0.5 × Σ(x_state) for all states in the region
 ```
 
-*(Open question — see below on what triggers this and what exactly gets summed.)*
+Sum is over each state's base `x` value (not the 1.4x-scaled total, not city points) — confirmed by Charlie.
 
 ---
 
@@ -161,11 +167,17 @@ Per team's own workflow (one feature, tested in phases, single PR at the end):
 
 ---
 
+## Resolved (round 2)
+
+- **Sub-region bonus trigger:** visiting every state in the region (binary — same `visited_at` check as today), not full exploration.
+- **Sub-region bonus base:** `0.5 × Σ(x_state)` — sum of base `x` values only, not the 1.4x-scaled total and not city points.
+- **Visit baseline / experience split:** 0.9x for visiting, 0.5x pool for experiences (1.4x combined), cities on top. See Scoring Mechanic above.
+- **City minimum:** flat 4 cities for every state, no exceptions for Wyoming/Rhode Island.
+- **Flag assets:** believed to already exist and be usable — US state flags (standard government works) and China's National Games delegation flags. Still needs sourcing/licensing verification in Phase 3, but no new design work expected.
+
 ## Open Questions
 
-1. **Sub-region bonus trigger** — does "visit every state in the region" mean logging *at least one* experience/city per state (binary visit, like today), or does it require each state to reach 100% explored first? The issue text reads like the former; confirm before implementing.
-2. **Sub-region bonus base** — "half the sum of all states in that region" — sum of just `x` (experience pool) per state, or `x + city_max` (full total)?
-3. **Experience sourcing** — pilot states first (per team decision), but who verifies factual accuracy of each landmark before it's seeded? Needs the same rigor as `01_countries.js` sourcing.
-4. **WY/RI city minimum** — how many cities do they get instead of 4? Whatever they currently have plus maybe 1-2 more, given both currently have zero major cities in the seed today.
-5. **Provincial flag assets** — where do the actual SVGs/images live, what license, and does the China "National Games" flag concept have accessible reference art, or do we need to design placeholders?
-6. **Battle scope** — is a state-level battle only meaningful between two users who've both traveled the same country, or should it be viewable/comparable more generally?
+1. **Experience sourcing method** — use real visitor/attendance numbers where publicly available (e.g. national park visitor stats, stadium attendance, state tourism board figures) to choose which 5-10 landmarks per state are "the" experiences, similar rigor to how `01_countries.js` sources population/tourism data. Where no visitor-count data exists for a landmark, fall back to documented notability (e.g. National Register of Historic Places, state tourism board's own "top attractions" list) rather than subjective picks.
+2. **Retroactive credit** — users who already have a Tier 1 US/China province logged as visited today: do they automatically get the 0.9x baseline the moment Tier 0 ships, with 0.5x experience pool + cities still to unlock? (Assumed yes — the underlying `visited_at` row doesn't change, only what it's worth.)
+3. **"Visited" trigger mechanics** — is marking a province visited still a separate, explicit action (as today), or does logging a state's first experience/city auto-mark it visited too? Affects Phase 1 UI flow.
+4. **Battle scope** — is a state-level battle only meaningful between two users who've both traveled the same country, or should it be viewable/comparable more generally?

@@ -134,6 +134,54 @@ export async function removeProvinceOptimistic(db, userId, provinceCode) {
   });
 }
 
+// Tier 0 (issue #46): logging an experience auto-marks its province visited
+// too (if not already), mirroring the server's behaviour in
+// server/src/routes/users.js — the 0.9x visit baseline is never missed just
+// because a user went straight to logging a landmark.
+export async function addProvinceExperienceOptimistic(db, userId, experienceId, provinceCode, alreadyVisitedProvince) {
+  const id = newId();
+  const preSteps = [
+    {
+      sql: `INSERT INTO user_province_experiences (id, user_id, experience_id, visited_at)
+              VALUES (?, ?, ?, ?)`,
+      bind: [id, userId, experienceId, null],
+    },
+  ];
+  // province_visit_id is generated here and echoed to the server so the
+  // optimistic local row and the server-created row share a PK (same
+  // invariant as every other Phase 5 mutation) — otherwise the next sync
+  // poll would insert a second row for the same province under a different id.
+  let provinceVisitId;
+  if (!alreadyVisitedProvince) {
+    provinceVisitId = newId();
+    preSteps.push({
+      sql: `INSERT OR IGNORE INTO user_provinces (id, user_id, province_code, visited_at)
+              VALUES (?, ?, ?, ?)`,
+      bind: [provinceVisitId, userId, provinceCode, null],
+    });
+  }
+  return db.mutate({
+    preSteps,
+    endpoint: `/api/users/${userId}/province-experiences`,
+    method: 'POST',
+    body: { id, experience_id: experienceId, province_visit_id: provinceVisitId },
+  });
+}
+
+export async function removeProvinceExperienceOptimistic(db, userId, experienceId) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_province_experiences WHERE user_id = ? AND experience_id = ?`,
+        bind: [userId, experienceId],
+      },
+    ],
+    endpoint: `/api/users/${userId}/province-experiences/${experienceId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
 export async function claimSubregionOptimistic(db, userId, subregion) {
   const id = newId();
   return db.mutate({

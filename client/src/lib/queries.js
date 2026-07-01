@@ -35,9 +35,33 @@ async function loadAllProvincesByCountry(db) {
 
 async function loadCitiesForCountry(db, code) {
   return db.all(
-    `SELECT id, name, population FROM cities WHERE country_code = ? ORDER BY population DESC`,
+    `SELECT id, name, population, province_code, city_type FROM cities WHERE country_code = ? ORDER BY population DESC`,
     [code],
   );
+}
+
+// Tier 0 (issue #46): experiences for every province in a country.
+async function loadExperiencesForCountry(db, provinceCodes) {
+  if (!provinceCodes.length) return [];
+  const placeholders = provinceCodes.map(() => '?').join(',');
+  return db.all(
+    `SELECT id, province_code, name, description FROM province_experiences WHERE province_code IN (${placeholders})`,
+    provinceCodes,
+  );
+}
+
+// Experience ids this user has logged, scoped to one country's provinces.
+async function loadVisitedExperienceIds(db, userId, provinceCodes) {
+  if (!provinceCodes.length) return [];
+  const placeholders = provinceCodes.map(() => '?').join(',');
+  const rows = await db.all(
+    `SELECT province_experiences.id AS id
+       FROM user_province_experiences
+       JOIN province_experiences ON user_province_experiences.experience_id = province_experiences.id
+       WHERE user_province_experiences.user_id = ? AND province_experiences.province_code IN (${placeholders})`,
+    [userId, ...provinceCodes],
+  );
+  return rows.map((r) => r.id);
 }
 
 // ---------- Per-user travel data ----------
@@ -63,7 +87,7 @@ async function getUserTravelData(db, userId, homeCountryCode) {
     const tier = getCountryTier(country.code);
 
     const visitedCities = await db.all(
-      `SELECT cities.id, cities.name, cities.population
+      `SELECT cities.id, cities.name, cities.population, cities.province_code, cities.city_type
          FROM user_cities
          JOIN cities ON user_cities.city_id = cities.id
          WHERE user_cities.user_id = ? AND cities.country_code = ?`,
@@ -81,12 +105,22 @@ async function getUserTravelData(db, userId, homeCountryCode) {
     const allProvinces = provincesByCountry[country.code] || [];
     const allCities = tier !== 'microstate' ? await loadCitiesForCountry(db, country.code) : [];
 
+    let allExperiences = [];
+    let visitedExperienceIds = [];
+    if (tier === 0) {
+      const provinceCodes = allProvinces.map((p) => p.code);
+      allExperiences = await loadExperiencesForCountry(db, provinceCodes);
+      visitedExperienceIds = await loadVisitedExperienceIds(db, userId, provinceCodes);
+    }
+
     visitedCountries.push({
       country,
       visitedCities,
       visitedProvinces,
       allProvinces,
       allCities,
+      allExperiences,
+      visitedExperienceIds,
       visited_at: uc.visited_at,
     });
   }
@@ -101,12 +135,14 @@ export async function getUserCountriesLocal(db, userId, homeCountryCode) {
     db, userId, homeCountryCode,
   );
 
-  return visitedCountries.map(({ country, visitedCities, visitedProvinces, allProvinces, allCities, visited_at }) => {
+  return visitedCountries.map(({ country, visitedCities, visitedProvinces, allProvinces, allCities, allExperiences, visitedExperienceIds, visited_at }) => {
     const pts = calculateCountryPoints(country, homeCountry, allCountries, {
       visitedProvinces,
       visitedCities,
       allProvinces,
       allCities,
+      allExperiences,
+      visitedExperienceIds,
     });
     return {
       country_code: country.code,
@@ -190,11 +226,14 @@ export async function getCountryLocal(db, code, homeCountryCode) {
     id: city.id,
     name: city.name,
     population: city.population,
+    province_code: city.province_code,
+    city_type: city.city_type,
     percentage: Math.round(getCityPercentage(city.population, country.population) * 10000) / 100,
   }));
 
   let provinces = [];
-  if (tier === 1 || tier === 2) {
+  let experiences = [];
+  if (tier === 0 || tier === 1 || tier === 2) {
     const rawProvinces = await db.all(
       `SELECT * FROM provinces WHERE country_code = ? ORDER BY population DESC`,
       [country.code],
@@ -206,12 +245,17 @@ export async function getCountryLocal(db, code, homeCountryCode) {
       population: p.population,
       area_km2: p.area_km2,
       disputed: p.disputed,
+      subregion: p.subregion,
       maxPoints: Math.round(((Number(p.population) / nationalPop) * explorerCeiling) * 100) / 100,
     }));
+
+    if (tier === 0) {
+      experiences = await loadExperiencesForCountry(db, rawProvinces.map((p) => p.code));
+    }
   }
 
   const explorationDetail = {};
-  if (tier === 1 || tier === 2) {
+  if (tier === 0 || tier === 1 || tier === 2) {
     explorationDetail.total = provinces.length;
     explorationDetail.visited = 0;
   } else if (tier !== 'microstate') {
@@ -227,12 +271,60 @@ export async function getCountryLocal(db, code, homeCountryCode) {
   return {
     ...country,
     tier,
+    isTier0: tier === 0,
     baseline_points: Math.round(baseline * 100) / 100,
     explorer_ceiling: Math.round(explorerCeiling * 100) / 100,
     cities: citiesWithPercentage,
     provinces,
+    ...(tier === 0 ? { experiences } : {}),
     breakdown,
   };
+}
+
+// Tier 0 (issue #46): real per-province breakdown (earnedPoints, maxPoints,
+// percentExplored, experiences/cities sub-totals) for one country + user.
+// Used by CountryDetail for the hover map + hover % — the simple "visited ?
+// full maxPoints : 0" approximation used elsewhere doesn't hold for Tier 0,
+// where a visited province can be anywhere from 90% to >140% earned.
+export async function getUserCountryScoreLocal(db, userId, code, homeCountryCode) {
+  const upperCode = code.toUpperCase();
+  const country = await db.get(`SELECT * FROM countries WHERE code = ?`, [upperCode]);
+  if (!country) return null;
+
+  const allCountries = await loadAllCountries(db);
+  const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
+
+  const allProvinces = await db.all(
+    `SELECT * FROM provinces WHERE country_code = ? ORDER BY population DESC`,
+    [upperCode],
+  );
+  const allCities = await loadCitiesForCountry(db, upperCode);
+  const provinceCodes = allProvinces.map((p) => p.code);
+  const allExperiences = await loadExperiencesForCountry(db, provinceCodes);
+
+  const visitedProvinces = await db.all(
+    `SELECT provinces.* FROM user_provinces
+       JOIN provinces ON user_provinces.province_code = provinces.code
+       WHERE user_provinces.user_id = ? AND provinces.country_code = ?`,
+    [userId, upperCode],
+  );
+  const visitedCities = await db.all(
+    `SELECT cities.id, cities.name, cities.population, cities.province_code, cities.city_type
+       FROM user_cities JOIN cities ON user_cities.city_id = cities.id
+       WHERE user_cities.user_id = ? AND cities.country_code = ?`,
+    [userId, upperCode],
+  );
+  const visitedExperienceIds = await loadVisitedExperienceIds(db, userId, provinceCodes);
+
+  return calculateCountryPoints(country, home, allCountries, {
+    allProvinces,
+    visitedProvinces,
+    allCities,
+    visitedCities,
+    allExperiences,
+    visitedExperienceIds,
+    includeBreakdown: true,
+  });
 }
 
 // Country-detail helpers: whether the signed-in user has visited this country
@@ -240,7 +332,7 @@ export async function getCountryLocal(db, code, homeCountryCode) {
 // avoid three sequential awaits.
 export async function getUserStatusForCountry(db, userId, code) {
   const upperCode = code.toUpperCase();
-  const [uc, cityIds, provinceCodes] = await Promise.all([
+  const [uc, cityIds, provinceCodes, experienceIds] = await Promise.all([
     db.get(
       `SELECT id FROM user_countries WHERE user_id = ? AND country_code = ?`,
       [userId, upperCode],
@@ -257,11 +349,20 @@ export async function getUserStatusForCountry(db, userId, code) {
          WHERE up.user_id = ? AND p.country_code = ?`,
       [userId, upperCode],
     ),
+    // Tier 0 (issue #46): experiences the user has logged within this country.
+    db.all(
+      `SELECT upe.experience_id AS experience_id FROM user_province_experiences upe
+         JOIN province_experiences pe ON pe.id = upe.experience_id
+         JOIN provinces p ON p.code = pe.province_code
+         WHERE upe.user_id = ? AND p.country_code = ?`,
+      [userId, upperCode],
+    ),
   ]);
   return {
     isVisited: !!uc,
     visitedCityIds: new Set((cityIds || []).map((r) => r.city_id)),
     visitedProvinceCodes: new Set((provinceCodes || []).map((r) => r.province_code)),
+    visitedExperienceIds: new Set((experienceIds || []).map((r) => r.experience_id)),
   };
 }
 
@@ -301,7 +402,7 @@ export async function getLeaderboardLocal(db, currentUserId) {
       if (!country) continue;
       const tier = getCountryTier(country.code);
       const visitedCities = await db.all(
-        `SELECT c.id, c.name, c.population FROM user_cities uc
+        `SELECT c.id, c.name, c.population, c.province_code, c.city_type FROM user_cities uc
            JOIN cities c ON c.id = uc.city_id
            WHERE uc.user_id = ? AND c.country_code = ?`,
         [u.id, country.code],
@@ -314,7 +415,14 @@ export async function getLeaderboardLocal(db, currentUserId) {
       );
       const allProvinces = provincesByCountry[country.code] || [];
       const allCities = tier !== 'microstate' ? await loadCitiesForCountry(db, country.code) : [];
-      visitedCountries.push({ country, visitedCities, visitedProvinces, allProvinces, allCities });
+      let allExperiences = [];
+      let visitedExperienceIds = [];
+      if (tier === 0) {
+        const provinceCodes = allProvinces.map((p) => p.code);
+        allExperiences = await loadExperiencesForCountry(db, provinceCodes);
+        visitedExperienceIds = await loadVisitedExperienceIds(db, u.id, provinceCodes);
+      }
+      visitedCountries.push({ country, visitedCities, visitedProvinces, allProvinces, allCities, allExperiences, visitedExperienceIds });
     }
 
     const result = calculateTotalTravelPoints(home, allCountries, visitedCountries);

@@ -157,6 +157,9 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
           <p className="text-gray-300">
             {tooltip.points} pts {tooltip.visited ? '(visited)' : ''}
           </p>
+          {tooltip.percentExplored !== undefined && (
+            <p className="text-gray-300">{Math.round(tooltip.percentExplored * 1000) / 10}% explored</p>
+          )}
         </div>
       )}
 
@@ -244,7 +247,13 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
               onMouseEnter={(e) => {
                 if (province) {
                   e.target.style.fill = isVisited ? '#4f46e5' : '#a5b4fc';
-                  onHover({ name: province.name, code, points: province.maxPoints, visited: isVisited });
+                  onHover({
+                    name: province.name,
+                    code,
+                    points: province.maxPoints,
+                    visited: isVisited,
+                    percentExplored: province.percentExplored,
+                  });
                 }
               }}
               onMouseLeave={(e) => {

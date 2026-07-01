@@ -156,24 +156,38 @@ Per team's own workflow (one feature, tested in phases, single PR at the end):
 - `server/src/routes/countries.js` + `users.js`: Tier 0 detail response, experience logging endpoints
 - 57 new/updated unit tests in `points.test.js`, all passing (117/117 server suite)
 
-**Phase 1b — Local-first client mirror (not started — important finding)**
+**Phase 1b — Local-first client mirror (done)**
 This app is local-first: `client/src/pages/CountryDetail.jsx` reads exclusively from a
 browser-side SQLite mirror (`client/src/db/worker.js`) and computes scores via a
 **full duplicate** of the scoring engine (`client/src/lib/points.js`), independent
-of the Express API. The server-side Phase 1a work above is inert for the actual
-UI until it's mirrored client-side:
-- `client/src/db/worker.js`: add `province_code`/`city_type` to `cities`, `subregion`
-  to `provinces`, new `province_experiences`/`user_province_experiences` tables,
-  and a schema-version bump (the worker wipes + resnapshots on mismatch).
-- `client/src/lib/points.js`: port `TIER_0_CODES` + the same Tier 0 functions.
-- `client/src/lib/queries.js` / `mutations.js`: new experience query/mutation helpers.
-- `ProvinceMap.jsx` hover tooltip + `CountryDetail.jsx` badge + experience-logging UI.
+of the Express API. Phase 1a alone was inert for the actual UI — this phase mirrors
+it into the local-first stack:
+- `client/src/db/worker.js`: `province_code`/`city_type` on `cities`, `subregion` on
+  `provinces`, new `province_experiences` (snapshot-only reference data) and
+  `user_province_experiences` (synced via the `_changes` feed) tables. No schema-version
+  bump needed — new columns/tables are additive and `ensureSchema()`'s idempotent
+  `ALTER TABLE` pattern (already used for `countries.subregion`) covers existing local DBs.
+- `client/src/lib/points.js`: same `TIER_0_CODES` + `calculateTier0ProvinceExploration` +
+  `calculateTier0SubregionBonus` port as the server, byte-for-byte identical logic.
+- `client/src/lib/queries.js`: `getUserCountryScoreLocal` (real per-province
+  earned/percentExplored via `calculateCountryPoints`), experience loaders, Tier 0
+  branches in `getCountryLocal`/`getUserStatusForCountry`/`getLeaderboardLocal`.
+- `client/src/lib/mutations.js`: `addProvinceExperienceOptimistic` /
+  `removeProvinceExperienceOptimistic` — auto-marks the province visited on first
+  experience log, with a `province_visit_id` echoed to the server so the optimistic
+  local row and the server-created row share a PK (same invariant as every other
+  Phase 5 mutation — the alternative risked duplicate `user_provinces` rows).
+- `CountryDetail.jsx`: flag banner + amber Tier 0 badge, sub-region bonus chips,
+  experience-logging checklist grouped by state, city list distinguishing
+  major (0.5 pts) vs additional (0.25 pts).
+- `ProvinceMap.jsx` hover tooltip now shows real `percentExplored`.
+- 6 new/updated unit tests in `client/src/lib/__tests__/points.test.js` (mirrors
+  the server suite), 63/63 client tests passing.
 
-**Important:** flipping `getCountryTier` to return 0 for US/CN client-side
-*before* the local schema/experience data exists would regress real scores —
-existing visited provinces would drop from `x` to `0.9x` with no way to earn
-the missing 0.5x experience pool. Do not ship the tier bump without the full
-local mirror landing in the same change.
+Verified end-to-end in a real browser (Playwright): signed up, added the US,
+visited California (90% baseline: 15.3/25.8 = 59.3% explored), logged one
+experience (63.4% explored, exactly `(15.3 + x*0.5/8) / 25.8`), confirmed the
+map hover tooltip and sub-region bonus chips render the same numbers as the list.
 
 **Phase 2 — Time & Battles**
 - Per-province time logging

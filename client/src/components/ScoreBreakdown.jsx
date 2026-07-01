@@ -1,4 +1,4 @@
-export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedCityIds }) {
+export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedCityIds, scoreDetail }) {
   const { breakdown, baseline_points, explorer_ceiling, tier } = country;
 
   if (!breakdown) return null;
@@ -14,18 +14,26 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
 
   const { distance, tourism, size, exploration } = breakdown;
 
-  // Compute actual exploration progress
-  const hasProvinces = (tier === 1 || tier === 2) && country.provinces?.length > 0;
+  // Compute actual exploration progress. Tier 0 uses the real per-province
+  // earned/max (90%-140%+ scale) from scoreDetail when available; Tier 1/2
+  // fall back to the simpler "visited = full maxPoints" approximation.
+  const hasProvinces = (tier === 0 || tier === 1 || tier === 2) && country.provinces?.length > 0;
   let exploredCount = 0;
   let totalCount = 0;
   let earnedPts = 0;
+  let maxExplorationPts = explorer_ceiling;
 
   if (hasProvinces) {
     totalCount = country.provinces.length;
     exploredCount = visitedProvinceCodes ? visitedProvinceCodes.size : 0;
-    earnedPts = country.provinces
-      .filter(p => visitedProvinceCodes?.has(p.code))
-      .reduce((sum, p) => sum + p.maxPoints, 0);
+    if (tier === 0 && scoreDetail?.provinceBreakdown) {
+      earnedPts = scoreDetail.provinceBreakdown.reduce((sum, p) => sum + p.earnedPoints, 0);
+      maxExplorationPts = scoreDetail.provinceBreakdown.reduce((sum, p) => sum + p.maxPoints, 0);
+    } else {
+      earnedPts = country.provinces
+        .filter(p => visitedProvinceCodes?.has(p.code))
+        .reduce((sum, p) => sum + p.maxPoints, 0);
+    }
   } else if (tier === 3 || tier === 1) {
     totalCount = exploration.total || 0;
     exploredCount = visitedCityIds ? visitedCityIds.size : 0;
@@ -79,7 +87,7 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-gray-900">Exploration bonus</p>
-                  <span className="text-xs text-gray-500">up to {Math.round(explorer_ceiling)} extra points</span>
+                  <span className="text-xs text-gray-500">up to {Math.round(maxExplorationPts)} extra points</span>
                 </div>
                 <p className="text-sm text-gray-600 mt-0.5">{exploration.explanation}</p>
                 {totalCount > 0 && (
@@ -97,7 +105,7 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
                     </div>
                     {hasProvinces && earnedPts > 0 && (
                       <p className="text-xs text-indigo-600 mt-1">
-                        {Math.round(earnedPts * 10) / 10} / {Math.round(explorer_ceiling * 10) / 10} exploration points earned
+                        {Math.round(earnedPts * 10) / 10} / {Math.round(maxExplorationPts * 10) / 10} exploration points earned
                       </p>
                     )}
                   </div>

@@ -358,7 +358,7 @@ router.post(
   validateBody(addProvinceExperienceSchema),
   async (req, res) => {
     const { id } = req.params;
-    const { id: clientId, experience_id, visited_at } = req.body;
+    const { id: clientId, experience_id, visited_at, province_visit_id } = req.body;
 
     const experience = await db('province_experiences').where({ id: experience_id }).first();
     if (!experience) return fail(res, 'experience_id', 'Unknown experience');
@@ -394,7 +394,7 @@ router.post(
         .first();
       if (!provinceVisit) {
         const provinceRow = {
-          id: crypto.randomUUID(),
+          id: province_visit_id || crypto.randomUUID(),
           user_id: id,
           province_code: province.code,
           visited_at: null,

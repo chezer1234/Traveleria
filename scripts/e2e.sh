@@ -58,8 +58,12 @@ step "Starting sqld + server + client"
 cd e2e
 step "Installing e2e npm deps (server starting in parallel)"
 guard 300 npm install --no-audit --no-fund
-step "Installing Playwright Chromium + system deps"
-guard 420 npx playwright install --with-deps chromium
+step "Installing Playwright Chromium + WebKit + system deps"
+# WebKit runs the loading-resilience spec: its Linux build has no OPFS (like
+# Safari Private Browsing), which is exactly the environment the app must
+# survive without hanging. WebKit's apt dependency list is long, hence the
+# bigger guard.
+guard 600 npx playwright install --with-deps chromium webkit
 
 # By now the server has had 3-4 minutes to come up.  Give it up to 2 more
 # minutes so the combined window covers even the slowest CI sqld init.

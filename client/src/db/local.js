@@ -85,18 +85,37 @@ function rpc(cmd, args) {
 // another open Access Handle". Caching the promise dedupes them.
 const openEntries = new Map();
 
+// Watchdog on the whole open sequence (sqlite-wasm init + OPFS acquisition +
+// snapshot hydrate). sqlite-wasm init on Safari has a documented failure mode
+// where the promise never settles (sqlite/sqlite-wasm#79) — without a timeout
+// that's an infinite "Loading your travel data…" spinner. Generous enough for
+// a cold snapshot fetch on a slow mobile connection.
+const OPEN_TIMEOUT_MS = 45000;
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function openUserDb(userId, apiBase = '', authToken = null) {
   const fileName = `/traveleria-v${SCHEMA_VERSION}-${userId}.db`;
   if (openEntries.has(fileName)) return openEntries.get(fileName);
 
   const promise = (async () => {
     try {
-      const { cursor } = await rpc('open', {
-        poolName: `traveleria-v${SCHEMA_VERSION}`,
-        fileName,
-        apiBase,
-        authToken,
-      });
+      const { cursor, storage } = await withTimeout(
+        rpc('open', {
+          poolName: `traveleria-v${SCHEMA_VERSION}`,
+          fileName,
+          apiBase,
+          authToken,
+        }),
+        OPEN_TIMEOUT_MS,
+        'Timed out initialising the local database',
+      );
 
       // Kick the 5 s poll loop. The worker handles visibility-insensitive polling,
       // exponential back-off on errors, and the schema-version mismatch trap. We
@@ -106,6 +125,9 @@ export async function openUserDb(userId, apiBase = '', authToken = null) {
       return {
         fileName,
         cursor,
+        // 'opfs' (persistent) or 'memory' (session-only fallback — private
+        // browsing, unsupported browser, or the pool is locked by another tab).
+        storage,
         all: (sql, bind) => rpc('all', { sql, bind }),
         get: (sql, bind) => rpc('get', { sql, bind }),
         value: (sql, bind) => rpc('value', { sql, bind }),

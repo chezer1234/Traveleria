@@ -82,6 +82,9 @@ export function AuthProvider({ children }) {
             ready: true,
             schemaVersion: import.meta.env.VITE_APP_SCHEMA_VERSION || 'dev',
             userId: user.id,
+            // 'opfs' or 'memory' — the loading-resilience E2E asserts the
+            // fallback engaged instead of hanging when OPFS is unavailable.
+            storage: entry.storage,
             // Probes are async now — sqlite-wasm lives in a Worker (see db/worker.js).
             countCountries: () => entry.value('SELECT COUNT(*) FROM countries'),
             countCities: () => entry.value('SELECT COUNT(*) FROM cities'),

@@ -32,5 +32,18 @@ module.exports = defineConfig({
       // No --unsafely-treat-insecure-origin-as-secure needed.
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'webkit',
+      // Playwright's Linux WebKit ships WITHOUT the File System API (no
+      // navigator.storage.getDirectory — verified, and see
+      // cypress-io/cypress#30270), so it behaves exactly like iOS Safari in
+      // Private Browsing: OPFS unavailable. That makes it useless for the
+      // OPFS happy path but a deterministic rig for the "app must still load
+      // when OPFS is missing" regression (the iOS Safari infinite-spinner
+      // bug). Only the loading-resilience spec runs here; the rest of the
+      // suite asserts OPFS-specific behaviour and stays chromium-only.
+      testMatch: /loading-resilience\.spec\.js/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
 });

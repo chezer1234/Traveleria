@@ -127,7 +127,7 @@ e2e: ## Build the prod-shape stack + run Playwright on host (what CI runs)
 	./scripts/e2e.sh
 
 e2e-install: ## One-time: install Playwright browsers on this host
-	cd e2e && npm install --no-audit --no-fund && npx playwright install --with-deps chromium
+	cd e2e && npm install --no-audit --no-fund && npx playwright install --with-deps chromium webkit
 
 # -- Maintenance ------------------------------------------------------------
 clean: ## Stop everything + wipe volumes (both dev and prod-shape stacks)

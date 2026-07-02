@@ -13,6 +13,9 @@ const CLIENT_SCHEMA_VERSION = import.meta.env.VITE_APP_SCHEMA_VERSION || 'dev';
 let sqlite3 = null;
 let pool = null;
 let db = null;
+// 'opfs' when the DB is backed by the OPFS SAH pool (persistent), 'memory'
+// when we fell back to a session-only in-memory DB. See openDatabase().
+let storageMode = null;
 
 // Sync state: the server's _changes table names to the client's local tables.
 // Most match 1:1; `users` on the server projects into `users_public` locally
@@ -527,6 +530,46 @@ function isSahLockError(err) {
   return /Access Handles cannot be created|createSyncAccessHandle/i.test(msg);
 }
 
+// Open the per-user database, preferring the persistent OPFS SAH pool but
+// degrading to a session-only in-memory DB when OPFS can't be used at all:
+//   - Safari Private Browsing (and Playwright's Linux WebKit) doesn't expose
+//     OPFS → installOpfsSAHPoolVfs rejects with "Missing required OPFS APIs".
+//   - The SAH pool takes exclusive locks on its files; a second tab — or a
+//     reload whose previous worker's handles were never released (Chrome only
+//     frees orphaned handles on tab close, not reload) — fails with "Access
+//     Handles cannot be created…".
+// In both cases the server is still the source of truth: an in-memory DB
+// re-hydrates from /api/snapshot and syncs/mutates exactly like the OPFS one,
+// it just doesn't survive a reload. Infinitely better than never loading.
+async function openDatabase(args) {
+  if (db) { try { db.close(); } catch {} db = null; }
+  try {
+    if (!pool) {
+      pool = await sqlite3.installOpfsSAHPoolVfs({ name: args.poolName });
+    }
+    // Self-heal once on SAH lock contention. A previous tab/worker can leave
+    // SAH handles dangling (browser crash, StrictMode double-mount in dev).
+    // wipeFiles() drops all known files in the pool which releases their
+    // handles, then we retry the open. Snapshot will re-hydrate.
+    try {
+      db = new pool.OpfsSAHPoolDb(args.fileName);
+    } catch (e) {
+      if (!isSahLockError(e)) throw e;
+      console.warn('[sync] SAH lock contention on open — wiping pool and retrying:', e.message);
+      if (typeof pool.wipeFiles === 'function') await pool.wipeFiles();
+      db = new pool.OpfsSAHPoolDb(args.fileName);
+    }
+    storageMode = 'opfs';
+  } catch (e) {
+    console.warn(
+      '[sync] OPFS unavailable (private browsing, unsupported browser, or the pool is locked by another tab) — using a session-only in-memory DB:',
+      e && e.message,
+    );
+    db = new sqlite3.oo1.DB(':memory:');
+    storageMode = 'memory';
+  }
+}
+
 async function handle(cmd, args = {}) {
   switch (cmd) {
     case 'open': {
@@ -536,25 +579,10 @@ async function handle(cmd, args = {}) {
           printErr: (m) => console.error('[sqlite]', m),
         });
       }
-      if (!pool) {
-        pool = await sqlite3.installOpfsSAHPoolVfs({ name: args.poolName });
-      }
-      if (db) { try { db.close(); } catch {} db = null; }
-      // Self-heal once on SAH lock contention. A previous tab/worker can leave
-      // SAH handles dangling (browser crash, StrictMode double-mount in dev).
-      // wipeFiles() drops all known files in the pool which releases their
-      // handles, then we retry the open. Snapshot will re-hydrate.
-      try {
-        db = new pool.OpfsSAHPoolDb(args.fileName);
-      } catch (e) {
-        if (!isSahLockError(e)) throw e;
-        console.warn('[sync] SAH lock contention on open — wiping pool and retrying:', e.message);
-        if (typeof pool.wipeFiles === 'function') await pool.wipeFiles();
-        db = new pool.OpfsSAHPoolDb(args.fileName);
-      }
+      await openDatabase(args);
       ensureSchema();
       const cursor = await hydrate(args.apiBase || '', args.authToken || null);
-      return { fileName: args.fileName, cursor };
+      return { fileName: args.fileName, cursor, storage: storageMode };
     }
     case 'all':
       return db.selectObjects(args.sql, args.bind);

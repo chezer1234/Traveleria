@@ -6,7 +6,7 @@ import ChecklistOverlay from './ChecklistOverlay';
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, db, dbStatus, dbError } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -119,8 +119,40 @@ export default function Layout() {
 
       <ChecklistOverlay isOpen={checklistOpen} onClose={() => setChecklistOpen(false)} />
 
+      {/* Session-only storage (private browsing / OPFS locked by another tab):
+          the app works normally — changes still save to the account via the
+          API — but nothing is cached on this device between visits. */}
+      {db && db.storage === 'memory' && (
+        <div role="status" className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2 text-center">
+          Your travel data can't be stored on this device right now (private browsing, or the app is open in another tab).
+          Everything still saves to your account — it just reloads fresh each visit.
+        </div>
+      )}
+
       <main className="flex-1">
-        <Outlet />
+        {/* Every page gates on dbStatus === 'ready' with a loading spinner, so
+            'error' must be handled here or the spinner never resolves — which
+            is exactly the endless "Loading your travel data…" bug on browsers
+            where the local DB failed to open. */}
+        {dbStatus === 'error' ? (
+          <div className="max-w-lg mx-auto px-4 py-16 text-center">
+            <h1 className="text-lg font-semibold text-gray-800">We couldn't load your travel data</h1>
+            <p className="mt-3 text-sm text-gray-600">
+              {(dbError && dbError.message) || 'Something went wrong starting the app on this device.'}
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              Check your connection and try again. If this keeps happening, closing every TravelPoints tab and reopening the site usually clears it.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-6 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-6">

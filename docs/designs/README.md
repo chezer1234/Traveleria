@@ -9,6 +9,13 @@ world-atlas TopoJSON plus `client/public/geo/JP.json`.
 **Start here → [`index.html`](index.html)** (open it in a browser — every page is a single
 self-contained HTML file with zero JavaScript).
 
+> **Decision (6 July 2026):** Charlie picked **Atlas** as the design system, combined with
+> Jetstream's trophy cabinet (ten trophies, including 5-experiences and 3/5/10 sub-region
+> tiers), one seamless chart language merged from both, and portrait-phone layouts.
+> See **[`direction-final.html`](direction-final.html)** for the chosen direction — trophy
+> cabinet mockup, unified chart spec, and mobile frames. The three concepts below are kept
+> for the record.
+
 | # | Concept | File | In one line |
 |---|---------|------|-------------|
 | 01 | **Atlas** | [`concept-1-atlas.html`](concept-1-atlas.html) | An heirloom expedition atlas — warm paper, engraved serifs, passport stamps, great-circle routes. |

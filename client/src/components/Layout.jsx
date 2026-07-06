@@ -1,7 +1,29 @@
 import { useState } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ChecklistOverlay from './ChecklistOverlay';
+
+const NAV_LINKS = [
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/add-countries', label: 'Add Countries' },
+  { to: '/leaderboard', label: 'Leaderboard' },
+  { to: '/map', label: 'Map' },
+  { to: '/subregions', label: 'Subregions' },
+  { to: '/trophies', label: 'Trophies' },
+  { to: '/groups', label: 'Groups' },
+];
+
+const desktopLink = ({ isActive }) =>
+  `smallcaps py-1 border-b-2 transition-colors ${
+    isActive
+      ? 'text-ink border-gold'
+      : 'text-ink-soft border-transparent hover:text-ink hover:border-hairline'
+  }`;
+
+const mobileLink = ({ isActive }) =>
+  `block py-3 smallcaps border-b border-hairline/60 ${
+    isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
+  }`;
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -9,14 +31,14 @@ export default function Layout() {
   const { user, logout, db, dbStatus, dbError } = useAuth();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <nav aria-label="Main navigation" className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen flex flex-col bg-paper text-ink font-sans">
+      <nav aria-label="Main navigation" className="bg-panel border-b-2 border-ink">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {user && (
               <button
                 onClick={() => setChecklistOpen((o) => !o)}
-                className="relative p-1.5 text-gray-500 hover:text-indigo-600 rounded-lg hover:bg-gray-100 transition-colors"
+                className="relative p-2.5 text-ink-soft hover:text-compass rounded-lg hover:bg-paper transition-colors"
                 aria-label="Open explorer checklist"
                 aria-expanded={checklistOpen}
               >
@@ -26,37 +48,24 @@ export default function Layout() {
                 </svg>
               </button>
             )}
-            <Link to="/dashboard" className="text-xl font-bold text-indigo-600">
-              TravelPoints
+            <Link to="/dashboard" className="font-display font-black text-2xl tracking-tight text-ink">
+              Travel<span className="text-gold">Points</span>
             </Link>
           </div>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-4">
-            <Link to="/dashboard" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Dashboard
-            </Link>
-            <Link to="/add-countries" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Add Countries
-            </Link>
-            <Link to="/leaderboard" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Leaderboard
-            </Link>
-            <Link to="/map" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Map
-            </Link>
-            <Link to="/subregions" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Subregions
-            </Link>
-            <Link to="/groups" className="text-gray-600 hover:text-indigo-600 text-sm font-medium">
-              Groups
-            </Link>
+          <div className="hidden md:flex items-center gap-5">
+            {NAV_LINKS.map(({ to, label }) => (
+              <NavLink key={to} to={to} className={desktopLink}>
+                {label}
+              </NavLink>
+            ))}
             {user && (
               <>
-                <span className="text-sm text-gray-500">{user.identifier}</span>
+                <span className="text-sm text-ink-soft border-l border-hairline pl-5">{user.identifier}</span>
                 <button
                   onClick={logout}
-                  className="text-sm text-red-500 hover:text-red-700 font-medium"
+                  className="smallcaps text-sienna hover:text-ink"
                 >
                   Logout
                 </button>
@@ -67,7 +76,7 @@ export default function Layout() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+            className="md:hidden p-2.5 text-ink-soft hover:text-ink"
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
           >
@@ -83,31 +92,18 @@ export default function Layout() {
 
         {/* Mobile nav menu */}
         {menuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white px-4 py-3 space-y-2">
-            <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Dashboard
-            </Link>
-            <Link to="/add-countries" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Add Countries
-            </Link>
-            <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Leaderboard
-            </Link>
-            <Link to="/map" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Map
-            </Link>
-            <Link to="/subregions" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Subregions
-            </Link>
-            <Link to="/groups" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700 hover:text-indigo-600 text-sm font-medium">
-              Groups
-            </Link>
+          <div className="md:hidden border-t border-hairline bg-panel px-4 py-2">
+            {NAV_LINKS.map(({ to, label }) => (
+              <NavLink key={to} to={to} onClick={() => setMenuOpen(false)} className={mobileLink}>
+                {label}
+              </NavLink>
+            ))}
             {user && (
               <>
-                <div className="py-2 text-sm text-gray-500">{user.identifier}</div>
+                <div className="py-3 text-sm text-ink-soft">{user.identifier}</div>
                 <button
                   onClick={() => { logout(); setMenuOpen(false); }}
-                  className="block py-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                  className="block py-3 smallcaps text-sienna hover:text-ink"
                 >
                   Logout
                 </button>
@@ -123,7 +119,7 @@ export default function Layout() {
           the app works normally — changes still save to the account via the
           API — but nothing is cached on this device between visits. */}
       {db && db.storage === 'memory' && (
-        <div role="status" className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2 text-center">
+        <div role="status" className="bg-gold/10 border-b border-gold/40 text-ink text-sm px-4 py-2 text-center">
           Your travel data can't be stored on this device right now (private browsing, or the app is open in another tab).
           Everything still saves to your account — it just reloads fresh each visit.
         </div>
@@ -136,16 +132,16 @@ export default function Layout() {
             where the local DB failed to open. */}
         {dbStatus === 'error' ? (
           <div className="max-w-lg mx-auto px-4 py-16 text-center">
-            <h1 className="text-lg font-semibold text-gray-800">We couldn't load your travel data</h1>
-            <p className="mt-3 text-sm text-gray-600">
+            <h1 className="font-display text-xl font-bold text-ink">We couldn't load your travel data</h1>
+            <p className="mt-3 text-sm text-ink-soft">
               {(dbError && dbError.message) || 'Something went wrong starting the app on this device.'}
             </p>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-ink-soft">
               Check your connection and try again. If this keeps happening, closing every TravelPoints tab and reopening the site usually clears it.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-6 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+              className="mt-6 px-4 py-2 bg-compass text-paper text-sm font-medium rounded-md hover:bg-compass-deep"
             >
               Try again
             </button>
@@ -155,9 +151,9 @@ export default function Layout() {
         )}
       </main>
 
-      <footer className="bg-white border-t border-gray-200 py-6">
-        <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-400">
-          TravelPoints &copy; {new Date().getFullYear()}
+      <footer className="bg-panel border-t border-hairline py-6">
+        <div className="max-w-6xl mx-auto px-4 text-center smallcaps text-ink-soft/70">
+          TravelPoints &copy; {new Date().getFullYear()} &middot; Estd 2026 &middot; 195 sovereign nations
         </div>
       </footer>
     </div>

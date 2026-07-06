@@ -13,13 +13,14 @@ import Territory from './pages/Territory';
 import StateBattle from './pages/StateBattle';
 import Groups from './pages/Groups';
 import GroupBattle from './pages/GroupBattle';
+import Trophies from './pages/Trophies';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="loading-spinner" aria-hidden="true"></div>
       </div>
     );
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="/groups/:groupId" element={<GroupBattle />} />
         <Route path="/map" element={<Map />} />
         <Route path="/subregions" element={<Subregions />} />
+        <Route path="/trophies" element={<Trophies />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

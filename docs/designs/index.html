@@ -1,0 +1,1824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traveleria — Design Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbfaf7; --ink: #1d2129; --muted: #626a76; --hairline: #e5e2da;
+    --atlas-a: #3e5f45; --atlas-b: #2e5fa3; --atlas-c: #b4552d; --atlas-paper: #f6f1e7; --atlas-gold: #c9a227;
+    --orbit-bg: #0d1626; --orbit-a: #2bb3e0; --orbit-b: #d84a86; --orbit-c: #38e1ff; --orbit-line: #1e2f4a;
+    --jet-a: #ff6b4a; --jet-b: #7c5cff; --jet-c: #0f9d8f; --jet-d: #3b82f6; --jet-e: #ef4444;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { background: var(--paper); color: var(--ink); font: 16px/1.6 Inter, system-ui, sans-serif; }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 0 28px; }
+  a { color: inherit; }
+
+  header.hero { padding: 72px 0 0; }
+  .kicker { font: 500 12px/1 "JetBrains Mono", monospace; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 900 clamp(40px, 6vw, 68px)/1.04 Fraunces, Georgia, serif; letter-spacing: -.01em; margin: 18px 0 14px; }
+  .lede { max-width: 62ch; color: var(--muted); font-size: 18px; }
+  .lede strong { color: var(--ink); }
+
+  .heromap { margin: 40px 0 8px; border: 1px solid var(--hairline); border-radius: 16px; background: #fff; padding: 18px 18px 8px; }
+  .heromap svg { width: 100%; height: auto; display: block; }
+  .dt { fill: #d9d5cb; }
+  .dt-v { fill: var(--ink); }
+  .heromap .cap { display: flex; justify-content: space-between; font: 500 11px/1 "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 10px 4px 8px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin: 56px 0 12px; }
+  @media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--hairline); border-radius: 18px; overflow: hidden; background: #fff; display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(29,33,41,.10); }
+  .swatchband { height: 116px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .card.atlas .swatchband { background: var(--atlas-paper); box-shadow: inset 0 0 0 6px #fff, inset 0 0 0 7px var(--atlas-gold); }
+  .card.atlas .swatchband .glyph { font: 900 34px/1 Fraunces, Georgia, serif; color: var(--atlas-a); letter-spacing: .02em; }
+  .card.orbit .swatchband { background: var(--orbit-bg); }
+  .card.orbit .swatchband .glyph { font: 500 22px/1 "JetBrains Mono", monospace; color: var(--orbit-c); letter-spacing: .3em; text-shadow: 0 0 14px rgba(56,225,255,.55); }
+  .card.jet .swatchband { background: linear-gradient(100deg, var(--jet-a), var(--jet-b)); }
+  .card.jet .swatchband .glyph { font: 900 30px/1 Inter, sans-serif; color: #fff; letter-spacing: -.01em; }
+  .cardbody { padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .cardnum { font: 500 11px/1 "JetBrains Mono", monospace; letter-spacing: .2em; color: var(--muted); }
+  .card h2 { font: 900 28px/1.1 Fraunces, Georgia, serif; }
+  .pitch { color: var(--muted); font-size: 15px; flex: 1; }
+  .dots { display: flex; gap: 7px; }
+  .dots i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+  .sig { font-size: 13.5px; color: var(--ink); background: var(--paper); border: 1px solid var(--hairline); border-radius: 10px; padding: 9px 12px; }
+  .sig b { font-weight: 600; }
+  .go { display: inline-block; text-align: center; text-decoration: none; font-weight: 600; font-size: 15px; border-radius: 12px; padding: 12px 16px; margin-top: 4px; background: var(--ink); color: #fff; }
+  .go:hover { opacity: .88; }
+
+  .decision { margin: 44px 0 -22px; border: 1px solid var(--atlas-gold); background: var(--atlas-paper); border-radius: 16px; padding: 22px 26px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; box-shadow: inset 0 0 0 4px #fff; }
+  .decision .medal { flex: none; width: 54px; height: 54px; border-radius: 50%; background: var(--atlas-gold); border: 2px solid #a8871f; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .decision .txt { flex: 1; min-width: 260px; }
+  .decision .txt .k { font: 500 11px/1 "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; color: #8a6a12; }
+  .decision .txt h2 { font: 900 24px/1.2 Fraunces, Georgia, serif; margin: 6px 0 4px; }
+  .decision .txt p { font-size: 14.5px; color: var(--muted); }
+  .decision .go { background: var(--atlas-a); margin: 0; }
+
+  section.compare { margin: 64px 0; }
+  h3.sect { font: 900 26px/1.2 Fraunces, Georgia, serif; margin-bottom: 6px; }
+  .sectsub { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 14px; background: #fff; }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font: 500 11px/1.4 "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); background: var(--paper); }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  td em { font-style: normal; color: var(--muted); }
+
+  section.notes { margin: 0 0 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 900px) { section.notes { grid-template-columns: 1fr; } }
+  .note { border: 1px solid var(--hairline); border-radius: 14px; background: #fff; padding: 22px 24px; font-size: 14.5px; color: var(--muted); }
+  .note h4 { font: 700 15px/1.3 Inter, sans-serif; color: var(--ink); margin-bottom: 8px; }
+  .note ul { padding-left: 18px; margin: 8px 0 0; }
+  .note li { margin-bottom: 6px; }
+  .note code { font: 500 12.5px "JetBrains Mono", monospace; background: var(--paper); border: 1px solid var(--hairline); border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+  footer { border-top: 1px solid var(--hairline); padding: 26px 0 48px; color: var(--muted); font-size: 13.5px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap" data-shot="index">
+
+  <header class="hero">
+    <div class="kicker">Traveleria · TravelPoints — design exploration · July 2026</div>
+    <h1>Three ways to make<br>the world feel epic.</h1>
+    <p class="lede">Three complete visual directions for TravelPoints, each illustrated with the same three pages — <strong>the World Map</strong>, <strong>a country page (Japan)</strong>, and <strong>a Territory Battle</strong> — using the same real data from the live scoring engine. Same app, same numbers, three very different souls. <strong>Charlie: pick a favourite</strong> (or steal the best bits of each).</p>
+
+    <div class="heromap">
+      <svg viewBox="0 0 1000 520" role="img" aria-label="Dot-grid world map showing Charlie's 23 visited countries in dark ink">
+        <circle class="dt dt-v" cx="284" cy="5" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="5" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="5" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="356" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="365" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="374" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="383" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="392" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="401" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="410" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="5" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="5" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="374" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="383" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="392" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="401" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="410" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="14" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="14" r="3.1"/>
+<circle class="dt dt-v" cx="140" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="374" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="383" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="392" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="401" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="410" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="833" cy="23" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="23" r="3.1"/>
+<circle class="dt dt-v" cx="122" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="131" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="140" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="365" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="374" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="383" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="428" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="437" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="833" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="32" r="3.1"/>
+<circle class="dt dt-u" cx="851" cy="32" r="3.1"/>
+<circle class="dt dt-v" cx="113" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="122" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="131" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="140" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="374" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="41" r="3.1"/>
+<circle class="dt dt-u" cx="851" cy="41" r="3.1"/>
+<circle class="dt dt-v" cx="113" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="122" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="50" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="50" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="59" r="3.1"/>
+<circle class="dt dt-u" cx="851" cy="59" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="311" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="320" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="473" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="482" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="491" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="500" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="68" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="68" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="329" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="473" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="482" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="491" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="500" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="509" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="77" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="77" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="293" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="302" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="473" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="482" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="491" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="500" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="518" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="86" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="86" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="275" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="284" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="473" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="500" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="95" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="95" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="266" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="509" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="527" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="572" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="581" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="104" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="104" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="446" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="509" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="527" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="545" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="572" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="581" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="113" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="113" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="257" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="536" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="122" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="122" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="248" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="446" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="455" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="464" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="131" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="131" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="221" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="230" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="446" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="545" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="140" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="140" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="437" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="545" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="149" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="149" r="3.1"/>
+<circle class="dt dt-v" cx="149" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="158" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="239" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="428" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="545" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="644" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="653" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="662" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="158" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="158" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="545" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="554" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="563" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="725" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="167" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="167" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="176" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="176" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="176" r="3.1"/>
+<circle class="dt dt-v" cx="212" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="635" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="671" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="716" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="734" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="176" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="176" r="3.1"/>
+<circle class="dt dt-v" cx="167" cy="185" r="3.1"/>
+<circle class="dt dt-v" cx="176" cy="185" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="185" r="3.1"/>
+<circle class="dt dt-v" cx="203" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="626" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="680" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="185" r="3.1"/>
+<circle class="dt dt-v" cx="752" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="185" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="185" r="3.1"/>
+<circle class="dt dt-v" cx="185" cy="194" r="3.1"/>
+<circle class="dt dt-v" cx="194" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="203" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="743" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="194" r="3.1"/>
+<circle class="dt dt-v" cx="761" cy="194" r="3.1"/>
+<circle class="dt dt-v" cx="770" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="194" r="3.1"/>
+<circle class="dt dt-u" cx="203" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="212" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="221" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="203" r="3.1"/>
+<circle class="dt dt-v" cx="761" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="203" r="3.1"/>
+<circle class="dt dt-u" cx="212" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="419" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="617" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="689" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="788" cy="212" r="3.1"/>
+<circle class="dt dt-u" cx="221" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="428" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="698" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="221" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="437" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="455" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="464" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="473" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="707" cy="230" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="446" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="482" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="491" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="752" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="239" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="761" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="248" r="3.1"/>
+<circle class="dt dt-u" cx="230" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="590" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="815" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="833" cy="257" r="3.1"/>
+<circle class="dt dt-u" cx="230" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="770" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="797" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="860" cy="266" r="3.1"/>
+<circle class="dt dt-u" cx="230" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="500" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="779" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="869" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="878" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="887" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="896" cy="275" r="3.1"/>
+<circle class="dt dt-u" cx="230" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="356" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="878" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="887" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="896" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="905" cy="284" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="356" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="806" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="824" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="842" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="887" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="905" cy="293" r="3.1"/>
+<circle class="dt dt-u" cx="239" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="356" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="302" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="311" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="311" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="311" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="311" r="3.1"/>
+<circle class="dt dt-u" cx="248" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="257" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="581" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="320" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="320" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="320" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="320" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="320" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="320" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="572" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="329" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="986" cy="329" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="608" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="338" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="338" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="338" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="347" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="797" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="806" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="815" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="347" r="3.1"/>
+<circle class="dt dt-v" cx="896" cy="347" r="3.1"/>
+<circle class="dt dt-u" cx="266" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="509" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="563" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="599" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="797" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="806" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="815" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="356" r="3.1"/>
+<circle class="dt dt-v" cx="896" cy="356" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="329" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="797" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="806" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="815" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="365" r="3.1"/>
+<circle class="dt dt-v" cx="896" cy="365" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="518" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="554" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="797" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="806" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="815" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="374" r="3.1"/>
+<circle class="dt dt-v" cx="896" cy="374" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="536" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="545" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="797" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="806" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="815" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="824" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="833" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="842" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="383" r="3.1"/>
+<circle class="dt dt-v" cx="887" cy="383" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="320" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="527" cy="392" r="3.1"/>
+<circle class="dt dt-v" cx="788" cy="392" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="392" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="392" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="392" r="3.1"/>
+<circle class="dt dt-v" cx="878" cy="392" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="401" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="401" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="401" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="401" r="3.1"/>
+<circle class="dt dt-u" cx="311" cy="401" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="401" r="3.1"/>
+<circle class="dt dt-v" cx="860" cy="401" r="3.1"/>
+<circle class="dt dt-v" cx="869" cy="401" r="3.1"/>
+<circle class="dt dt-u" cx="275" cy="410" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="410" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="410" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="410" r="3.1"/>
+<circle class="dt dt-v" cx="932" cy="410" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="419" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="419" r="3.1"/>
+<circle class="dt dt-v" cx="851" cy="419" r="3.1"/>
+<circle class="dt dt-v" cx="923" cy="419" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="428" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="428" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="428" r="3.1"/>
+<circle class="dt dt-v" cx="905" cy="428" r="3.1"/>
+<circle class="dt dt-u" cx="284" cy="437" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="437" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="437" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="446" r="3.1"/>
+<circle class="dt dt-u" cx="302" cy="446" r="3.1"/>
+<circle class="dt dt-u" cx="293" cy="455" r="3.1"/>
+      </svg>
+      <div class="cap"><span>23 nations · 5 continents · 712.6 pts</span><span>1 dot ≈ 81,000 km²</span></div>
+    </div>
+  </header>
+
+  <div class="decision">
+    <div class="medal">🏅</div>
+    <div class="txt">
+      <div class="k">Decision · 6 July 2026</div>
+      <h2>Charlie picked Atlas — with Jetstream's trophy cabinet.</h2>
+      <p>The Atlas system ships everywhere, plus a ten-trophy cabinet, one seamless chart language merged from Atlas and Jetstream, and portrait-phone layouts. The concepts below are kept for the record.</p>
+    </div>
+    <a class="go" href="direction-final.html">View the chosen direction →</a>
+  </div>
+
+  <div class="cards">
+    <article class="card atlas">
+      <div class="swatchband"><span class="glyph">Atlas</span></div>
+      <div class="cardbody">
+        <div class="cardnum">CONCEPT 01</div>
+        <h2>Atlas</h2>
+        <p class="pitch">An heirloom expedition atlas. Warm paper, engraved serifs, passport stamps and great-circle routes — every trip inscribed into a book of maps that feels like it belongs in a museum, except it's yours.</p>
+        <div class="dots">
+          <i style="background:#f6f1e7"></i><i style="background:#3e5f45"></i><i style="background:#2e5fa3"></i><i style="background:#b4552d"></i><i style="background:#c9a227"></i>
+        </div>
+        <div class="sig"><b>Signature move:</b> the score breakdown as a printed ledger — “The Reckoning” — with the arithmetic set like a sum in a 19th-century survey.</div>
+        <a class="go" href="concept-1-atlas.html">View Atlas →</a>
+      </div>
+    </article>
+
+    <article class="card orbit">
+      <div class="swatchband"><span class="glyph">ORBIT</span></div>
+      <div class="cardbody">
+        <div class="cardnum">CONCEPT 02</div>
+        <h2>Orbit</h2>
+        <p class="pitch">Night-flight mission control. A glowing dot-matrix Earth on deep navy, monospace telemetry, instrument-panel stat tiles. The world seen from a satellite at 2am — built for the stats obsessive.</p>
+        <div class="dots">
+          <i style="background:#0d1626"></i><i style="background:#2bb3e0"></i><i style="background:#d84a86"></i><i style="background:#a3812c"></i><i style="background:#38e1ff"></i>
+        </div>
+        <div class="sig"><b>Signature move:</b> the dot-grid world map — 1,624 dots, one per ~81,000 km² of land — that lights up as you travel.</div>
+        <a class="go" href="concept-2-orbit.html">View Orbit →</a>
+      </div>
+    </article>
+
+    <article class="card jet">
+      <div class="swatchband"><span class="glyph">Jetstream</span></div>
+      <div class="cardbody">
+        <div class="cardnum">CONCEPT 03</div>
+        <h2>Jetstream</h2>
+        <p class="pitch">Bold travel-game energy. Boarding-pass country pages, XP bars with milestone ticks, achievement stickers, and battles staged like a broadcast football fixture. Points as a sport you want to win.</p>
+        <div class="dots">
+          <i style="background:#ff6b4a"></i><i style="background:#7c5cff"></i><i style="background:#0f9d8f"></i><i style="background:#3b82f6"></i><i style="background:#ef4444"></i>
+        </div>
+        <div class="sig"><b>Signature move:</b> the country header as a boarding pass — perforation, barcode, and your score printed on the stub.</div>
+        <a class="go" href="concept-3-jetstream.html">View Jetstream →</a>
+      </div>
+    </article>
+  </div>
+
+  <section class="compare">
+    <h3 class="sect">Side by side</h3>
+    <p class="sectsub">Same pages, same data — how each concept treats them.</p>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th></th><th>01 · Atlas</th><th>02 · Orbit</th><th>03 · Jetstream</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Feels like</td><td>A museum atlas of <em>your</em> travels</td><td>Mission control for your passport</td><td>A sport you're winning</td></tr>
+        <tr><td>World map</td><td>Atlas plate with graticule, compass rose &amp; dashed flight routes</td><td>Glowing dot-matrix Earth on navy</td><td>Clean vivid political map with sticker legend</td></tr>
+        <tr><td>Country page</td><td>Ledger-style “Reckoning” score table + passport stamp</td><td>Telemetry readouts; distance as a flight computer line</td><td>Boarding pass header + friendly Q&amp;A score cards</td></tr>
+        <tr><td>Battle page</td><td>“The Great Game” — engraved balance-beam tug-of-war</td><td>Signal-strength duel in cyan vs magenta</td><td>Broadcast fixture with a big VS and possession bar</td></tr>
+        <tr><td>Type</td><td>Fraunces + Inter</td><td>Space Grotesk + JetBrains Mono</td><td>Nunito 800/900</td></tr>
+        <tr><td>Mood</td><td>Timeless, earned, precious</td><td>Technical, cool, obsessive</td><td>Loud, fast, competitive</td></tr>
+        <tr><td>Risk to watch</td><td>Could read “old” if overdone</td><td>Dark UI all day can tire</td><td>Needs restraint to stay credible</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <h4>Grounded in the real app</h4>
+      <ul>
+        <li>Every number is real output from <code>server/src/lib/points.js</code> with home = UK: Japan base <b>53.2</b>, explorer ceiling <b>84.6</b>, max <b>137.8</b>; Mongolia max <b>186.6</b>.</li>
+        <li>World geometry is the app's own <code>world-atlas</code> TopoJSON; Japan's 47 prefectures come from <code>client/public/geo/JP.json</code>.</li>
+        <li>The mock traveller has the same 23 countries in every concept, so comparisons are fair.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h4>Accessible by construction</h4>
+      <ul>
+        <li>All three battle palettes (You / Opponent / Contested) were validated for colour-vision-deficiency separation and contrast against each concept's surface — including the current blue/red/purple, which passes.</li>
+        <li>Every multi-colour map ships a visible legend; values are always printed in text colour, never only encoded in a hue.</li>
+        <li>Each concept ends with implementation notes: Tailwind v4 <code>@theme</code> tokens and the Google Fonts to load.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>TravelPoints · docs/designs — static concept documents, zero JavaScript, safe to open anywhere.</span>
+    <span>Made with real World Bank / UNWTO / CIA Factbook data, obviously.</span>
+  </footer>
+</div>
+</body>
+</html>

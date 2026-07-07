@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traveleria — Trophies 1.6 art sheet</title>
+<!--
+  The full trophy art set for issue #52 — every silhouette in every metal
+  finish, plus locked states. Geometry is imported live from
+  client/src/lib/trophyArt.js (single source of truth), so this page must be
+  served over HTTP from the repo root:
+
+      python3 -m http.server 8123      # then open
+      http://localhost:8123/docs/designs/trophies-1-6.html
+-->
+<style>
+  :root{
+    --paper:#f6f1e7; --panel:#fbf8f1; --ink:#26221b; --ink-soft:#6b6355;
+    --hairline:#d8cfba; --gold:#c9a227;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:Georgia, "Times New Roman", serif; padding:28px 20px 60px;}
+  .sheet{max-width:1180px; margin:0 auto;}
+  h1{font-weight:900; letter-spacing:.06em; font-size:26px; text-align:center;}
+  .sub{text-align:center; color:var(--ink-soft); font-family:ui-sans-serif,system-ui,sans-serif; font-size:11px; letter-spacing:.14em; text-transform:uppercase; margin:6px 0 4px;}
+  .stars{text-align:center; color:var(--gold); letter-spacing:.4em; font-size:12px; margin-bottom:22px;}
+  .plate{background:var(--panel); border:1px solid var(--hairline); box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--hairline); padding:18px; margin-bottom:26px;}
+  .plate h2{font-size:15px; letter-spacing:.08em; margin-bottom:2px;}
+  .plate .note{color:var(--ink-soft); font-style:italic; font-size:12.5px; margin-bottom:12px;}
+  .row{display:grid; grid-template-columns:repeat(6, 1fr); gap:10px;}
+  .cell{text-align:center; padding:8px 4px 10px; border:1px solid var(--hairline); background:var(--panel);}
+  .cell svg{width:100%; max-width:110px; height:auto; display:block; margin:0 auto;}
+  .cap{font-family:ui-sans-serif,system-ui,sans-serif; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>THE TROPHY CABINET · ART SHEET 1.6</h1>
+  <p class="sub">Every silhouette × every finish · issue #52 · geometry from client/src/lib/trophyArt.js</p>
+  <p class="stars">✦ ✦ ✦</p>
+  <div id="plates"></div>
+</div>
+<script type="module">
+  import { trophyMarkup, TROPHY_VIEWBOX, TIERS, TIER_LABELS }
+    from '../../client/src/lib/trophyArt.js';
+
+  const SHAPES = [
+    ['cup',     'Loving cup — Travel Points ladder'],
+    ['globe',   'Globe on plinth — Countries ladder'],
+    ['range',   'Mountain range — Continents ladder'],
+    ['compass', 'Compass rose — Sub-regions ladder'],
+    ['obelisk', 'Obelisk & skyline — Cities ladder'],
+    ['island',  'Porthole palm — Island nations ladder'],
+    ['torch',   'Torch — Experiences ladder'],
+    ['laurel',  'Laurel wreath — Continental conquests (platinum)'],
+    ['stamp',   'Postage stamp — First Stamp'],
+    ['plane',   'Paper plane — The 10,000 km Club'],
+    ['peak',    'Summit flag — Hard Mode'],
+    ['seal',    'Wax seal — Century Nation'],
+    ['mapx',    'Folded chart — Off the Map'],
+  ];
+  const GLYPHS = { laurel: 'EU', seal: '100' };
+
+  const plates = document.getElementById('plates');
+  for (const [shape, title] of SHAPES) {
+    const plate = document.createElement('section');
+    plate.className = 'plate';
+    let cells = '';
+    for (const tier of TIERS) {
+      cells += `<div class="cell"><svg viewBox="${TROPHY_VIEWBOX}" role="img" aria-label="${shape} ${tier}">${trophyMarkup(shape, { tier, glyph: GLYPHS[shape] })}</svg><div class="cap">${TIER_LABELS[tier]}</div></div>`;
+    }
+    cells += `<div class="cell"><svg viewBox="${TROPHY_VIEWBOX}" role="img" aria-label="${shape} locked">${trophyMarkup(shape, { earned: false, glyph: GLYPHS[shape] })}</svg><div class="cap">Locked</div></div>`;
+    plate.innerHTML = `<h2>${title}</h2><p class="note">Bronze → Silver → Gold → Diamond → Platinum, and the blind-embossed locked state.</p><div class="row">${cells}</div>`;
+    plates.appendChild(plate);
+  }
+</script>
+</body>
+</html>

@@ -638,7 +638,7 @@ export async function getSubregionsLocal(db, userId, homeCountryCode) {
 // Distances come from the same haversine the scoring engine uses
 // (points.js getDistanceKm) — null when there's no home country to measure from.
 export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
-  const [allCountries, visitedRows, experienceCount, score] = await Promise.all([
+  const [allCountries, visitedRows, experienceCount, cityCount, accountCount, visitorRows, score] = await Promise.all([
     loadAllCountries(db),
     db.all(
       `SELECT c.code, c.name, c.region, c.subregion, c.population,
@@ -650,12 +650,23 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
       [userId],
     ),
     db.value(`SELECT COUNT(*) FROM user_province_experiences WHERE user_id = ?`, [userId]),
+    db.value(`SELECT COUNT(*) FROM user_cities WHERE user_id = ?`, [userId]),
+    // Rarity data for "Off the Map" (issue #52): every account's visits are in
+    // the synced local DB (same data the leaderboard reads).
+    db.value(`SELECT COUNT(*) FROM users_public`),
+    db.all(
+      `SELECT country_code, COUNT(DISTINCT user_id) AS visitors
+         FROM user_countries GROUP BY country_code`,
+    ),
     getUserScoreLocal(db, userId, homeCountryCode),
   ]);
 
   const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
   const withDistance = (c) => ({ ...c, distanceKm: getDistanceKm(home, c) });
   const visited = visitedRows.map(withDistance);
+
+  const visitorsByCountry = {};
+  for (const r of visitorRows) visitorsByCountry[r.country_code] = Number(r.visitors) || 0;
 
   return {
     home,
@@ -664,6 +675,13 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
     subregions: [...new Set(visited.filter((c) => c.subregion).map((c) => c.subregion))],
     continents: [...new Set(visited.map((c) => getContinent(c.subregion)).filter(Boolean))],
     experiencesCompleted: Number(experienceCount) || 0,
+    citiesVisited: Number(cityCount) || 0,
     totalPoints: score.totalPoints,
+    // Per-nation totals from the score engine — powers "Century Nation".
+    countryPoints: (score.countries || []).map((c) => ({
+      code: c.countryCode, name: c.countryName, points: c.total,
+    })),
+    totalAccounts: Number(accountCount) || 0,
+    visitorsByCountry,
   };
 }

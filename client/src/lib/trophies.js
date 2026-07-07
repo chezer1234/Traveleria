@@ -1,6 +1,11 @@
-// The Trophy Cabinet — pure trophy definitions + evaluator. No db access.
-// Feature doc: docs/features/visual-refresh-atlas.md
-// Visual reference: docs/designs/direction-final.html (Nº 01)
+// The Trophy Cabinet 1.6 — pure trophy definitions + evaluator. No db access.
+// Feature doc: docs/features/trophies-1-6.md (issue #52)
+// Artwork: lib/trophyArt.js · art sheet: docs/designs/trophies-1-6.html
+//
+// Forty-six trophies in three groups:
+//   · seven LADDERS, five tiers each (bronze → silver → gold → diamond → platinum)
+//   · six CONQUESTS — complete a continent, platinum only
+//   · five SPECIALS — one-off honours
 //
 // `evaluateTrophies(stats)` consumes the stats object built by
 // getTrophyStatusLocal in lib/queries.js:
@@ -11,18 +16,24 @@
 //   subregions           distinct sub-region names among visited (same definition as the Map page stat)
 //   continents           distinct continents among visited (lib/continents.js)
 //   experiencesCompleted count of Tier-0 experiences the user has logged
+//   citiesVisited        count of the user's logged cities
 //   totalPoints          total Travel Points (getUserScoreLocal)
+//   countryPoints        [{code, name, points}] — per-nation totals from the score engine
+//   totalAccounts        how many accounts exist (users_public)
+//   visitorsByCountry    country_code → distinct accounts that have visited it
+//
+// Every 1.5 trophy id survives — either as a ladder rung with the same id or
+// as a special — so nothing a user has earned disappears.
 
 import { getTourismDifficulty } from './points.js';
 import { CONTINENTS, getContinent } from './continents.js';
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
-// Charlie tunes these numbers after seeing the cabinet live — change freely.
-export const EXPERIENCE_TARGET = 5;
-export const SUBREGION_TIERS = { scout: 3, ranger: 5, legend: 10 };
+// Charlie tunes the ladder targets in LADDERS below — change freely.
+export const TIERS = ['bronze', 'silver', 'gold', 'diamond', 'platinum'];
 export const DISTANCE_CLUB_KM = 10000;
-export const POINTS_CLUB = 500;
-export const CONTINENT_TARGET = 5;
+export const CENTURY_NATION_POINTS = 100;
+export const RARE_VISIT_SHARE = 0.05;
 
 // ── Island nations ───────────────────────────────────────────────────────────
 // Curated list of island-nation ISO alpha-2 codes; every code here exists in
@@ -88,46 +99,217 @@ function formatKm(n) {
   return `${Math.round(n).toLocaleString()} km`;
 }
 
-// Scout / Ranger / Legend share one shape — only the target and medal differ.
-function regionalTrophy(id, name, medal, icon, target) {
+function plural(n, word) {
+  return `${word}${n === 1 ? '' : 's'}`;
+}
+
+function islandsVisited(stats) {
+  return byVisitDate(stats.visited).filter((c) => ISLAND_NATIONS.has(c.code));
+}
+
+// ── The ladders ──────────────────────────────────────────────────────────────
+// Seven categories × five tiers. `ids` pins legacy 1.5 trophy ids onto the
+// rung with the same meaning, so earned history carries over.
+
+export const LADDERS = [
+  {
+    key: 'points', title: 'Travel Points', shape: 'cup',
+    targets: { bronze: 100, silver: 500, gold: 1000, diamond: 2000, platinum: 3000 },
+    names: {
+      bronze: 'The 100 Club', silver: 'The 500 Club', gold: 'The 1,000 Club',
+      diamond: 'The 2,000 Club', platinum: 'The 3,000 Club',
+    },
+    ids: { silver: 'five-hundred-club' },
+    requirement: (t) => `Pass ${t.toLocaleString()} total Travel Points`,
+    current: (stats) => Number(stats.totalPoints) || 0,
+    earnedDetail: (stats, current) => `${Math.round(current).toLocaleString()} pts on the books.`,
+    lockedDetail: () => 'The ledger is still filling.',
+  },
+  {
+    key: 'countries', title: 'Countries', shape: 'globe',
+    targets: { bronze: 5, silver: 15, gold: 30, diamond: 60, platinum: 100 },
+    names: {
+      bronze: 'Wayfarer', silver: 'Voyager', gold: 'Globetrotter',
+      diamond: 'World Wanderer', platinum: 'Centurion',
+    },
+    requirement: (t) => `Visit ${t} countries`,
+    current: (stats) => stats.visited.length,
+    earnedAt: (stats, target) => byVisitDate(stats.visited)[target - 1]?.visited_at || null,
+    earnedDetail: (stats, current) => `${current} of ${stats.allCountries.length} nations logged.`,
+    lockedDetail: (stats, current, target) =>
+      `${target - current} more ${target - current === 1 ? 'country' : 'countries'} to go.`,
+  },
+  {
+    key: 'continents', title: 'Continents', shape: 'range',
+    targets: { bronze: 2, silver: 3, gold: 4, diamond: 5, platinum: 6 },
+    names: {
+      bronze: 'Second Shore', silver: 'Triple Landfall', gold: 'Four Corners',
+      diamond: 'Continental', platinum: 'The Whole Map',
+    },
+    ids: { diamond: 'continental' },
+    requirement: (t) => `Set foot on ${t} continents`,
+    current: (stats) => stats.continents.length,
+    earnedAt: (stats, target) => {
+      const v = unlockingVisit(stats.visited, (c) => getContinent(c.subregion), target);
+      return (v && v.visited_at) || null;
+    },
+    earnedDetail: (stats, current) => {
+      const missing = CONTINENTS.filter((c) => !stats.continents.includes(c));
+      return missing.length === 0
+        ? `All ${CONTINENTS.length} — the whole map.`
+        : `${current} of ${CONTINENTS.length} — ${missing.join(' and ')} waits.`;
+    },
+    lockedDetail: (stats) => {
+      const missing = CONTINENTS.filter((c) => !stats.continents.includes(c));
+      return missing.length ? `${missing[0]} would be new ground.` : 'New ground awaits.';
+    },
+  },
+  {
+    key: 'subregions', title: 'Sub-regions', shape: 'compass',
+    targets: { bronze: 3, silver: 6, gold: 10, diamond: 15, platinum: 20 },
+    names: {
+      bronze: 'Regional Scout', silver: 'Regional Ranger', gold: 'Regional Legend',
+      diamond: 'Regional Sovereign', platinum: 'Master of Regions',
+    },
+    ids: { bronze: 'regional-scout', silver: 'regional-ranger', gold: 'regional-legend' },
+    requirement: (t) => `Reach ${t} sub-regions`,
+    current: (stats) => stats.subregions.length,
+    earnedAt: (stats, target) => {
+      const v = unlockingVisit(stats.visited, (c) => c.subregion, target);
+      return (v && v.visited_at) || null;
+    },
+    earnedDetail: (stats, current, target) => current > target
+      ? `${current} of ${target} — overachieved.`
+      : `${current} ${plural(current, 'sub-region')} in the log.`,
+    lockedDetail: (stats, current, target) =>
+      `${target - current} more ${plural(target - current, 'sub-region')} unlocks it.`,
+  },
+  {
+    key: 'cities', title: 'Cities', shape: 'obelisk',
+    targets: { bronze: 5, silver: 15, gold: 30, diamond: 60, platinum: 100 },
+    names: {
+      bronze: 'Street Level', silver: 'City Lights', gold: 'Urban Explorer',
+      diamond: 'Metropolitan', platinum: 'Megalopolis',
+    },
+    requirement: (t) => `Log ${t} cities`,
+    current: (stats) => Number(stats.citiesVisited) || 0,
+    earnedDetail: (stats, current) => `${current.toLocaleString()} cities in the log.`,
+    lockedDetail: () => 'Cities live on each country’s detail page.',
+  },
+  {
+    key: 'islands', title: 'Island nations', shape: 'island',
+    targets: { bronze: 1, silver: 3, gold: 5, diamond: 10, platinum: 15 },
+    names: {
+      bronze: 'Island Hopper', silver: 'Island Chain', gold: 'Archipelago',
+      diamond: 'Atoll Collector', platinum: 'Sovereign of the Seas',
+    },
+    ids: { bronze: 'island-hopper' },
+    requirement: (t) => (t === 1 ? 'Visit your first island nation' : `Visit ${t} island nations`),
+    current: (stats) => islandsVisited(stats).length,
+    earnedAt: (stats, target) => islandsVisited(stats)[target - 1]?.visited_at || null,
+    earnedDetail: (stats, current, target) => {
+      const nth = islandsVisited(stats)[target - 1];
+      return current === 1 && nth ? nth.name : `${current} island ${plural(current, 'nation')} crossed.`;
+    },
+    lockedDetail: () => `${ISLAND_NATIONS.size} island nations await.`,
+  },
+  {
+    key: 'experiences', title: 'Experiences', shape: 'torch',
+    targets: { bronze: 1, silver: 5, gold: 15, diamond: 30, platinum: 60 },
+    names: {
+      bronze: 'First Story', silver: 'Experience Collector', gold: 'Memory Bank',
+      diamond: 'Storyteller', platinum: 'A Thousand Tales',
+    },
+    ids: { silver: 'experience-collector' },
+    requirement: (t) => (t === 1 ? 'Complete your first experience' : `Complete ${t} experiences`),
+    current: (stats) => Number(stats.experiencesCompleted) || 0,
+    earnedDetail: (stats, current) => `${current} ${plural(current, 'experience')} logged.`,
+    lockedDetail: () => 'US and Chinese states hold the experiences.',
+  },
+];
+
+function ladderTrophy(ladder, tier) {
+  const target = ladder.targets[tier];
   return {
-    id,
-    name,
-    medal,
-    icon,
-    requirement: `Reach ${target} sub-regions`,
+    id: (ladder.ids && ladder.ids[tier]) || `${ladder.key}-${tier}`,
+    name: ladder.names[tier],
+    medal: tier,
+    shape: ladder.shape,
+    group: 'ladder',
+    ladderKey: ladder.key,
+    ladderTitle: ladder.title,
+    requirement: ladder.requirement(target),
     evaluate(stats) {
-      const count = stats.subregions.length;
-      if (count >= target) {
-        const v = unlockingVisit(stats.visited, (c) => c.subregion, target);
+      const current = ladder.current(stats);
+      if (current >= target) {
         return {
           earned: true,
-          earnedAt: (v && v.visited_at) || null,
-          detail: count > target
-            ? `${count} of ${target} — overachieved.`
-            : `${count} sub-region${count === 1 ? '' : 's'} in the log.`,
+          earnedAt: ladder.earnedAt ? ladder.earnedAt(stats, target) : null,
+          detail: ladder.earnedDetail(stats, current, target),
         };
       }
-      const left = target - count;
       return {
         earned: false,
-        progress: { current: count, target },
-        detail: `${left} more sub-region${left === 1 ? '' : 's'} unlocks ${medal}.`,
+        progress: { current, target },
+        detail: ladder.lockedDetail(stats, current, target),
       };
     },
   };
 }
 
-// ── The cabinet ──────────────────────────────────────────────────────────────
-// Ten trophies, in display order. evaluate(stats) returns
-// { earned, detail, progress?: {current, target}, earnedAt?: string|null }.
+// ── Continental conquests ────────────────────────────────────────────────────
+// Visit every country in a continent. Platinum only — that's the point.
 
-export const TROPHIES = [
+const CONTINENT_GLYPHS = {
+  Europe: 'EU', Asia: 'AS', Africa: 'AF',
+  'North America': 'NA', 'South America': 'SA', Oceania: 'OC',
+};
+
+function conquestTrophy(continent) {
+  const slug = continent.toLowerCase().replace(/\s+/g, '-');
+  return {
+    id: `complete-${slug}`,
+    name: `Conqueror of ${continent}`,
+    medal: 'platinum',
+    shape: 'laurel',
+    glyph: CONTINENT_GLYPHS[continent],
+    group: 'conquest',
+    requirement: `Visit every country in ${continent}`,
+    evaluate(stats) {
+      const inContinent = stats.allCountries.filter((c) => getContinent(c.subregion) === continent);
+      const visitedIn = stats.visited.filter((c) => getContinent(c.subregion) === continent);
+      const total = inContinent.length;
+      const count = visitedIn.length;
+      if (total > 0 && count >= total) {
+        const last = byVisitDate(visitedIn)[count - 1];
+        return {
+          earned: true,
+          earnedAt: (last && last.visited_at) || null,
+          detail: `All ${total} nations — ${continent} is yours.`,
+        };
+      }
+      const visitedCodes = new Set(visitedIn.map((c) => c.code));
+      const missing = inContinent.filter((c) => !visitedCodes.has(c.code));
+      return {
+        earned: false,
+        progress: { current: count, target: total },
+        detail: missing.length
+          ? `${missing.length} to go — ${missing[0].name} among them.`
+          : 'No countries mapped to this continent.',
+      };
+    },
+  };
+}
+
+// ── Special honours ──────────────────────────────────────────────────────────
+
+export const SPECIALS = [
   {
     id: 'first-stamp',
     name: 'First Stamp',
-    medal: 'gold',
-    icon: '1',
+    medal: 'bronze',
+    shape: 'stamp',
+    group: 'special',
     requirement: 'Log your first country',
     evaluate(stats) {
       const first = byVisitDate(stats.visited)[0];
@@ -146,75 +328,11 @@ export const TROPHIES = [
     },
   },
   {
-    id: 'island-hopper',
-    name: 'Island Hopper',
-    medal: 'gold',
-    icon: '🏝',
-    requirement: 'Visit your first island nation',
-    evaluate(stats) {
-      const island = byVisitDate(stats.visited).find((c) => ISLAND_NATIONS.has(c.code));
-      if (island) {
-        return { earned: true, earnedAt: island.visited_at || null, detail: island.name };
-      }
-      return {
-        earned: false,
-        progress: { current: 0, target: 1 },
-        detail: `${ISLAND_NATIONS.size} island nations await.`,
-      };
-    },
-  },
-  {
-    id: 'continental',
-    name: 'Continental',
-    medal: 'gold',
-    icon: '🌍',
-    requirement: `Set foot on ${CONTINENT_TARGET} continents`,
-    evaluate(stats) {
-      const count = stats.continents.length;
-      const missing = CONTINENTS.filter((c) => !stats.continents.includes(c));
-      if (count >= CONTINENT_TARGET) {
-        const v = unlockingVisit(stats.visited, (c) => getContinent(c.subregion), CONTINENT_TARGET);
-        return {
-          earned: true,
-          earnedAt: (v && v.visited_at) || null,
-          detail: missing.length === 0
-            ? `All ${CONTINENTS.length} — the whole map.`
-            : `${count} of ${CONTINENTS.length} — ${missing.join(' and ')} waits.`,
-        };
-      }
-      return {
-        earned: false,
-        progress: { current: count, target: CONTINENT_TARGET },
-        detail: missing.length ? `${missing[0]} would be new ground.` : 'New ground awaits.',
-      };
-    },
-  },
-  regionalTrophy('regional-scout', 'Regional Scout', 'bronze', 'Ⅲ', SUBREGION_TIERS.scout),
-  regionalTrophy('regional-ranger', 'Regional Ranger', 'silver', 'Ⅴ', SUBREGION_TIERS.ranger),
-  regionalTrophy('regional-legend', 'Regional Legend', 'gold', 'Ⅹ', SUBREGION_TIERS.legend),
-  {
-    id: 'experience-collector',
-    name: 'Experience Collector',
-    medal: 'gold',
-    icon: '✦',
-    requirement: `Complete ${EXPERIENCE_TARGET} experiences`,
-    evaluate(stats) {
-      const n = stats.experiencesCompleted;
-      if (n >= EXPERIENCE_TARGET) {
-        return { earned: true, detail: `${n} experiences logged.` };
-      }
-      return {
-        earned: false,
-        progress: { current: n, target: EXPERIENCE_TARGET },
-        detail: 'US and Chinese states hold the experiences.',
-      };
-    },
-  },
-  {
     id: 'ten-thousand-km-club',
     name: `The ${DISTANCE_CLUB_KM.toLocaleString()} km Club`,
     medal: 'gold',
-    icon: '✈',
+    shape: 'plane',
+    group: 'special',
     requirement: `Visit a country ≥ ${DISTANCE_CLUB_KM.toLocaleString()} km from home`,
     evaluate(stats) {
       const farthest = stats.visited.reduce(
@@ -243,7 +361,8 @@ export const TROPHIES = [
     id: 'hard-mode',
     name: 'Hard Mode',
     medal: 'gold',
-    icon: '⛰',
+    shape: 'peak',
+    group: 'special',
     requirement: 'Visit an "Extremely hard to visit" country',
     evaluate(stats) {
       const conquered = byVisitDate(stats.visited).find(isExtremelyHard);
@@ -275,26 +394,100 @@ export const TROPHIES = [
     },
   },
   {
-    id: 'five-hundred-club',
-    name: `The ${POINTS_CLUB} Club`,
-    medal: 'gold',
-    icon: 'Ⅾ', // Roman numeral 500, engraved
-    requirement: `Pass ${POINTS_CLUB} total Travel Points`,
+    id: 'century-nation',
+    name: 'Century Nation',
+    medal: 'diamond',
+    shape: 'seal',
+    glyph: '100',
+    group: 'special',
+    requirement: `Earn over ${CENTURY_NATION_POINTS} points from a single nation`,
     evaluate(stats) {
-      const pts = Number(stats.totalPoints) || 0;
-      if (pts >= POINTS_CLUB) {
-        return { earned: true, detail: `${pts.toLocaleString()} pts on the books.` };
+      const best = (stats.countryPoints || []).reduce(
+        (top, c) => (!top || c.points > top.points ? c : top),
+        null,
+      );
+      if (best && best.points > CENTURY_NATION_POINTS) {
+        return {
+          earned: true,
+          detail: `${best.name} · ${Math.round(best.points).toLocaleString()} pts from one nation.`,
+        };
       }
       return {
         earned: false,
-        progress: { current: pts, target: POINTS_CLUB },
-        detail: 'The ledger is still filling.',
+        progress: { current: best ? Math.round(best.points) : 0, target: CENTURY_NATION_POINTS },
+        detail: best
+          ? `Deepest so far: ${best.name} · ${Math.round(best.points)} pts. Explore within it.`
+          : 'Go deep, not just wide — provinces and cities stack points.',
+      };
+    },
+  },
+  {
+    id: 'off-the-map',
+    name: 'Off the Map',
+    medal: 'diamond',
+    shape: 'mapx',
+    group: 'special',
+    requirement: `Visit a nation fewer than ${RARE_VISIT_SHARE * 100}% of accounts have visited`,
+    evaluate(stats) {
+      const total = Number(stats.totalAccounts) || 0;
+      const visitors = stats.visitorsByCountry || {};
+      // Rare = under the share threshold, or you're the only account that has
+      // ever been there (keeps the trophy reachable while the userbase is
+      // small, when nothing can mathematically be under 5%).
+      const rare = stats.visited
+        .map((c) => ({ country: c, n: visitors[c.code] || 1 }))
+        .filter(({ n }) => n === 1 || (total > 0 && n / total < RARE_VISIT_SHARE))
+        .sort((a, b) => a.n - b.n)[0];
+      if (rare) {
+        const share = total > 0 ? (rare.n / total) * 100 : 0;
+        return {
+          earned: true,
+          earnedAt: rare.country.visited_at || null,
+          detail: rare.n === 1
+            ? `${rare.country.name} — you're the only one who has been.`
+            : `${rare.country.name} — only ${share.toFixed(1)}% of accounts have been.`,
+        };
+      }
+      return {
+        earned: false,
+        progress: { current: 0, target: 1 },
+        detail: 'Every nation in your log is well-trodden. Go somewhere nobody goes.',
       };
     },
   },
 ];
 
+// ── The cabinet ──────────────────────────────────────────────────────────────
+// All 46, in display order: ladders (by tier), conquests, specials.
+// evaluate(stats) returns { earned, detail, progress?: {current, target},
+// earnedAt?: string|null }.
+
+export const CONQUESTS = CONTINENTS.map(conquestTrophy);
+
+export const TROPHIES = [
+  ...LADDERS.flatMap((ladder) => TIERS.map((tier) => ladderTrophy(ladder, tier))),
+  ...CONQUESTS,
+  ...SPECIALS,
+];
+
 // Every trophy with its evaluation folded in — what Trophies.jsx renders.
 export function evaluateTrophies(stats) {
   return TROPHIES.map((t) => ({ ...t, ...t.evaluate(stats) }));
+}
+
+// The evaluated cabinet, grouped for display: one entry per ladder (rungs in
+// tier order), then conquests, then specials.
+export function evaluateCabinet(stats) {
+  const all = evaluateTrophies(stats);
+  return {
+    all,
+    ladders: LADDERS.map((l) => ({
+      key: l.key,
+      title: l.title,
+      shape: l.shape,
+      trophies: all.filter((t) => t.ladderKey === l.key),
+    })),
+    conquests: all.filter((t) => t.group === 'conquest'),
+    specials: all.filter((t) => t.group === 'special'),
+  };
 }

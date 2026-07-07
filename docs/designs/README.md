@@ -16,6 +16,12 @@ self-contained HTML file with zero JavaScript).
 > cabinet mockup, unified chart spec, and mobile frames. The three concepts below are kept
 > for the record.
 
+> **Trophies 1.6 (July 2026):** the cabinet grew to 46 trophies across five tiers
+> (bronze → platinum) with original artwork per category — see
+> **[`trophies-1-6.html`](trophies-1-6.html)** for the full art sheet (serve the repo root
+> over HTTP: it imports the live geometry from `client/src/lib/trophyArt.js`), and
+> [`../features/trophies-1-6.md`](../features/trophies-1-6.md) for the feature doc.
+
 | # | Concept | File | In one line |
 |---|---------|------|-------------|
 | 01 | **Atlas** | [`concept-1-atlas.html`](concept-1-atlas.html) | An heirloom expedition atlas — warm paper, engraved serifs, passport stamps, great-circle routes. |

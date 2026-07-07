@@ -14,7 +14,9 @@ import {
   getCityPercentage,
   getScoreBreakdown,
   calculateSubregionBonuses,
+  getDistanceKm,
 } from './points.js';
+import { getContinent } from './continents.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
@@ -626,4 +628,42 @@ export async function getSubregionsLocal(db, userId, homeCountryCode) {
   const claimedSubregions = new Set(claimedRows.map(r => r.subregion));
 
   return calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions);
+}
+
+// ── Trophy Cabinet (visual-refresh-atlas) ────────────────────────────────────
+
+// Everything the trophy evaluator (lib/trophies.js evaluateTrophies) needs, in
+// one gather. Sub-regions use the same definition as the Map page stat:
+// distinct non-null countries.subregion values among visited countries.
+// Distances come from the same haversine the scoring engine uses
+// (points.js getDistanceKm) — null when there's no home country to measure from.
+export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
+  const [allCountries, visitedRows, experienceCount, score] = await Promise.all([
+    loadAllCountries(db),
+    db.all(
+      `SELECT c.code, c.name, c.region, c.subregion, c.population,
+              c.annual_tourists, c.area_km2, c.lat, c.lng, uc.visited_at
+         FROM user_countries uc
+         JOIN countries c ON c.code = uc.country_code
+         WHERE uc.user_id = ?
+         ORDER BY (uc.visited_at IS NULL), uc.visited_at ASC`,
+      [userId],
+    ),
+    db.value(`SELECT COUNT(*) FROM user_province_experiences WHERE user_id = ?`, [userId]),
+    getUserScoreLocal(db, userId, homeCountryCode),
+  ]);
+
+  const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
+  const withDistance = (c) => ({ ...c, distanceKm: getDistanceKm(home, c) });
+  const visited = visitedRows.map(withDistance);
+
+  return {
+    home,
+    allCountries: allCountries.map(withDistance),
+    visited,
+    subregions: [...new Set(visited.filter((c) => c.subregion).map((c) => c.subregion))],
+    continents: [...new Set(visited.map((c) => getContinent(c.subregion)).filter(Boolean))],
+    experiencesCompleted: Number(experienceCount) || 0,
+    totalPoints: score.totalPoints,
+  };
 }

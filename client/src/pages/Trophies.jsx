@@ -6,8 +6,33 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTrophyStatusLocal } from '../lib/queries';
-import { evaluateCabinet, TIERS } from '../lib/trophies';
+import { evaluateCabinet, sortTrophies, SORT_OPTIONS, TIERS } from '../lib/trophies';
 import TrophyMedal from '../components/TrophyMedal';
+
+const VIEW_MODES = [
+  { key: 'all', label: 'Full Collection' },
+  { key: 'cabinet', label: 'My Cabinet' },
+];
+
+function PillGroup({ options, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1 bg-paper border border-hairline rounded-md p-1">
+      {options.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          aria-pressed={value === key}
+          className={`px-3 py-2 rounded-md smallcaps transition-colors ${
+            value === key ? 'bg-ink text-paper' : 'text-ink-soft hover:text-ink'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // "Mon YYYY" from the qualifying visit's visited_at; null when undated.
 function earnedDateLabel(earnedAt) {
@@ -144,6 +169,8 @@ export default function Trophies() {
   const [cabinet, setCabinet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState('all');
+  const [sortKey, setSortKey] = useState('recent');
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -182,7 +209,9 @@ export default function Trophies() {
 
   if (!cabinet) return null;
 
-  const earnedCount = cabinet.all.filter((t) => t.earned).length;
+  const earned = cabinet.all.filter((t) => t.earned);
+  const earnedCount = earned.length;
+  const sortedEarned = viewMode === 'cabinet' ? sortTrophies(earned, sortKey) : earned;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -201,39 +230,72 @@ export default function Trophies() {
           </span>
         </div>
 
-        {/* Ladders — bronze to platinum, seven disciplines */}
-        <SectionRule
-          title="EXPEDITION LADDERS"
-          note="Bronze · Silver · Gold · Diamond · Platinum"
-        />
-        <div className="grid sm:grid-cols-2 gap-px bg-hairline border-t border-hairline">
-          {cabinet.ladders.map((l) => (
-            <LadderRow key={l.key} ladder={l} />
-          ))}
-          {cabinet.ladders.length % 2 === 1 && <div className="bg-panel hidden sm:block" />}
+        {/* View + sort controls */}
+        <div className="bg-panel border-b border-hairline px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <PillGroup options={VIEW_MODES} value={viewMode} onChange={setViewMode} />
+          {viewMode === 'cabinet' && (
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              <p className="smallcaps text-ink-soft shrink-0">Sort:</p>
+              <PillGroup options={SORT_OPTIONS.map((o) => ({ key: o.key, label: o.label }))} value={sortKey} onChange={setSortKey} />
+            </div>
+          )}
         </div>
 
-        {/* Continental conquests — every country in a continent, platinum only */}
-        <SectionRule
-          title="CONTINENTAL CONQUESTS"
-          note="Every country on the continent · platinum honours"
-        />
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-px bg-hairline border-t border-hairline">
-          {cabinet.conquests.map((t) => (
-            <TrophyCard key={t.id} trophy={t} />
-          ))}
-        </div>
+        {viewMode === 'cabinet' ? (
+          <>
+            <SectionRule
+              title="MY CABINET"
+              note={earnedCount === 0 ? 'Nothing on the shelf yet' : `${earnedCount} unlocked ${earnedCount === 1 ? 'trophy' : 'trophies'}`}
+            />
+            {sortedEarned.length === 0 ? (
+              <p className="font-display italic text-sm text-ink-soft text-center px-4 pb-8">
+                Log a country to start filling the shelf.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-hairline border-t border-hairline">
+                {sortedEarned.map((t) => (
+                  <TrophyCard key={t.id} trophy={t} />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Ladders — bronze to platinum, seven disciplines */}
+            <SectionRule
+              title="EXPEDITION LADDERS"
+              note="Bronze · Silver · Gold · Diamond · Platinum"
+            />
+            <div className="grid sm:grid-cols-2 gap-px bg-hairline border-t border-hairline">
+              {cabinet.ladders.map((l) => (
+                <LadderRow key={l.key} ladder={l} />
+              ))}
+              {cabinet.ladders.length % 2 === 1 && <div className="bg-panel hidden sm:block" />}
+            </div>
 
-        {/* Special honours */}
-        <SectionRule
-          title="SPECIAL HONOURS"
-          note="One-off feats of the expedition"
-        />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-hairline border-t border-hairline">
-          {cabinet.specials.map((t) => (
-            <TrophyCard key={t.id} trophy={t} />
-          ))}
-        </div>
+            {/* Continental conquests — every country in a continent, platinum only */}
+            <SectionRule
+              title="CONTINENTAL CONQUESTS"
+              note="Every country on the continent · platinum honours"
+            />
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-px bg-hairline border-t border-hairline">
+              {cabinet.conquests.map((t) => (
+                <TrophyCard key={t.id} trophy={t} />
+              ))}
+            </div>
+
+            {/* Special honours */}
+            <SectionRule
+              title="SPECIAL HONOURS"
+              note="One-off feats of the expedition"
+            />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-hairline border-t border-hairline">
+              {cabinet.specials.map((t) => (
+                <TrophyCard key={t.id} trophy={t} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

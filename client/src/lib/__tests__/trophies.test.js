@@ -10,6 +10,7 @@ import {
   LADDERS,
   evaluateTrophies,
   evaluateCabinet,
+  sortTrophies,
   ISLAND_NATIONS,
 } from '../trophies.js';
 import { CONTINENTS } from '../continents.js';
@@ -262,5 +263,57 @@ describe('evaluateCabinet', () => {
     expect(cabinet.conquests).toHaveLength(CONTINENTS.length);
     expect(cabinet.specials).toHaveLength(5);
     expect(cabinet.all).toHaveLength(TROPHIES.length);
+  });
+});
+
+// Cabinet mode's sort control (issue #57) — only ever called on the earned
+// subset, but sortTrophies doesn't care either way.
+describe('sortTrophies', () => {
+  function trophy(name, medal, earnedAt) {
+    return { id: name, name, medal, earnedAt };
+  }
+
+  it('recent puts the newest earnedAt first, undated last', () => {
+    const list = [
+      trophy('Old', 'bronze', '2020-01-01'),
+      trophy('New', 'silver', '2024-06-01'),
+      trophy('Undated', 'gold', null),
+      trophy('Mid', 'diamond', '2022-03-01'),
+    ];
+    const sorted = sortTrophies(list, 'recent').map((t) => t.name);
+    expect(sorted).toEqual(['New', 'Mid', 'Old', 'Undated']);
+  });
+
+  it('oldest puts the earliest earnedAt first, undated last', () => {
+    const list = [
+      trophy('Old', 'bronze', '2020-01-01'),
+      trophy('New', 'silver', '2024-06-01'),
+      trophy('Undated', 'gold', null),
+    ];
+    const sorted = sortTrophies(list, 'oldest').map((t) => t.name);
+    expect(sorted).toEqual(['Old', 'New', 'Undated']);
+  });
+
+  it('tier orders platinum to bronze, ties broken alphabetically', () => {
+    const list = [
+      trophy('Bronze One', 'bronze', null),
+      trophy('Platinum', 'platinum', null),
+      trophy('Gold', 'gold', null),
+      trophy('Bronze Two', 'bronze', null),
+    ];
+    const sorted = sortTrophies(list, 'tier').map((t) => t.name);
+    expect(sorted).toEqual(['Platinum', 'Gold', 'Bronze One', 'Bronze Two']);
+  });
+
+  it('alpha orders A–Z by name', () => {
+    const list = [trophy('Zebra', 'gold', null), trophy('Alpha', 'bronze', null)];
+    const sorted = sortTrophies(list, 'alpha').map((t) => t.name);
+    expect(sorted).toEqual(['Alpha', 'Zebra']);
+  });
+
+  it('does not mutate the input array', () => {
+    const list = [trophy('B', 'bronze', null), trophy('A', 'gold', null)];
+    sortTrophies(list, 'alpha');
+    expect(list.map((t) => t.name)).toEqual(['B', 'A']);
   });
 });

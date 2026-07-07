@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-Context for AI assistants working on the TravelPoints codebase.
+Context for AI assistants working on the Traveleria codebase.
 
 ## The Vibe
 
-This app is built around one of the best things humans do: go places. TravelPoints exists because exploring the world — whether it's a weekend ferry to France or a 22-hour odyssey to Papua New Guinea — should feel like an achievement. And it should be scored fairly.
+This app is built around one of the best things humans do: go places. Traveleria exists because exploring the world — whether it's a weekend ferry to France or a 22-hour odyssey to Papua New Guinea — should feel like an achievement. And it should be scored fairly.
 
 Charlie (15, product owner) and Lewis (dad, technical lead) are building this together. Charlie has strong opinions about what feels right. If Laos scores fewer points than Belgium, something is broken. If the user can't understand *why* a country scores what it does, the transparency isn't there yet.
 
@@ -22,7 +22,7 @@ Charlie (15, product owner) and Lewis (dad, technical lead) are building this to
 
 ## Project Overview
 
-TravelPoints is a web app where users log countries they've visited and earn points based on distance, tourism difficulty, and country size. Points increase further by exploring provinces or major cities within each country.
+Traveleria is a web app where users log countries they've visited and earn points based on distance, tourism difficulty, and country size. Points increase further by exploring provinces or major cities within each country.
 
 ## Tech Stack
 

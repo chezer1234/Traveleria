@@ -171,7 +171,7 @@ async function start() {
   console.log('Database ready.');
 
   app.listen(PORT, () => {
-    console.log(`TravelPoints server running on port ${PORT} (schema ${APP_SCHEMA_VERSION})`);
+    console.log(`Traveleria server running on port ${PORT} (schema ${APP_SCHEMA_VERSION})`);
   });
 }
 

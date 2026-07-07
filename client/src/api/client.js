@@ -2,8 +2,8 @@ const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 const CLIENT_SCHEMA_VERSION = import.meta.env.VITE_APP_SCHEMA_VERSION || 'dev';
 
 if (import.meta.env.PROD) {
-  console.log('[TravelPoints] API_BASE:', API_BASE);
-  console.log('[TravelPoints] VITE_API_URL:', import.meta.env.VITE_API_URL || '(not set)');
+  console.log('[Traveleria] API_BASE:', API_BASE);
+  console.log('[Traveleria] VITE_API_URL:', import.meta.env.VITE_API_URL || '(not set)');
 }
 
 const TOKEN_STORAGE_KEY = 'traveleria.auth_token';

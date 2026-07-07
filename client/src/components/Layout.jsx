@@ -137,7 +137,7 @@ export default function Layout() {
               {(dbError && dbError.message) || 'Something went wrong starting the app on this device.'}
             </p>
             <p className="mt-2 text-sm text-ink-soft">
-              Check your connection and try again. If this keeps happening, closing every TravelPoints tab and reopening the site usually clears it.
+              Check your connection and try again. If this keeps happening, closing every Traveleria tab and reopening the site usually clears it.
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -153,7 +153,7 @@ export default function Layout() {
 
       <footer className="bg-panel border-t border-hairline py-6">
         <div className="max-w-6xl mx-auto px-4 text-center smallcaps text-ink-soft/70">
-          TravelPoints &copy; {new Date().getFullYear()} &middot; Estd 2026 &middot; 195 sovereign nations
+          Traveleria &copy; {new Date().getFullYear()} &middot; Estd 2026 &middot; 195 sovereign nations
         </div>
       </footer>
     </div>

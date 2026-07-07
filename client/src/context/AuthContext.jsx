@@ -147,7 +147,7 @@ export function AuthProvider({ children }) {
         minHeight: '100vh', fontFamily: 'system-ui, sans-serif', color: '#475569',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 500 }}>Updating TravelPoints…</div>
+          <div style={{ fontSize: 18, fontWeight: 500 }}>Updating Traveleria…</div>
           <div style={{ fontSize: 13, marginTop: 8 }}>One moment while we refresh your local data.</div>
         </div>
       </div>

@@ -6,7 +6,7 @@
 
 ## What
 
-Reskin TravelPoints in the **Atlas** design system chosen from the three concepts —
+Reskin Traveleria in the **Atlas** design system chosen from the three concepts —
 an heirloom expedition atlas: warm paper surfaces, Fraunces display serifs, maps
 framed as plates, the score breakdown as a printed ledger — combined with
 **Jetstream's trophy cabinet** (a new `/trophies` page with ten achievements) and

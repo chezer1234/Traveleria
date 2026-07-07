@@ -9,7 +9,7 @@
 
 ## 1. What It Is
 
-Groups let you save a named set of travellers and run a shared territory battle across all of them — same Time and Points modes as the existing 1v1 battle, extended to N people. Like the battle feature, groups are **display-only** and have **no effect on actual TravelPoints or the leaderboard**.
+Groups let you save a named set of travellers and run a shared territory battle across all of them — same Time and Points modes as the existing 1v1 battle, extended to N people. Like the battle feature, groups are **display-only** and have **no effect on actual Traveleria points or the leaderboard**.
 
 A user can belong to multiple groups and can revisit any saved group at any time to see the current standings.
 
@@ -36,7 +36,7 @@ Colour is per-group, not global — the same person can have different colours i
 
 Identical to the 1v1 battle:
 - **Time battle** — who spent the most days in a country owns it (plurality).
-- **Points battle** — who earned the most TravelPoints in a country owns it (plurality).
+- **Points battle** — who earned the most points in a country owns it (plurality).
 
 Exact tie → **contested** (shown as a striped/neutral colour on the map, listed below the map as contested countries).
 

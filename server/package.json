@@ -1,7 +1,7 @@
 {
-  "name": "travelpoints-server",
+  "name": "traveleria-server",
   "version": "1.0.0",
-  "description": "TravelPoints backend API server",
+  "description": "Traveleria backend API server",
   "type": "module",
   "main": "src/index.js",
   "engines": {

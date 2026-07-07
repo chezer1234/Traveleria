@@ -1,4 +1,4 @@
-# TravelPoints
+# Traveleria
 
 Track your travels. Earn points. See the world.
 

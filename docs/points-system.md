@@ -1,6 +1,6 @@
 # Points System
 
-How TravelPoints calculates scores. All logic lives in `server/src/lib/points.js`.
+How Traveleria calculates scores. All logic lives in `server/src/lib/points.js`.
 
 ---
 

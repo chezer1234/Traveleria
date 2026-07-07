@@ -1,6 +1,6 @@
 # DB Speed Plan
 
-> Plan for turning TravelPoints into a local-first web app with a real SQLite database in the browser, kept in sync with the Turso server of record. Goal: every page instant, every write 0 ms, end-to-end validated on every push.
+> Plan for turning Traveleria into a local-first web app with a real SQLite database in the browser, kept in sync with the Turso server of record. Goal: every page instant, every write 0 ms, end-to-end validated on every push.
 
 Hobby project. No real users yet, so we're happy to drop data on any schema change. Password + JWT auth is plenty. Move fast.
 

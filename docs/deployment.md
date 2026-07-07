@@ -1,6 +1,6 @@
 # Deployment Guide
 
-How to get TravelPoints live on the internet for free.
+How to get Traveleria live on the internet for free.
 
 **Stack:** Render (frontend + backend hosting) + Turso (database)
 **Cost:** $0/month

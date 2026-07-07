@@ -83,7 +83,17 @@ export default function Leaderboard() {
                   >
                     <td className="px-4 py-3 text-ink-soft font-display font-bold tabular-nums">{entry.rank}</td>
                     <td className="px-4 py-3 text-ink font-medium">
-                      {entry.identifier}
+                      {isCurrentUser ? (
+                        entry.identifier
+                      ) : (
+                        <Link
+                          to={`/territory/${entry.user_id}`}
+                          className="hover:text-compass hover:underline"
+                          title={`Territory battle vs ${entry.identifier}`}
+                        >
+                          {entry.identifier}
+                        </Link>
+                      )}
                       {isCurrentUser && <span className="ml-2 text-xs text-compass">(you)</span>}
                     </td>
                     <td className="px-4 py-3 text-ink-soft">

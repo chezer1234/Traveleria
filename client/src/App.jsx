@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
+import ScrollToTop from './components/ScrollToTop';
 import Dashboard from './pages/Dashboard';
 import AddCountries from './pages/AddCountries';
 import CountryDetail from './pages/CountryDetail';
@@ -60,6 +61,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <HashRouter>
+      <ScrollToTop />
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

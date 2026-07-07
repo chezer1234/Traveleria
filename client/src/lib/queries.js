@@ -26,6 +26,22 @@ async function loadAllCountries(db) {
   return db.all(`SELECT ${COUNTRY_COLS} FROM countries ORDER BY name`);
 }
 
+// Lightweight list for the nav QuickSearch — no scoring, just names.
+export async function getCountryNamesLocal(db) {
+  return db.all(`SELECT code, name, region FROM countries ORDER BY name`);
+}
+
+// Most recently visited country (dated visits first) — used by the Explorer
+// Checklist to deep-link "log a province / city" to a page where you can.
+export async function getLatestVisitedCountryLocal(db, userId) {
+  const row = await db.get(
+    `SELECT country_code FROM user_countries WHERE user_id = ?
+     ORDER BY (visited_at IS NULL), visited_at DESC LIMIT 1`,
+    [userId],
+  );
+  return row ? row.country_code : null;
+}
+
 async function loadAllProvincesByCountry(db) {
   const rows = await db.all(`SELECT * FROM provinces`);
   const byCountry = {};

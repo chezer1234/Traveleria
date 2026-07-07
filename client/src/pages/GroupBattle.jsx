@@ -7,6 +7,7 @@ import { computeGroupTerritory, resolveColours, hexToRgba, gradeOpacity } from '
 import { GEO_URL, getAlpha2 } from '../lib/geo';
 import { CONTINENTS, getContinent } from '../lib/continents';
 import { leaveGroupOptimistic, deleteGroupOptimistic } from '../lib/mutations';
+import CountryLink from '../components/CountryLink';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 const flag = (code) =>
@@ -384,9 +385,12 @@ export default function GroupBattle() {
           </p>
           <div className="flex flex-wrap gap-2">
             {contested.map((c) => (
-              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40">
-                {c.country_name}
-              </span>
+              <CountryLink
+                key={c.country_code}
+                code={c.country_code}
+                name={c.country_name}
+                className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40 hover:border-plum hover:text-compass"
+              />
             ))}
           </div>
         </div>

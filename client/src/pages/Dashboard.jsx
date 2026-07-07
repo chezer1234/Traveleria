@@ -1,8 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { removeCountryOptimistic } from '../lib/mutations';
 import { getUserScoreLocal, getUserCountriesLocal } from '../lib/queries';
+import CountryLink from '../components/CountryLink';
+import ListControls from '../components/ListControls';
+
+const SORT_OPTIONS = [
+  { key: 'az', label: 'A–Z' },
+  { key: 'points', label: 'Points' },
+  { key: 'recent', label: 'Recent' },
+];
 
 export default function Dashboard() {
   const { user, db, dbStatus } = useAuth();
@@ -12,6 +20,38 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(null);
+  // A–Z default (issue #53, Charlie's call on PR #55) — you scan for a name.
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('az');
+
+  const displayCountries = useMemo(() => {
+    let list = countries;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.country_name.toLowerCase().includes(q) ||
+          c.country_code.toLowerCase() === q ||
+          c.region.toLowerCase().includes(q),
+      );
+    }
+    const sorted = [...list];
+    if (sort === 'az') {
+      sorted.sort((a, b) => a.country_name.localeCompare(b.country_name));
+    } else if (sort === 'points') {
+      sorted.sort((a, b) => b.total - a.total);
+    } else {
+      // Recent: newest dated visit first, undated last (the query returns
+      // oldest-first with undated last, so a plain reverse would flip that).
+      sorted.sort((a, b) => {
+        if (!a.visited_at && !b.visited_at) return 0;
+        if (!a.visited_at) return 1;
+        if (!b.visited_at) return -1;
+        return b.visited_at.localeCompare(a.visited_at);
+      });
+    }
+    return sorted;
+  }, [countries, search, sort]);
 
   const loadData = useCallback(async () => {
     if (!db) return;
@@ -103,6 +143,17 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {countries.length > 0 && (
+        <ListControls
+          search={search}
+          onSearch={setSearch}
+          placeholder="Search your countries by name or region…"
+          sort={sort}
+          onSort={setSort}
+          sortOptions={SORT_OPTIONS}
+        />
+      )}
+
       {/* Countries list */}
       {countries.length === 0 ? (
         <div className="bg-panel border border-hairline rounded-lg p-12 text-center">
@@ -116,7 +167,10 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {countries.map((c) => {
+          {displayCountries.length === 0 && (
+            <p className="text-center text-ink-soft py-8">No countries match your search.</p>
+          )}
+          {displayCountries.map((c) => {
             const explored = Math.round((c.explored || 0) * 100);
             return (
               <div
@@ -125,12 +179,11 @@ export default function Dashboard() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
-                    <Link
-                      to={`/countries/${c.country_code}`}
+                    <CountryLink
+                      code={c.country_code}
+                      name={c.country_name}
                       className="font-medium text-ink hover:text-compass"
-                    >
-                      {c.country_name}
-                    </Link>
+                    />
                     <span className="text-xs text-ink-soft/70">{c.region}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-soft">

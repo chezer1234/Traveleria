@@ -245,8 +245,11 @@ export function computeGroupTerritory(sides, mode = 'time') {
 // and the colours already claimed by earlier members.
 // members: [{ userId, primary_colour, secondary_colour }] ordered by joined_at asc.
 // Returns { [userId]: hexString }
+// Leads with the Atlas battle trio (compass blue, sienna, plum — CVD-validated
+// on paper), then the original spares for larger groups.
 const FALLBACK_PALETTE = [
-  '#f97316', '#84cc16', '#06b6d4', '#a855f7', '#ec4899',
+  '#2e5fa3', '#b4552d', '#7b4a8f',
+  '#f97316', '#84cc16', '#06b6d4', '#ec4899',
   '#14b8a6', '#f59e0b', '#6366f1', '#64748b', '#10b981',
 ];
 

@@ -10,12 +10,13 @@ import {
 import { computeTerritory, OWNER, hexToRgba, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
 
-// Battle colours. You = blue, opponent = red, contested = purple, unvisited = grey.
+// Atlas battle palette (CVD-validated on paper — see the visual refresh guide).
+// You = compass blue, opponent = sienna, contested = plum, unvisited = parchment.
 const BASE_COLORS = {
-  [OWNER.A]: { hex: '#3b82f6', hover: '#2563eb' },
-  [OWNER.B]: { hex: '#ef4444', hover: '#dc2626' },
-  [OWNER.CONTESTED]: { hex: '#a855f7', hover: '#9333ea' },
-  [OWNER.NONE]: { hex: '#d1d5db', hover: '#9ca3af' },
+  [OWNER.A]: { hex: '#2e5fa3', hover: '#244b82' },
+  [OWNER.B]: { hex: '#b4552d', hover: '#93431f' },
+  [OWNER.CONTESTED]: { hex: '#7b4a8f', hover: '#633a74' },
+  [OWNER.NONE]: { hex: '#e4dccb', hover: '#d3c7ad' },
 };
 // Kept for non-gradient uses (key, chips, bar).
 const COLORS = {
@@ -133,8 +134,8 @@ export default function Territory() {
   if (isSelf) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12 text-center">
-        <p className="text-gray-600">You can't battle yourself! Pick another traveller from the leaderboard.</p>
-        <Link to="/leaderboard" className="text-indigo-600 hover:underline mt-4 inline-block">← Back to Leaderboard</Link>
+        <p className="text-ink-soft">You can't battle yourself! Pick another traveller from the leaderboard.</p>
+        <Link to="/leaderboard" className="smallcaps text-compass hover:text-compass-deep mt-4 inline-block">← Back to Leaderboard</Link>
       </div>
     );
   }
@@ -143,7 +144,7 @@ export default function Territory() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
         <div className="loading-spinner mx-auto" aria-hidden="true" />
-        <p className="mt-4 text-gray-500">Loading battle…</p>
+        <p className="mt-4 text-ink-soft">Loading battle…</p>
       </div>
     );
   }
@@ -151,8 +152,8 @@ export default function Territory() {
   if (error) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>
-        <Link to="/leaderboard" className="text-indigo-600 hover:underline mt-4 inline-block">← Back to Leaderboard</Link>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">{error}</div>
+        <Link to="/leaderboard" className="smallcaps text-compass hover:text-compass-deep mt-4 inline-block">← Back to Leaderboard</Link>
       </div>
     );
   }
@@ -172,31 +173,28 @@ export default function Territory() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <Link to="/leaderboard" className="text-sm text-indigo-600 hover:underline mb-4 inline-block">
+      <Link to="/leaderboard" className="smallcaps text-compass hover:text-compass-deep mb-4 inline-block">
         ← Back to Leaderboard
       </Link>
 
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Territory Battle</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {youName} <span className="text-gray-400">vs</span>{' '}
-            <span className="font-medium text-gray-700">{themName}</span>{' '}
-            {flag(opponent?.home_country)}
-            <span className="block text-xs text-gray-400 mt-0.5">
-              Just for fun — this never affects anyone's Travel Points.
-            </span>
+          <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">
+            Territory Battle — {youName} vs {themName} {flag(opponent?.home_country)}
+          </h1>
+          <p className="smallcaps text-ink-soft mt-1.5">
+            Just for fun — battles never change anyone's Travel Points.
           </p>
         </div>
 
         {/* Time / Points tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 self-start">
+        <div className="flex gap-1 bg-panel border border-hairline rounded-md p-1 self-start">
           {['time', 'points'].map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                mode === m ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              className={`px-4 py-2 rounded smallcaps transition-colors ${
+                mode === m ? 'bg-ink text-paper' : 'text-ink-soft hover:text-ink'
               }`}
             >
               {m === 'time' ? 'Time battle' : 'Points battle'}
@@ -205,93 +203,100 @@ export default function Territory() {
         </div>
       </div>
 
-      {/* Tug-of-war bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-        <div className="flex items-center justify-between mb-2 text-sm">
-          <div className="flex items-center gap-2 font-medium" style={{ color: COLORS[OWNER.A].fill }}>
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLORS[OWNER.A].fill }} />
-            {youName} {youWins && !noTerritory && <span title="Winning">🏆</span>}
+      {/* Tug-of-war */}
+      <div className="plate rounded-lg p-4 sm:p-6 mb-6">
+        <div className="flex items-end justify-between gap-4 mb-3">
+          <div>
+            <div className="smallcaps text-ink-soft flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full inline-block border border-ink/20" style={{ background: COLORS[OWNER.A].fill }} />
+              {youName} {youWins && !noTerritory && <span title="Winning">🏆</span>}
+            </div>
+            <p className="font-display font-black tabular-nums text-2xl sm:text-4xl text-ink">
+              {fmt(dispScoreA)} <span className="text-sm font-bold text-ink-soft">pts</span>
+            </p>
           </div>
-          <div className="flex items-center gap-2 font-medium" style={{ color: COLORS[OWNER.B].fill }}>
-            {themName} {themWins && !noTerritory && <span title="Winning">🏆</span>}
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLORS[OWNER.B].fill }} />
+          <div className="text-right">
+            <div className="smallcaps text-ink-soft flex items-center justify-end gap-1.5">
+              {themWins && !noTerritory && <span title="Winning">🏆</span>} {themName}
+              <span className="w-2.5 h-2.5 rounded-full inline-block border border-ink/20" style={{ background: COLORS[OWNER.B].fill }} />
+            </div>
+            <p className="font-display font-black tabular-nums text-2xl sm:text-4xl text-ink">
+              {fmt(dispScoreB)} <span className="text-sm font-bold text-ink-soft">pts</span>
+            </p>
           </div>
         </div>
 
-        <div className="relative h-9 rounded-full overflow-hidden flex select-none" aria-hidden="true">
+        <div className="relative h-2.5 select-none" aria-hidden="true">
+          {/* 2px paper gap between the two segments at the split */}
           <div
-            className="h-full flex items-center justify-start pl-3 text-white text-sm font-bold tabular-nums"
-            style={{ width: `${barA}%`, background: COLORS[OWNER.A].fill }}
-          >
-            {dispPctA >= 12 && `${Math.round(dispPctA)}%`}
-          </div>
-          <div
-            className="h-full flex items-center justify-end pr-3 text-white text-sm font-bold tabular-nums"
-            style={{ width: `${100 - barA}%`, background: COLORS[OWNER.B].fill }}
-          >
-            {dispPctB >= 12 && `${Math.round(dispPctB)}%`}
-          </div>
-          {/* Centre rope-pull marker */}
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-white/80 shadow"
-            style={{ left: `${barA}%` }}
+            className="absolute inset-y-0 left-0 rounded-full bg-compass"
+            style={{ width: `calc(${barA}% - 1px)` }}
           />
+          <div
+            className="absolute inset-y-0 right-0 rounded-full bg-sienna"
+            style={{ width: `calc(${100 - barA}% - 1px)` }}
+          />
+          {/* Centre hairline tick */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 -bottom-1.5 w-px bg-hairline" />
         </div>
 
-        <div className="flex items-center justify-between mt-2 text-sm">
-          <span className="font-semibold tabular-nums" style={{ color: COLORS[OWNER.A].fill }}>
-            {fmt(dispScoreA)} pts
-          </span>
-          <span className="text-gray-400 text-xs">
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <span className="smallcaps text-ink-soft tabular-nums">{Math.round(dispPctA)}%</span>
+          <span className="text-sm text-ink text-center">
             {noTerritory
               ? 'No territory yet — add countries and time to start the battle'
               : youWins ? `${youName} ${result.percentA >= 60 ? 'dominating' : 'ahead'}!`
               : themWins ? `${themName} ${result.percentB >= 60 ? 'dominating' : 'ahead'}!`
               : 'Dead heat!'}
           </span>
-          <span className="font-semibold tabular-nums" style={{ color: COLORS[OWNER.B].fill }}>
-            {fmt(dispScoreB)} pts
-          </span>
+          <span className="smallcaps text-ink-soft tabular-nums">{Math.round(dispPctB)}%</span>
         </div>
       </div>
 
       {/* Summary chips */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <SummaryChip label={`${youName} own`} value={result.perCountry.filter((c) => c.owner === OWNER.A).length} color={COLORS[OWNER.A].fill} />
-        <SummaryChip label="Contested" value={result.contestedCount} color={COLORS[OWNER.CONTESTED].fill} />
-        <SummaryChip label={`${themName} own`} value={result.perCountry.filter((c) => c.owner === OWNER.B).length} color={COLORS[OWNER.B].fill} />
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+        <SummaryChip label={`${youName} own`} value={result.perCountry.filter((c) => c.owner === OWNER.A).length} tone="bg-compass/10 border-compass/40" />
+        <SummaryChip label="Contested" value={result.contestedCount} tone="bg-plum/10 border-plum/40" />
+        <SummaryChip label={`${themName} own`} value={result.perCountry.filter((c) => c.owner === OWNER.B).length} tone="bg-sienna/10 border-sienna/40" />
       </div>
 
       {/* Map */}
-      <div
-        className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-4 relative"
-        onMouseMove={handleMouseMove}
-      >
-        <ComposableMap projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }} style={{ width: '100%', height: 'auto' }}>
-          <ZoomableGroup>
-            <Geographies geography={GEO_URL}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => handleEnter(geo)}
-                    onMouseLeave={() => setTooltip('')}
-                    style={{
-                      default: { fill: getFill(geo), stroke: '#fff', strokeWidth: 0.5, outline: 'none' },
-                      hover: { fill: getHoverFill(geo), stroke: '#fff', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-                      pressed: { outline: 'none' },
-                    }}
-                  />
-                ))
-              }
-            </Geographies>
-          </ZoomableGroup>
-        </ComposableMap>
+      <div className="plate rounded-lg relative" onMouseMove={handleMouseMove}>
+        <div className="px-4 pt-4 pb-3 text-center border-b border-hairline">
+          <p className="font-display font-bold text-ink uppercase tracking-[0.18em] text-sm sm:text-base">
+            Plate Nº III — The Great Game
+          </p>
+          <p className="smallcaps text-ink-soft mt-1">
+            Two expeditions, one map · claims by {mode === 'time' ? 'days' : 'points'} per country
+          </p>
+        </div>
+        <div className="p-2 sm:p-4">
+          <ComposableMap projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }} style={{ width: '100%', height: 'auto' }}>
+            <ZoomableGroup>
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={() => handleEnter(geo)}
+                      onMouseLeave={() => setTooltip('')}
+                      style={{
+                        default: { fill: getFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none' },
+                        hover: { fill: getHoverFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+                        pressed: { outline: 'none' },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+            </ZoomableGroup>
+          </ComposableMap>
+        </div>
 
         {tooltip && (
           <div
-            className="fixed bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none z-50"
+            className="fixed bg-ink text-paper text-xs px-2 py-1 rounded pointer-events-none z-50"
             style={{ left: mousePos.x + 12, top: mousePos.y - 28 }}
           >
             {tooltip}
@@ -300,7 +305,7 @@ export default function Territory() {
       </div>
 
       {/* Key */}
-      <div className="flex flex-wrap gap-4 mt-4 text-xs text-gray-600">
+      <div className="flex flex-wrap gap-4 mt-4 text-xs text-ink-soft">
         <KeyItem color={COLORS[OWNER.A].fill} label={`${youName} own`} />
         <KeyItem color={COLORS[OWNER.B].fill} label={`${themName} own`} />
         <KeyItem color={COLORS[OWNER.CONTESTED].fill} label="Contested (equal)" />
@@ -310,15 +315,15 @@ export default function Territory() {
       {/* Contested battlegrounds */}
       {contested.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          <h2 className="font-display font-bold text-lg text-ink mb-3">
             Contested battlegrounds ({contested.length})
           </h2>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-ink-soft mb-3">
             You've both been to these and are dead even on {mode === 'time' ? 'days spent' : 'points'} — nobody owns them.
           </p>
           <div className="flex flex-wrap gap-2">
             {contested.map((c) => (
-              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm border" style={{ borderColor: COLORS[OWNER.CONTESTED].fill, color: COLORS[OWNER.CONTESTED].fill }}>
+              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40">
                 {c.country_name}
               </span>
             ))}
@@ -329,11 +334,11 @@ export default function Territory() {
   );
 }
 
-function SummaryChip({ label, value, color }) {
+function SummaryChip({ label, value, tone }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 text-center">
-      <p className="text-2xl font-bold tabular-nums" style={{ color }}>{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    <div className={`rounded-lg border px-2 sm:px-4 py-3 text-center ${tone}`}>
+      <p className="font-display font-black tabular-nums text-xl sm:text-2xl text-ink">{value}</p>
+      <p className="smallcaps text-ink-soft mt-0.5">{label}</p>
     </div>
   );
 }
@@ -341,7 +346,7 @@ function SummaryChip({ label, value, color }) {
 function KeyItem({ color, label }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-3 h-3 rounded-sm inline-block" style={{ background: color }} />
+      <span className="w-3 h-3 rounded-sm inline-block border border-ink/20" style={{ background: color }} />
       {label}
     </div>
   );

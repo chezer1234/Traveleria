@@ -58,16 +58,18 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
+      <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-indigo-600 mb-2">TravelPoints</h1>
-          <p className="text-gray-500">Track your travels. Earn points. See the world.</p>
+          <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">
+            Travel<span className="text-gold">Points</span>
+          </h1>
+          <p className="text-ink-soft">Track your travels. Earn points. See the world.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="identifier" className="block text-sm font-medium text-ink mb-1">
               Handle or email
             </label>
             <input
@@ -77,7 +79,7 @@ export default function SignUp() {
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="e.g. charlie_adventures"
               autoComplete="username"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+              className="w-full px-4 py-2.5 border border-hairline bg-panel rounded-md focus:border-compass outline-none transition"
               autoFocus
             />
             {fieldErrors.identifier && (
@@ -86,7 +88,7 @@ export default function SignUp() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-ink mb-1">
               Password
             </label>
             <input
@@ -96,7 +98,7 @@ export default function SignUp() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               minLength={8}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+              className="w-full px-4 py-2.5 border border-hairline bg-panel rounded-md focus:border-compass outline-none transition"
             />
             {fieldErrors.password && (
               <p className="text-red-600 text-xs mt-1">{fieldErrors.password}</p>
@@ -104,14 +106,14 @@ export default function SignUp() {
           </div>
 
           <div>
-            <label htmlFor="home-country" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="home-country" className="block text-sm font-medium text-ink mb-1">
               Home country
             </label>
             <select
               id="home-country"
               value={homeCountry}
               onChange={(e) => setHomeCountry(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-white"
+              className="w-full px-4 py-2.5 border border-hairline rounded-md focus:border-compass outline-none transition bg-panel"
             >
               <option value="">Select your country...</option>
               {countries.map((c) => (
@@ -126,21 +128,21 @@ export default function SignUp() {
           </div>
 
           {error && (
-            <p role="alert" className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-red-600 text-sm bg-red-50 rounded-md px-3 py-2">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full py-3 bg-compass text-paper font-semibold rounded-md hover:bg-compass-deep disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {loading ? 'Creating account…' : "Let's Go"}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
+        <p className="text-center text-sm text-ink-soft mt-6">
           Already have an account?{' '}
-          <Link to="/signin" className="text-indigo-600 font-medium hover:text-indigo-700">
+          <Link to="/signin" className="text-compass font-medium hover:text-compass-deep">
             Sign in
           </Link>
         </p>

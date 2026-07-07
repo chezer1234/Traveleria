@@ -12,8 +12,13 @@ const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximum
 const flag = (code) =>
   code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
 
-const CONTESTED_COLOUR = '#a855f7';
-const NONE_COLOUR = '#d1d5db';
+// Atlas battle palette (see the visual refresh guide). Member colours come from
+// resolveColours(); these cover the shared states.
+const CONTESTED_COLOUR = '#7b4a8f'; // plum
+const CONTESTED_HOVER = '#633a74';
+const NONE_COLOUR = '#e4dccb'; // parchment
+const NONE_HOVER = '#d3c7ad';
+const FALLBACK_MEMBER_COLOUR = '#6b6355'; // ink-soft
 
 export default function GroupBattle() {
   const { groupId } = useParams();
@@ -95,25 +100,25 @@ export default function GroupBattle() {
 
   const handleMouseMove = useCallback((e) => setMousePos({ x: e.clientX, y: e.clientY }), []);
 
-  // Map fill: member colour with gradient opacity, contested purple, none grey.
+  // Map fill: member colour with gradient opacity, contested plum, none parchment.
   function getFill(geo) {
     if (!result) return NONE_COLOUR;
     const code = getAlpha2(geo);
     const owner = result.ownerByCode[code];
     if (!owner || owner === 'none') return NONE_COLOUR;
     if (owner === 'contested') return CONTESTED_COLOUR;
-    const colour = colourMap[owner] || '#6b7280';
+    const colour = colourMap[owner] || FALLBACK_MEMBER_COLOUR;
     const grade = result.gradeByCode[code] || 'full';
     return hexToRgba(colour, gradeOpacity(grade));
   }
 
   function getHoverFill(geo) {
-    if (!result) return '#9ca3af';
+    if (!result) return NONE_HOVER;
     const code = getAlpha2(geo);
     const owner = result.ownerByCode[code];
-    if (!owner || owner === 'none') return '#9ca3af';
-    if (owner === 'contested') return '#9333ea';
-    return colourMap[owner] || '#6b7280';
+    if (!owner || owner === 'none') return NONE_HOVER;
+    if (owner === 'contested') return CONTESTED_HOVER;
+    return colourMap[owner] || FALLBACK_MEMBER_COLOUR;
   }
 
   function handleEnter(geo) {
@@ -154,7 +159,7 @@ export default function GroupBattle() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
         <div className="loading-spinner mx-auto" aria-hidden="true" />
-        <p className="mt-4 text-gray-500">Loading group battle…</p>
+        <p className="mt-4 text-ink-soft">Loading group battle…</p>
       </div>
     );
   }
@@ -162,8 +167,8 @@ export default function GroupBattle() {
   if (error) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>
-        <Link to="/groups" className="text-indigo-600 hover:underline mt-4 inline-block">← Back to Groups</Link>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">{error}</div>
+        <Link to="/groups" className="smallcaps text-compass hover:text-compass-deep mt-4 inline-block">← Back to Groups</Link>
       </div>
     );
   }
@@ -196,24 +201,24 @@ export default function GroupBattle() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8" onMouseMove={handleMouseMove}>
-      <Link to="/groups" className="text-sm text-indigo-600 hover:underline mb-4 inline-block">
+      <Link to="/groups" className="smallcaps text-compass hover:text-compass-deep mb-4 inline-block">
         ← Back to Groups
       </Link>
 
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
-          <p className="text-xs text-gray-400 mt-1">Just for fun — no effect on actual Travel Points.</p>
+          <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">{group.name}</h1>
+          <p className="smallcaps text-ink-soft mt-1.5">Just for fun — battles never change anyone's Travel Points.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Mode toggle */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-panel border border-hairline rounded-md p-1">
             {['time', 'points'].map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  mode === m ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                className={`px-4 py-2 rounded smallcaps transition-colors ${
+                  mode === m ? 'bg-ink text-paper' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {m === 'time' ? 'Time' : 'Points'}
@@ -221,34 +226,34 @@ export default function GroupBattle() {
             ))}
           </div>
           {isCreator ? (
-            <button onClick={handleDelete} className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Delete</button>
+            <button onClick={handleDelete} className="px-3 py-2 text-sm text-red-700 border border-red-200 rounded-md hover:bg-red-50">Delete</button>
           ) : (
-            <button onClick={handleLeave} className="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">Leave</button>
+            <button onClick={handleLeave} className="px-3 py-2 text-sm text-ink-soft border border-hairline rounded-md hover:text-ink hover:bg-panel">Leave</button>
           )}
         </div>
       </div>
 
       {/* Overall score bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-3">Overall — {mode === 'time' ? 'time' : 'points'} battle</h2>
-        <div className="space-y-2">
+      <div className="plate rounded-lg p-4 sm:p-6 mb-6">
+        <h2 className="smallcaps text-ink-soft mb-3">Overall — {mode === 'time' ? 'time' : 'points'} battle</h2>
+        <div className="space-y-3">
           {rankedSides.map((s, idx) => {
             const score = round1((scores[s.userId] || 0) * progress);
             const pct = totalScore > 0 ? ((scores[s.userId] || 0) / totalScore) * 100 * progress : 0;
-            const colour = colourMap[s.userId] || '#6b7280';
+            const colour = colourMap[s.userId] || FALLBACK_MEMBER_COLOUR;
             return (
               <div key={s.userId}>
-                <div className="flex items-center justify-between mb-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-sm" style={{ background: colour, display: 'inline-block' }} />
-                    <span className="font-medium">{s.identifier}</span>
-                    {s.userId === user.id && <span className="text-xs text-indigo-500">(you)</span>}
+                <div className="flex items-center justify-between mb-1 text-sm gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full border border-ink/20 shrink-0" style={{ background: colour, display: 'inline-block' }} />
+                    <span className="font-semibold text-ink truncate">{s.identifier}</span>
+                    {s.userId === user.id && <span className="smallcaps text-ink-soft/70">(you)</span>}
                     {idx === 0 && totalScore > 0 && progress > 0.9 && <span title="Leading">🏆</span>}
-                    <span className="text-gray-500">{flag(s.homeCountry)}</span>
+                    <span>{flag(s.homeCountry)}</span>
                   </div>
-                  <span className="tabular-nums text-gray-700 font-semibold">{fmt(score)} pts</span>
+                  <span className="font-display font-bold tabular-nums text-ink shrink-0">{fmt(score)} pts</span>
                 </div>
-                <div className="h-4 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-2.5 rounded-full bg-parchment overflow-hidden">
                   <div
                     className="h-full rounded-full transition-none"
                     style={{ width: `${Math.max(pct, pct > 0 ? 1 : 0)}%`, background: colour }}
@@ -261,31 +266,41 @@ export default function GroupBattle() {
       </div>
 
       {/* Map */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-4 relative mb-4">
-        <ComposableMap projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }} style={{ width: '100%', height: 'auto' }}>
-          <ZoomableGroup>
-            <Geographies geography={GEO_URL}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => handleEnter(geo)}
-                    onMouseLeave={() => setTooltip('')}
-                    style={{
-                      default: { fill: getFill(geo), stroke: '#fff', strokeWidth: 0.5, outline: 'none' },
-                      hover: { fill: getHoverFill(geo), stroke: '#fff', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-                      pressed: { outline: 'none' },
-                    }}
-                  />
-                ))
-              }
-            </Geographies>
-          </ZoomableGroup>
-        </ComposableMap>
+      <div className="plate rounded-lg relative mb-4">
+        <div className="px-4 pt-4 pb-3 text-center border-b border-hairline">
+          <p className="font-display font-bold text-ink uppercase tracking-[0.18em] text-sm sm:text-base">
+            Plate — The Group Game
+          </p>
+          <p className="smallcaps text-ink-soft mt-1">
+            {sides.length} expeditions, one map · claims by {mode === 'time' ? 'days' : 'points'} per country
+          </p>
+        </div>
+        <div className="p-2 sm:p-4">
+          <ComposableMap projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }} style={{ width: '100%', height: 'auto' }}>
+            <ZoomableGroup>
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={() => handleEnter(geo)}
+                      onMouseLeave={() => setTooltip('')}
+                      style={{
+                        default: { fill: getFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none' },
+                        hover: { fill: getHoverFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+                        pressed: { outline: 'none' },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+            </ZoomableGroup>
+          </ComposableMap>
+        </div>
         {tooltip && (
           <div
-            className="fixed bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none z-50 max-w-xs"
+            className="fixed bg-ink text-paper text-xs px-2 py-1 rounded pointer-events-none z-50 max-w-xs"
             style={{ left: mousePos.x + 12, top: mousePos.y - 28 }}
           >
             {tooltip}
@@ -294,34 +309,34 @@ export default function GroupBattle() {
       </div>
 
       {/* Map legend */}
-      <div className="flex flex-wrap gap-4 mb-8 text-xs text-gray-600">
+      <div className="flex flex-wrap gap-4 mb-8 text-xs text-ink-soft">
         {sides.map((s) => (
           <div key={s.userId} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm" style={{ background: colourMap[s.userId] || '#6b7280', display: 'inline-block' }} />
+            <span className="w-3 h-3 rounded-sm border border-ink/20" style={{ background: colourMap[s.userId] || FALLBACK_MEMBER_COLOUR, display: 'inline-block' }} />
             {s.identifier}{s.userId === user.id ? ' (you)' : ''}
           </div>
         ))}
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm" style={{ background: CONTESTED_COLOUR, display: 'inline-block' }} />
+          <span className="w-3 h-3 rounded-sm border border-ink/20" style={{ background: CONTESTED_COLOUR, display: 'inline-block' }} />
           Contested
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm" style={{ background: NONE_COLOUR, display: 'inline-block' }} />
+          <span className="w-3 h-3 rounded-sm border border-ink/20" style={{ background: NONE_COLOUR, display: 'inline-block' }} />
           Neither visited
         </div>
-        <div className="flex items-center gap-2 text-gray-400">
+        <div className="flex items-center gap-2 text-ink-soft/70">
           <span>Shade = win margin</span>
           <span className="opacity-40 text-xs">▪</span>
           <span className="opacity-70 text-xs">▪</span>
           <span className="text-xs">▪</span>
-          <span className="text-gray-500">light → dominant</span>
+          <span>light → dominant</span>
         </div>
       </div>
 
       {/* Per-continent bars */}
       {continentData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-4">By continent</h2>
+        <div className="bg-panel border border-hairline rounded-lg p-4 sm:p-5 mb-6">
+          <h2 className="smallcaps text-ink-soft mb-4">By continent</h2>
           <div className="space-y-5">
             {continentData.map(({ continent, perMember }) => {
               const contTotal = Object.values(perMember).reduce((s, v) => s + v, 0);
@@ -329,24 +344,24 @@ export default function GroupBattle() {
               return (
                 <div key={continent}>
                   <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="font-medium text-gray-800">{continent}</span>
-                    {winner && <span className="text-xs text-gray-400">{winner.identifier} leads</span>}
+                    <span className="font-display font-bold text-ink">{continent}</span>
+                    {winner && <span className="smallcaps text-ink-soft/70">{winner.identifier} leads</span>}
                   </div>
                   <div className="space-y-1">
                     {rankedSides.map((s) => {
                       const score = round1((perMember[s.userId] || 0) * progress);
                       const pct = contTotal > 0 ? ((perMember[s.userId] || 0) / contTotal) * 100 * progress : 0;
-                      const colour = colourMap[s.userId] || '#6b7280';
+                      const colour = colourMap[s.userId] || FALLBACK_MEMBER_COLOUR;
                       return (
                         <div key={s.userId} className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 w-20 truncate">{s.identifier}</span>
-                          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <span className="text-xs text-ink-soft w-20 truncate">{s.identifier}</span>
+                          <div className="flex-1 h-2 bg-parchment rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full"
                               style={{ width: `${Math.max(pct, pct > 0 ? 1 : 0)}%`, background: colour }}
                             />
                           </div>
-                          <span className="text-xs tabular-nums text-gray-600 w-14 text-right">{fmt(score)} pts</span>
+                          <span className="text-xs tabular-nums text-ink w-14 text-right">{fmt(score)} pts</span>
                         </div>
                       );
                     })}
@@ -361,15 +376,15 @@ export default function GroupBattle() {
       {/* Contested countries */}
       {contested.length > 0 && (
         <div className="mt-2">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          <h2 className="font-display font-bold text-lg text-ink mb-3">
             Contested battlegrounds ({contested.length})
           </h2>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-ink-soft mb-3">
             Multiple members are dead even here — nobody owns them.
           </p>
           <div className="flex flex-wrap gap-2">
             {contested.map((c) => (
-              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm border" style={{ borderColor: CONTESTED_COLOUR, color: CONTESTED_COLOUR }}>
+              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40">
                 {c.country_name}
               </span>
             ))}

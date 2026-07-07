@@ -34,7 +34,7 @@ export default function Leaderboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true"></div>
-        <p className="text-gray-500 text-sm">Loading leaderboard...</p>
+        <p className="text-ink-soft text-sm">Loading leaderboard...</p>
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function Leaderboard() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-md text-sm flex items-center justify-between">
           <span>{error}</span>
           <button onClick={loadLeaderboard} className="ml-4 text-red-700 underline hover:no-underline text-sm font-medium">
             Retry
@@ -58,19 +58,19 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Leaderboard</h1>
+      <h1 className="font-display font-black text-2xl sm:text-3xl text-ink mb-6">Leaderboard</h1>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-panel border border-hairline rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-16">Rank</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">User</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Home</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Points</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Countries</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Battle / Group</th>
+              <tr className="border-b border-hairline bg-paper">
+                <th className="px-4 py-3 text-left smallcaps text-ink-soft w-16">Rank</th>
+                <th className="px-4 py-3 text-left smallcaps text-ink-soft">User</th>
+                <th className="px-4 py-3 text-left smallcaps text-ink-soft">Home</th>
+                <th className="px-4 py-3 text-right smallcaps text-ink-soft">Points</th>
+                <th className="px-4 py-3 text-right smallcaps text-ink-soft">Countries</th>
+                <th className="px-4 py-3 text-right smallcaps text-ink-soft">Battle / Group</th>
               </tr>
             </thead>
             <tbody>
@@ -79,33 +79,33 @@ export default function Leaderboard() {
                 return (
                   <tr
                     key={entry.user_id}
-                    className={`border-b border-gray-100 ${isCurrentUser ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
+                    className={`${isCurrentUser ? 'bg-gold/10 border-b border-gold/40' : 'border-b border-hairline/60 hover:bg-paper'}`}
                   >
-                    <td className="px-4 py-3 text-gray-600 font-medium">{entry.rank}</td>
-                    <td className="px-4 py-3 text-gray-900 font-medium">
+                    <td className="px-4 py-3 text-ink-soft font-display font-bold tabular-nums">{entry.rank}</td>
+                    <td className="px-4 py-3 text-ink font-medium">
                       {entry.identifier}
-                      {isCurrentUser && <span className="ml-2 text-xs text-indigo-600">(you)</span>}
+                      {isCurrentUser && <span className="ml-2 text-xs text-compass">(you)</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-ink-soft">
                       <span title={entry.home_country}>{flag(entry.home_country)}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-900 tabular-nums">
+                    <td className="px-4 py-3 text-right text-ink tabular-nums">
                       {(Math.round(entry.total_points * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{entry.countries_visited}</td>
+                    <td className="px-4 py-3 text-right text-ink-soft tabular-nums">{entry.countries_visited}</td>
                     <td className="px-4 py-3 text-right">
                       {!isCurrentUser && (
                         <div className="inline-flex items-center gap-2">
                           <Link
                             to={`/territory/${entry.user_id}`}
-                            className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium"
+                            className="inline-flex items-center gap-1 bg-ink text-paper smallcaps px-2.5 py-2 rounded hover:bg-ink/80"
                             title={`Territory battle vs ${entry.identifier}`}
                           >
                             ⚔<span className="hidden sm:inline">Battle</span>
                           </Link>
                           <Link
                             to={`/groups?add=${entry.user_id}`}
-                            className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium"
+                            className="inline-flex items-center gap-1 px-1.5 py-2 text-atlas hover:text-atlas-deep font-medium"
                             title={`Add ${entry.identifier} to a group`}
                           >
                             +<span className="hidden sm:inline">Group</span>
@@ -119,24 +119,24 @@ export default function Leaderboard() {
 
               {outsideUser && (
                 <>
-                  <tr className="border-b border-gray-100">
-                    <td colSpan={6} className="px-4 py-2 text-center text-gray-400 text-xs">
+                  <tr className="border-b border-hairline/60">
+                    <td colSpan={6} className="px-4 py-2 text-center text-ink-soft/70 text-xs">
                       ...
                     </td>
                   </tr>
-                  <tr className="bg-indigo-50">
-                    <td className="px-4 py-3 text-gray-600 font-medium">{outsideUser.rank}</td>
-                    <td className="px-4 py-3 text-gray-900 font-medium">
+                  <tr className="bg-gold/10 border-b border-gold/40">
+                    <td className="px-4 py-3 text-ink-soft font-display font-bold tabular-nums">{outsideUser.rank}</td>
+                    <td className="px-4 py-3 text-ink font-medium">
                       {outsideUser.identifier}
-                      <span className="ml-2 text-xs text-indigo-600">(you)</span>
+                      <span className="ml-2 text-xs text-compass">(you)</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-ink-soft">
                       <span title={outsideUser.home_country}>{flag(outsideUser.home_country)}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-900 tabular-nums">
+                    <td className="px-4 py-3 text-right text-ink tabular-nums">
                       {(Math.round(outsideUser.total_points * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{outsideUser.countries_visited}</td>
+                    <td className="px-4 py-3 text-right text-ink-soft tabular-nums">{outsideUser.countries_visited}</td>
                     <td className="px-4 py-3"></td>
                   </tr>
                 </>
@@ -144,7 +144,7 @@ export default function Leaderboard() {
 
               {top50.length === 0 && !outsideUser && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-ink-soft">
                     No users on the leaderboard yet. Start exploring!
                   </td>
                 </tr>

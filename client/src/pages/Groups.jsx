@@ -20,21 +20,21 @@ const COLOUR_PRESETS = [
 function ColourPicker({ label, value, onChange }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600 w-20">{label}</span>
+      <span className="text-sm text-ink-soft w-20">{label}</span>
       <div className="flex gap-1.5 flex-wrap">
         {COLOUR_PRESETS.map((c) => (
           <button
             key={c}
             onClick={() => onChange(c)}
             className={`w-6 h-6 rounded-full border-2 transition-transform ${
-              value === c ? 'border-gray-900 scale-110' : 'border-transparent hover:scale-105'
+              value === c ? 'border-ink scale-110' : 'border-transparent hover:scale-105'
             }`}
             style={{ background: c }}
             title={c}
           />
         ))}
       </div>
-      <span className="text-xs text-gray-400 tabular-nums">{value}</span>
+      <span className="text-xs text-ink-soft/70 tabular-nums">{value}</span>
     </div>
   );
 }
@@ -45,7 +45,7 @@ function MemberChips({ members, colourMap }) {
       {members.slice(0, 6).map((m) => (
         <div
           key={m.id}
-          className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white"
+          className="w-7 h-7 rounded-full border-2 border-panel flex items-center justify-center text-xs font-bold text-white"
           style={{ background: colourMap[m.user_id] || '#6b7280' }}
           title={m.user?.identifier || m.user_id}
         >
@@ -53,7 +53,7 @@ function MemberChips({ members, colourMap }) {
         </div>
       ))}
       {members.length > 6 && (
-        <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">
+        <div className="w-7 h-7 rounded-full border-2 border-panel bg-parchment flex items-center justify-center text-xs font-bold text-ink-soft">
           +{members.length - 6}
         </div>
       )}
@@ -175,7 +175,7 @@ export default function Groups() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true" />
-        <p className="text-gray-500 text-sm">Loading groups…</p>
+        <p className="text-ink-soft text-sm">Loading groups…</p>
       </div>
     );
   }
@@ -183,63 +183,63 @@ export default function Groups() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Groups</h1>
+        <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">Groups</h1>
         <button
           onClick={() => setShowCreate((v) => !v)}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          className="px-4 py-2 bg-compass text-paper text-sm font-medium rounded-md hover:bg-compass-deep transition-colors"
         >
           {showCreate ? 'Cancel' : '+ New group'}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm mb-6">{error}</div>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm mb-6">{error}</div>
       )}
 
       {/* Creation form */}
       {showCreate && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Create a group</h2>
+        <div className="plate rounded-lg p-6 mb-8">
+          <h2 className="text-lg font-display font-bold text-ink mb-4">Create a group</h2>
           <form onSubmit={handleCreate} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Group name</label>
+              <label className="block text-sm font-medium text-ink mb-1">Group name</label>
               <input
                 type="text"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="e.g. Family Travellers"
                 maxLength={60}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-hairline bg-panel rounded-md px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-compass"
               />
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Your colours</p>
+              <p className="text-sm font-medium text-ink">Your colours</p>
               <ColourPicker label="Primary" value={primaryColour} onChange={setPrimaryColour} />
               <ColourPicker label="Secondary" value={secondaryColour} onChange={setSecondaryColour} />
             </div>
 
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Add members from the leaderboard</p>
+              <p className="text-sm font-medium text-ink mb-2">Add members from the leaderboard</p>
               {leaderboard.length === 0 && (
-                <p className="text-sm text-gray-400">No other users yet.</p>
+                <p className="text-sm text-ink-soft/70">No other users yet.</p>
               )}
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                 {leaderboard.map((entry) => {
                   const selected = selectedUserIds.includes(entry.user_id);
                   return (
-                    <div key={entry.user_id} className={`rounded-lg border p-3 ${selected ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'}`}>
+                    <div key={entry.user_id} className={`rounded-lg border p-3 ${selected ? 'border-atlas/40 bg-atlas/10' : 'border-hairline'}`}>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <label className="flex items-center gap-2 cursor-pointer select-none py-1">
                           <input
                             type="checkbox"
                             checked={selected}
                             onChange={() => toggleMember(entry.user_id)}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-hairline accent-compass"
                           />
-                          <span className="font-medium text-gray-800 text-sm">{entry.identifier}</span>
+                          <span className="font-medium text-ink text-sm">{entry.identifier}</span>
                           <span>{flag(entry.home_country)}</span>
-                          <span className="text-xs text-gray-400">#{entry.rank}</span>
+                          <span className="text-xs text-ink-soft/70">#{entry.rank}</span>
                         </label>
                       </div>
                       {selected && (
@@ -267,7 +267,7 @@ export default function Groups() {
             <button
               type="submit"
               disabled={creating}
-              className="w-full py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="w-full py-2.5 bg-compass text-paper font-medium rounded-md hover:bg-compass-deep disabled:opacity-50 transition-colors"
             >
               {creating ? 'Creating…' : 'Create group'}
             </button>
@@ -277,7 +277,7 @@ export default function Groups() {
 
       {/* Groups list */}
       {groups.length === 0 && !showCreate ? (
-        <div className="text-center py-16 text-gray-500">
+        <div className="text-center py-16 text-ink-soft">
           <p className="text-lg mb-2">No groups yet.</p>
           <p className="text-sm">Create one to start a multi-player territory battle.</p>
         </div>
@@ -289,16 +289,16 @@ export default function Groups() {
             );
             const isCreator = group.created_by === user.id;
             return (
-              <div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center gap-4">
+              <div key={group.id} className="bg-panel border border-hairline rounded-lg p-4 flex flex-wrap items-center gap-4">
                 <MemberChips members={group.members} colourMap={colourMap} />
                 <div className="flex-1 min-w-0">
                   <Link
                     to={`/groups/${group.id}`}
-                    className="font-semibold text-gray-900 hover:text-indigo-600 truncate block"
+                    className="font-semibold text-ink hover:text-compass truncate block"
                   >
                     {group.name}
                   </Link>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-ink-soft/70 mt-0.5">
                     {group.members.length} member{group.members.length !== 1 ? 's' : ''} ·{' '}
                     {group.members.map((m) => m.user?.identifier || '?').join(', ')}
                   </p>
@@ -306,21 +306,21 @@ export default function Groups() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Link
                     to={`/groups/${group.id}`}
-                    className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 font-medium"
+                    className="px-3 py-2 text-sm text-compass border border-compass/30 rounded-md hover:bg-compass/10 font-medium"
                   >
                     Open
                   </Link>
                   {isCreator ? (
                     <button
                       onClick={() => handleDelete(group)}
-                      className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50 font-medium"
+                      className="px-3 py-2 text-sm text-red-500 border border-red-200 rounded-md hover:bg-red-50 font-medium"
                     >
                       Delete
                     </button>
                   ) : (
                     <button
                       onClick={() => handleLeave(group)}
-                      className="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                      className="px-3 py-2 text-sm text-ink-soft border border-hairline rounded-md hover:bg-paper font-medium"
                     >
                       Leave
                     </button>

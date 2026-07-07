@@ -56,16 +56,16 @@ export default function ChecklistOverlay({ isOpen, onClose }) {
       <div
         role="dialog"
         aria-label="Explorer checklist"
-        className="fixed top-20 left-4 z-50 bg-white rounded-xl shadow-xl border border-gray-200 w-72 max-w-[calc(100vw-2rem)] p-5"
+        className="fixed top-20 left-4 z-50 bg-panel rounded-lg shadow-md border border-hairline w-72 max-w-[calc(100vw-2rem)] p-5"
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Explorer Checklist</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{completed} of {total} completed</p>
+            <h2 className="text-base font-display font-bold text-ink">Explorer Checklist</h2>
+            <p className="text-xs text-ink-soft mt-0.5">{completed} of {total} completed</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded"
+            className="text-ink-soft/70 hover:text-ink p-2 rounded"
             aria-label="Close checklist"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,22 +81,22 @@ export default function ChecklistOverlay({ isOpen, onClose }) {
               <div key={item.key} className="flex items-start gap-3">
                 <div
                   className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    done ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                    done ? 'bg-atlas border-atlas' : 'border-hairline'
                   }`}
                   aria-hidden="true"
                 >
                   {done && (
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 text-paper" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium leading-snug ${done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <p className={`text-sm font-medium leading-snug ${done ? 'text-ink-soft/70 line-through' : 'text-ink'}`}>
                     {item.label}
                   </p>
                   {!done && item.hint && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">{item.hint}</p>
+                    <p className="text-xs text-ink-soft/70 mt-0.5 leading-snug">{item.hint}</p>
                   )}
                 </div>
               </div>
@@ -105,7 +105,7 @@ export default function ChecklistOverlay({ isOpen, onClose }) {
         </div>
 
         {status && completed === total && (
-          <p className="mt-4 text-center text-sm text-indigo-600 font-medium">
+          <p className="mt-4 text-center text-sm text-atlas font-medium">
             All done! Keep exploring.
           </p>
         )}

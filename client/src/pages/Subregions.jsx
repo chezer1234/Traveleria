@@ -144,7 +144,7 @@ export default function Subregions() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="loading-spinner" aria-hidden="true" />
-        <p className="text-gray-500 text-sm">Loading subregions...</p>
+        <p className="text-ink-soft text-sm">Loading subregions...</p>
       </div>
     );
   }
@@ -183,30 +183,30 @@ export default function Subregions() {
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Subregion Bonuses</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">Subregion Bonuses</h1>
+        <p className="text-ink-soft text-sm mt-1">
           Visit a subregion to earn bonus points. Visit every country in it to double them.
         </p>
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-3xl font-bold text-indigo-600">{totalBonusPoints}</p>
-          <p className="text-xs text-gray-500 mt-1">Bonus points earned</p>
+      <div className="bg-panel border border-hairline rounded-lg grid grid-cols-3 divide-x divide-hairline">
+        <div className="p-4 text-center">
+          <p className="text-2xl sm:text-3xl font-display font-black tabular-nums text-ink">{totalBonusPoints}</p>
+          <p className="smallcaps text-ink-soft mt-1">Bonus points earned</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-3xl font-bold text-indigo-600">{subregionsEarned}</p>
-          <p className="text-xs text-gray-500 mt-1">Subregions visited</p>
+        <div className="p-4 text-center">
+          <p className="text-2xl sm:text-3xl font-display font-black tabular-nums text-ink">{subregionsEarned}</p>
+          <p className="smallcaps text-ink-soft mt-1">Subregions visited</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-3xl font-bold text-indigo-600">{subregionsCompleted}</p>
-          <p className="text-xs text-gray-500 mt-1">Subregions completed</p>
+        <div className="p-4 text-center">
+          <p className="text-2xl sm:text-3xl font-display font-black tabular-nums text-ink">{subregionsCompleted}</p>
+          <p className="smallcaps text-ink-soft mt-1">Subregions completed</p>
         </div>
       </div>
 
       {/* World map */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-panel border border-hairline rounded-lg overflow-hidden">
         <ComposableMap
           projectionConfig={{ scale: 147 }}
           style={{ width: '100%', height: 'auto' }}
@@ -216,14 +216,14 @@ export default function Subregions() {
               geographies.map((geo) => {
                 const alpha2 = NUM_TO_ALPHA2[geo.id];
                 const subregion = alpha2 ? codeToSubregion[alpha2] : null;
-                const baseColor = subregion ? SUBREGION_COLORS[subregion] : '#e5e7eb';
+                const baseColor = subregion ? SUBREGION_COLORS[subregion] : '#e4dccb';
                 const isVisited = alpha2 && visitedCodes.has(alpha2);
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={isVisited ? baseColor : (subregion ? baseColor + '55' : '#e5e7eb')}
-                    stroke="#fff"
+                    fill={isVisited ? baseColor : (subregion ? baseColor + '55' : '#e4dccb')}
+                    stroke="#f6f1e7"
                     strokeWidth={0.4}
                     style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
                   />
@@ -237,7 +237,7 @@ export default function Subregions() {
       {/* Colour legend */}
       <div className="flex flex-wrap gap-2">
         {Object.entries(SUBREGION_COLORS).map(([name, color]) => (
-          <span key={name} className="flex items-center gap-1 text-xs text-gray-600">
+          <span key={name} className="flex items-center gap-1 text-xs text-ink-soft">
             <span className="inline-block w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             {name}
           </span>
@@ -250,7 +250,7 @@ export default function Subregions() {
         if (!srs) return null;
         return (
           <div key={continent}>
-            <h2 className="text-lg font-semibold text-gray-700 mb-3">{continent}</h2>
+            <h2 className="text-lg font-display font-bold text-ink mb-3">{continent}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {srs.map((sr) => {
                 const color = SUBREGION_COLORS[sr.name] || '#6b7280';
@@ -261,11 +261,11 @@ export default function Subregions() {
                 return (
                   <div
                     key={sr.name}
-                    className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+                    className="bg-panel rounded-lg border border-hairline overflow-hidden"
                   >
                     {/* Card header */}
                     <div
-                      className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="p-4 cursor-pointer hover:bg-paper transition-colors"
                       onClick={() => setExpanded(isExpanded ? null : sr.name)}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -274,28 +274,28 @@ export default function Subregions() {
                             className="inline-block w-3 h-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: color }}
                           />
-                          <span className="font-medium text-gray-900 text-sm">{sr.name}</span>
+                          <span className="font-medium text-ink text-sm">{sr.name}</span>
                           {sr.completionBonusEarned && (
-                            <span className="text-yellow-500 text-sm" title="Completed!">★</span>
+                            <span className="text-gold text-sm" title="Completed!">★</span>
                           )}
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-semibold text-indigo-600">
+                          <span className="text-sm font-semibold text-ink tabular-nums">
                             {sr.earned > 0 ? `+${sr.earned}` : '0'} pts
                           </span>
-                          <span className="text-xs text-gray-400 ml-1">/ {maxTotal} max</span>
+                          <span className="text-xs text-ink-soft/70 ml-1">/ {maxTotal} max</span>
                         </div>
                       </div>
 
                       {/* Progress bar */}
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div className="flex-1 bg-parchment rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="h-2 rounded-full transition-all"
+                            className="h-1.5 rounded-full transition-all"
                             style={{ width: `${pct}%`, backgroundColor: color }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                        <span className="text-xs text-ink-soft whitespace-nowrap">
                           {sr.visitedCount}/{sr.totalCount}
                         </span>
                       </div>
@@ -304,8 +304,8 @@ export default function Subregions() {
                       <div className="flex gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           sr.visitBonusEarned
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
+                            ? 'bg-atlas/15 text-atlas-deep'
+                            : 'bg-parchment text-ink-soft'
                         }`}>
                           {sr.visitBonus === 0
                             ? 'Home region'
@@ -315,8 +315,8 @@ export default function Subregions() {
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           sr.completionBonusEarned
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
+                            ? 'bg-atlas/15 text-atlas-deep'
+                            : 'bg-parchment text-ink-soft'
                         }`}>
                           {sr.completionBonusEarned
                             ? `Complete +${sr.completionBonus}`
@@ -325,7 +325,7 @@ export default function Subregions() {
                         <span className="ml-auto flex items-center gap-2">
                           {sr.isClaimed && (
                             <button
-                              className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
+                              className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
                               disabled={pending === sr.name}
                               onClick={(e) => handleUnclaim(e, sr.name)}
                             >
@@ -334,14 +334,14 @@ export default function Subregions() {
                           )}
                           {sr.isClaimable && !sr.isClaimed && (
                             <button
-                              className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors disabled:opacity-50"
+                              className="text-xs px-3 py-1.5 rounded-full font-medium bg-compass text-paper hover:bg-compass-deep transition-colors disabled:opacity-50"
                               disabled={pending === sr.name}
                               onClick={(e) => handleClaim(e, sr.name)}
                             >
                               {pending === sr.name ? '…' : 'Add'}
                             </button>
                           )}
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-ink-soft/70">
                             {isExpanded ? '▲' : '▼'}
                           </span>
                         </span>
@@ -350,7 +350,7 @@ export default function Subregions() {
 
                     {/* Expanded country list */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100 px-4 py-3">
+                      <div className="border-t border-hairline px-4 py-3">
                         <div className="grid grid-cols-2 gap-1">
                           {sr.countries
                             .slice()
@@ -359,12 +359,12 @@ export default function Subregions() {
                               <div
                                 key={c.code}
                                 className={`flex items-center gap-1.5 text-xs py-0.5 ${
-                                  c.visited ? 'text-gray-900' : 'text-gray-400'
+                                  c.visited ? 'text-ink' : 'text-ink-soft/70'
                                 }`}
                               >
                                 <span>{flag(c.code)}</span>
                                 <span>{c.name}</span>
-                                {c.visited && <span className="text-green-500">✓</span>}
+                                {c.visited && <span className="text-atlas">✓</span>}
                               </div>
                             ))}
                         </div>

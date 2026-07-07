@@ -491,3 +491,42 @@ export function evaluateCabinet(stats) {
     specials: all.filter((t) => t.group === 'special'),
   };
 }
+
+// ── Cabinet-mode sort (issue #57) ───────────────────────────────────────────
+// Sorting an already-earned subset of trophies for display. Undated trophies
+// (conquests/specials with no natural earnedAt) sort after dated ones
+// regardless of direction — there's no date to compare, not a date of zero.
+
+export const SORT_OPTIONS = [
+  { key: 'recent', label: 'Recently earned' },
+  { key: 'oldest', label: 'Oldest first' },
+  { key: 'tier', label: 'Tier' },
+  { key: 'alpha', label: 'A–Z' },
+];
+
+function compareEarnedAt(a, b, ascending) {
+  if (!a.earnedAt && !b.earnedAt) return a.name.localeCompare(b.name);
+  if (!a.earnedAt) return 1;
+  if (!b.earnedAt) return -1;
+  if (a.earnedAt === b.earnedAt) return a.name.localeCompare(b.name);
+  const cmp = a.earnedAt < b.earnedAt ? -1 : 1;
+  return ascending ? cmp : -cmp;
+}
+
+export function sortTrophies(trophies, sortKey) {
+  const list = [...trophies];
+  switch (sortKey) {
+    case 'oldest':
+      return list.sort((a, b) => compareEarnedAt(a, b, true));
+    case 'tier':
+      return list.sort((a, b) => {
+        const tierDiff = TIERS.indexOf(b.medal) - TIERS.indexOf(a.medal);
+        return tierDiff !== 0 ? tierDiff : a.name.localeCompare(b.name);
+      });
+    case 'alpha':
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    case 'recent':
+    default:
+      return list.sort((a, b) => compareEarnedAt(a, b, false));
+  }
+}

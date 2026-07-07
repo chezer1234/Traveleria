@@ -229,29 +229,29 @@ export default function Map() {
 
   function getFill(geo) {
     const code = getAlpha2(geo);
-    if (view === 'explore') return '#a5b4fc';
+    if (view === 'explore') return '#b8c8e2';
     if (view === 'europe') {
-      if (!EUROPE_COUNTRY_CODES.has(code)) return '#e5e7eb';
-      return visitedCodes.has(code) ? '#22c55e' : '#d1d5db';
+      if (!EUROPE_COUNTRY_CODES.has(code)) return '#efe9db';
+      return visitedCodes.has(code) ? '#3e5f45' : '#e4dccb';
     }
-    return visitedCodes.has(code) ? '#22c55e' : '#d1d5db';
+    return visitedCodes.has(code) ? '#3e5f45' : '#e4dccb';
   }
 
   function getHoverFill(geo) {
     const code = getAlpha2(geo);
-    if (view === 'explore') return '#818cf8';
+    if (view === 'explore') return '#9db4d8';
     if (view === 'europe') {
-      if (!EUROPE_COUNTRY_CODES.has(code)) return '#e5e7eb';
-      return visitedCodes.has(code) ? '#16a34a' : '#9ca3af';
+      if (!EUROPE_COUNTRY_CODES.has(code)) return '#efe9db';
+      return visitedCodes.has(code) ? '#2f4a36' : '#d3c7ad';
     }
-    return visitedCodes.has(code) ? '#16a34a' : '#9ca3af';
+    return visitedCodes.has(code) ? '#2f4a36' : '#d3c7ad';
   }
 
   if (loading || dbStatus !== 'ready') {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
         <div className="loading-spinner mx-auto" aria-hidden="true" />
-        <p className="mt-4 text-gray-500">Loading map...</p>
+        <p className="mt-4 text-ink-soft">Loading map...</p>
       </div>
     );
   }
@@ -259,7 +259,7 @@ export default function Map() {
   if (error) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
           {error}
           <button onClick={() => window.location.reload()} className="ml-4 underline">Retry</button>
         </div>
@@ -271,8 +271,8 @@ export default function Map() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header + toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">World Map</h1>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">World Map</h1>
+        <div className="flex flex-wrap gap-1 bg-panel border border-hairline rounded-md p-1">
           {[
             { key: 'my', label: 'My Map' },
             { key: 'europe', label: 'Europe' },
@@ -281,10 +281,10 @@ export default function Map() {
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2.5 rounded-md smallcaps transition-colors ${
                 view === key
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-ink text-paper'
+                  : 'text-ink-soft hover:text-ink'
               }`}
             >
               {label}
@@ -293,32 +293,24 @@ export default function Map() {
         </div>
       </div>
 
-      {/* Stats bar — My Map view */}
+      {/* Stats bar — My Map view (ledger tiles) */}
       {view === 'my' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Countries</p>
-            <p className="text-2xl font-bold text-gray-900">{userCountries.length}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Continents</p>
-            <p className="text-2xl font-bold text-gray-900">{continentsVisited}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Sub-regions</p>
-            <p className="text-2xl font-bold text-gray-900">{subregionsVisited}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Cities</p>
-            <p className="text-2xl font-bold text-gray-900">{totalCitiesVisited}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Population visited</p>
-            <p className="text-2xl font-bold text-indigo-600">{formatPopulation(totalPopulation)}</p>
-          </div>
-          <div className="col-span-2 sm:col-span-3 lg:col-span-5 border-t pt-3 mt-1">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-0.5">Total Points</p>
-            <p className="text-3xl font-bold text-indigo-600">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-hairline border border-hairline rounded-lg overflow-hidden mb-6">
+          {[
+            { label: 'Countries', value: userCountries.length },
+            { label: 'Continents', value: continentsVisited },
+            { label: 'Sub-regions', value: subregionsVisited },
+            { label: 'Cities', value: totalCitiesVisited },
+            { label: 'Population visited', value: formatPopulation(totalPopulation) },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-panel p-4">
+              <p className="smallcaps text-ink-soft">{label}</p>
+              <p className="font-display font-black text-2xl sm:text-3xl tabular-nums text-ink mt-1">{value}</p>
+            </div>
+          ))}
+          <div className="bg-paper p-4 border-l-2 border-gold">
+            <p className="smallcaps text-ink">Total Points</p>
+            <p className="font-display font-black text-2xl sm:text-3xl tabular-nums text-ink mt-1">
               {score ? Math.round(score.totalPoints).toLocaleString() : 0}
             </p>
           </div>
@@ -327,9 +319,9 @@ export default function Map() {
 
       {/* Europe mode selector */}
       {view === 'europe' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
-          <p className="text-sm text-gray-500 shrink-0">View mode:</p>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="bg-panel border border-hairline rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+          <p className="smallcaps text-ink-soft shrink-0">View mode:</p>
+          <div className="flex flex-wrap gap-1 bg-panel border border-hairline rounded-md p-1">
             {[
               { key: 'countries', label: 'Countries visited' },
               { key: 'provinces', label: 'Provinces visited' },
@@ -338,10 +330,10 @@ export default function Map() {
               <button
                 key={key}
                 onClick={() => setEuropeMode(key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2.5 rounded-md smallcaps transition-colors ${
                   europeMode === key
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-ink text-paper'
+                    : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {label}
@@ -352,8 +344,8 @@ export default function Map() {
       )}
 
       {view === 'explore' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <p className="text-sm text-gray-500">
+        <div className="bg-panel border border-hairline rounded-lg p-4 mb-6">
+          <p className="text-sm text-ink">
             Click any country to see its details, cities, and points.
           </p>
         </div>
@@ -365,9 +357,20 @@ export default function Map() {
       ) : (
         /* World map (react-simple-maps) — used for all other modes */
         <div
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-4 relative"
+          className="plate rounded-lg relative"
           onMouseMove={handleMouseMove}
         >
+          {/* Cartouche header */}
+          <div className="text-center px-5 pt-4 pb-3 border-b border-hairline">
+            <p className="font-display font-bold text-base sm:text-lg tracking-[0.06em] text-ink uppercase">
+              Plate Nº I — The Known World
+            </p>
+            <p className="smallcaps text-ink-soft mt-0.5">
+              Logged: {userCountries.length} {userCountries.length === 1 ? 'nation' : 'nations'} across {continentsVisited} {continentsVisited === 1 ? 'continent' : 'continents'}
+            </p>
+            <span className="block text-gold text-xs tracking-[0.4em] mt-1" aria-hidden="true">✦ ✦ ✦</span>
+          </div>
+          <div className="p-2 sm:p-4">
           <ComposableMap
             projectionConfig={
               view === 'europe'
@@ -389,13 +392,13 @@ export default function Map() {
                       style={{
                         default: {
                           fill: getFill(geo),
-                          stroke: '#fff',
+                          stroke: '#f6f1e7',
                           strokeWidth: 0.5,
                           outline: 'none',
                         },
                         hover: {
                           fill: getHoverFill(geo),
-                          stroke: '#fff',
+                          stroke: '#f6f1e7',
                           strokeWidth: 0.5,
                           outline: 'none',
                           cursor: 'pointer',
@@ -412,8 +415,8 @@ export default function Map() {
                 <Marker key={`${country_code}-${name}`} coordinates={coords}>
                   <circle
                     r={5}
-                    fill="#6366f1"
-                    stroke="#fff"
+                    fill="#2e5fa3"
+                    stroke="#f6f1e7"
                     strokeWidth={1.5}
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/countries/${country_code}`)}
@@ -424,10 +427,11 @@ export default function Map() {
               ))}
             </ZoomableGroup>
           </ComposableMap>
+          </div>
 
           {tooltip && (
             <div
-              className="fixed bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none z-50"
+              className="fixed bg-ink text-paper text-xs px-2 py-1 rounded pointer-events-none z-50"
               style={{ left: mousePos.x + 12, top: mousePos.y - 28 }}
             >
               {tooltip}
@@ -438,13 +442,13 @@ export default function Map() {
 
       {/* Legend */}
       {view === 'my' && (
-        <div className="flex gap-4 mt-4 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-4 mt-4 smallcaps text-ink-soft">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
+            <span className="w-3 h-3 rounded-sm bg-atlas inline-block" />
             Visited
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-gray-300 inline-block" />
+            <span className="w-3 h-3 rounded-sm bg-parchment border border-hairline inline-block" />
             Not visited
           </div>
         </div>
@@ -452,24 +456,24 @@ export default function Map() {
 
       {/* Cities panel — list of cities with coordinates */}
       {view === 'europe' && europeMode === 'cities' && (
-        <div className="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Cities visited in Europe</h3>
+        <div className="mt-4 bg-panel border border-hairline rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-ink mb-3">Cities visited in Europe</h3>
           {europeCityMarkers.length === 0 ? (
-            <p className="text-sm text-gray-500">No European cities logged yet.</p>
+            <p className="text-sm text-ink-soft">No European cities logged yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {europeCityMarkers.map(({ name, country_code }) => (
                 <span
                   key={`${country_code}-${name}`}
-                  className="bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-3 py-1 text-xs font-medium"
+                  className="bg-compass/10 text-ink border border-compass/40 rounded-full px-3 py-1 text-xs font-medium"
                 >
                   {name}
                 </span>
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-3">
-            Purple pins show your visited cities. Click any pin to view the country.
+          <p className="text-xs text-ink-soft/70 mt-3">
+            Blue pins show your visited cities. Click any pin to view the country.
           </p>
         </div>
       )}

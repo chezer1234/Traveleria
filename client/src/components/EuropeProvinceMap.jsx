@@ -80,14 +80,14 @@ export default function EuropeProvinceMap({ visitedProvinceCodes }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-xl border border-gray-200">
-        <p className="text-sm text-gray-500">Loading provinces…</p>
+      <div className="flex items-center justify-center h-64 bg-panel rounded-lg border border-hairline">
+        <p className="text-sm text-ink-soft">Loading provinces…</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-4 relative"
+    <div className="plate rounded-lg p-2 sm:p-4 relative"
          onMouseMove={handleMouseMove}>
       <svg
         viewBox={viewBox}
@@ -109,17 +109,17 @@ export default function EuropeProvinceMap({ visitedProvinceCodes }) {
                 <path
                   key={code}
                   d={d}
-                  fill={isVisited ? '#6366f1' : '#d1d5db'}
-                  stroke="#fff"
+                  fill={isVisited ? '#3e5f45' : '#e4dccb'}
+                  stroke="#f6f1e7"
                   strokeWidth={0.5}
                   style={{ cursor: 'pointer', transition: 'fill 0.15s ease' }}
                   onClick={() => navigate(`/countries/${cc}`)}
                   onMouseEnter={e => {
-                    e.target.style.fill = isVisited ? '#4f46e5' : '#a5b4fc';
+                    e.target.style.fill = isVisited ? '#2f4a36' : '#d3c7ad';
                     setTooltip({ name, isVisited });
                   }}
                   onMouseLeave={e => {
-                    e.target.style.fill = isVisited ? '#6366f1' : '#d1d5db';
+                    e.target.style.fill = isVisited ? '#3e5f45' : '#e4dccb';
                     setTooltip(null);
                   }}
                 />
@@ -130,23 +130,23 @@ export default function EuropeProvinceMap({ visitedProvinceCodes }) {
 
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none bg-gray-900 text-white text-xs rounded px-2 py-1"
+          className="fixed z-50 pointer-events-none bg-ink text-paper text-xs rounded px-2 py-1"
           style={{ left: mousePos.x + 12, top: mousePos.y - 28 }}
         >
           {tooltip.name} {tooltip.isVisited ? '✓' : ''}
         </div>
       )}
 
-      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center gap-4 mt-3 smallcaps text-ink-soft">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
+          <span className="w-3 h-3 rounded-sm bg-atlas inline-block" />
           Visited province
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-gray-300 inline-block" />
+          <span className="w-3 h-3 rounded-sm bg-parchment border border-hairline inline-block" />
           Not visited
         </div>
-        <span className="ml-auto text-gray-400">Click any province to view country</span>
+        <span className="ml-auto text-ink-soft/70">Click any province to view country</span>
       </div>
     </div>
   );

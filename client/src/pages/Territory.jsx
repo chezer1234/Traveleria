@@ -9,6 +9,7 @@ import {
 } from '../lib/queries';
 import { computeTerritory, OWNER, hexToRgba, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
+import CountryLink from '../components/CountryLink';
 
 // Atlas battle palette (CVD-validated on paper — see the visual refresh guide).
 // You = compass blue, opponent = sienna, contested = plum, unvisited = parchment.
@@ -323,9 +324,12 @@ export default function Territory() {
           </p>
           <div className="flex flex-wrap gap-2">
             {contested.map((c) => (
-              <span key={c.country_code} className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40">
-                {c.country_name}
-              </span>
+              <CountryLink
+                key={c.country_code}
+                code={c.country_code}
+                name={c.country_name}
+                className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40 hover:border-plum hover:text-compass"
+              />
             ))}
           </div>
         </div>

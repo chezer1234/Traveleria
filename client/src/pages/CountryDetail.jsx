@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   addCityOptimistic,
@@ -23,6 +23,8 @@ import {
 } from '../lib/queries';
 import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
+import BackLink from '../components/BackLink';
+import ListControls from '../components/ListControls';
 
 // Tier 0 (issue #46): flag banner at the top of the country page. Same emoji
 // derivation used on Leaderboard/Territory/Groups — no image assets exist yet.
@@ -51,6 +53,8 @@ function formatVisitDate(iso) {
 export default function CountryDetail() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, db, dbStatus } = useAuth();
   const homeCountry = user.home_country;
   const [country, setCountry] = useState(null);
@@ -62,6 +66,12 @@ export default function CountryDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toggling, setToggling] = useState(null);
+
+  // Tab navigation (issue #53) — the page used to stack six features into one
+  // very long scroll. Provinces/experiences/cities each get a tab; the score
+  // breakdown and time log stay on Overview. ?tab= makes tabs deep-linkable.
+  const [provinceSearch, setProvinceSearch] = useState('');
+  const [citySearch, setCitySearch] = useState('');
 
   // Time-log ("Time spent here") state — territory score, issue #29.
   const [visits, setVisits] = useState([]);
@@ -338,6 +348,7 @@ export default function CountryDetail() {
   if (!country) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
+        <BackLink />
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded-md text-sm">
           {error || 'Country not found'}
         </div>
@@ -385,11 +396,44 @@ export default function CountryDetail() {
   const stampDate = datedVisits.length > 0 ? new Date(datedVisits[datedVisits.length - 1].visited_at) : null;
   const stampYear = stampDate && !Number.isNaN(stampDate.getTime()) ? stampDate.getUTCFullYear() : null;
 
+  // Tabs (issue #53, Charlie's call on PR #55): only sections this country
+  // actually has become tabs, each labelled with its visited count.
+  const tabs = [{ key: 'overview', label: 'Overview' }];
+  if (hasProvinces) {
+    tabs.push({
+      key: 'provinces',
+      label: `${isTier0 ? 'States' : 'Provinces'} (${visitedProvinceCodes.size}/${country.provinces.length})`,
+    });
+  }
+  if (isTier0 && country.experiences && country.experiences.length > 0) {
+    tabs.push({ key: 'experiences', label: `Experiences (${visitedExperienceIds.size}/${country.experiences.length})` });
+  }
+  if (showCities && country.cities.length > 0) {
+    tabs.push({ key: 'cities', label: `Cities (${visitedCityIds.size}/${country.cities.length})` });
+  }
+  const requestedTab = searchParams.get('tab') || 'overview';
+  const activeTab = tabs.some((t) => t.key === requestedTab) ? requestedTab : 'overview';
+  // Preserve location.state across tab switches — setSearchParams drops it by
+  // default, which would break the context-aware BackLink.
+  const selectTab = (key) =>
+    setSearchParams(key === 'overview' ? {} : { tab: key }, { replace: true, state: location.state });
+
+  const provinceQuery = provinceSearch.trim().toLowerCase();
+  const filteredProvinces = !hasProvinces
+    ? []
+    : provinceQuery
+      ? country.provinces.filter(
+          (p) => p.name.toLowerCase().includes(provinceQuery) || (p.subregion || '').toLowerCase().includes(provinceQuery),
+        )
+      : country.provinces;
+  const cityQuery = citySearch.trim().toLowerCase();
+  const filteredCities = cityQuery
+    ? country.cities.filter((c) => c.name.toLowerCase().includes(cityQuery))
+    : country.cities;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <Link to="/dashboard" className="smallcaps text-compass hover:text-compass-deep mb-4 inline-block">
-        &larr; Back to Dashboard
-      </Link>
+      <BackLink />
 
       <div
         className="plate rounded-lg p-6 mb-6"
@@ -516,6 +560,37 @@ export default function CountryDetail() {
         )}
       </div>
 
+      {error && (
+        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-md mb-4 text-sm">{error}</div>
+      )}
+
+      {!isVisited && (
+        <div className="bg-gold/10 border border-gold/40 text-ink px-4 py-3 rounded-md mb-6 text-sm">
+          Add this country to your visited list first to log visits.
+        </div>
+      )}
+
+      {/* Section tabs — hidden when Overview is the only section */}
+      {tabs.length > 1 && (
+        <div className="flex flex-wrap gap-1 bg-panel border border-hairline rounded-md p-1 mb-6" role="tablist" aria-label="Country sections">
+          {tabs.map(({ key, label }) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={activeTab === key}
+              onClick={() => selectTab(key)}
+              className={`px-3 sm:px-4 py-2.5 rounded-md smallcaps transition-colors ${
+                activeTab === key ? 'bg-ink text-paper' : 'text-ink-soft hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <>
       <ScoreBreakdown
         country={country}
         visitedProvinceCodes={visitedProvinceCodes}
@@ -604,19 +679,12 @@ export default function CountryDetail() {
           )}
         </div>
       )}
-
-      {error && (
-        <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-md mb-4 text-sm">{error}</div>
-      )}
-
-      {!isVisited && (
-        <div className="bg-gold/10 border border-gold/40 text-ink px-4 py-3 rounded-md mb-6 text-sm">
-          Add this country to your visited list first to log visits.
-        </div>
+        </>
       )}
 
       {/* Province map — Tier 0 provinces carry real percentExplored for the hover tooltip */}
-      {hasProvinces && (
+      {activeTab === 'provinces' && hasProvinces && (
+        <>
         <ProvinceMap
           countryCode={code.toUpperCase()}
           provinces={country.provinces.map((p) => {
@@ -627,11 +695,7 @@ export default function CountryDetail() {
           onToggle={toggleProvince}
           disabled={!isVisited}
         />
-      )}
 
-      {/* Province list */}
-      {hasProvinces && (
-        <>
           <h2 className="font-display font-bold text-lg text-ink mb-1">
             {isTier0 ? 'States / Provinces' : 'Provinces / Regions'} ({country.provinces.length})
           </h2>
@@ -642,8 +706,19 @@ export default function CountryDetail() {
             )}
           </p>
 
+          {country.provinces.length > 8 && (
+            <ListControls
+              search={provinceSearch}
+              onSearch={setProvinceSearch}
+              placeholder={`Search ${isTier0 ? 'states' : 'provinces'} by name…`}
+            />
+          )}
+
           <div className="space-y-2 mb-8">
-            {country.provinces.map((province) => {
+            {filteredProvinces.length === 0 && (
+              <p className="text-center text-ink-soft py-8">No {isTier0 ? 'states' : 'provinces'} match your search.</p>
+            )}
+            {filteredProvinces.map((province) => {
               const isChecked = visitedProvinceCodes.has(province.code);
               const tier0 = tier0BreakdownByCode?.[province.code];
               const displayMaxPoints = tier0 ? tier0.maxPoints : province.maxPoints;
@@ -761,7 +836,7 @@ export default function CountryDetail() {
       )}
 
       {/* Experiences — Tier 0 only (issue #46) */}
-      {isTier0 && country.experiences && country.experiences.length > 0 && (
+      {activeTab === 'experiences' && isTier0 && country.experiences && country.experiences.length > 0 && (
         <>
           <h2 className="font-display font-bold text-lg text-ink mb-1">
             Experiences ({country.experiences.length})
@@ -823,15 +898,24 @@ export default function CountryDetail() {
       )}
 
       {/* City list — 0.5 pts (major) for all tiers; Tier 0 "additional" cities are 0.25 pts */}
-      {showCities && country.cities.length > 0 && (
+      {activeTab === 'cities' && showCities && country.cities.length > 0 && (
         <>
           <h2 className="font-display font-bold text-lg text-ink mb-1">
             Cities ({country.cities.length})
             {!isTier0 && <span className="text-sm font-sans font-normal text-ink-soft ml-2">0.5 pts each</span>}
           </h2>
 
+          {country.cities.length > 8 && (
+            <div className="mt-3">
+              <ListControls search={citySearch} onSearch={setCitySearch} placeholder="Search cities by name…" />
+            </div>
+          )}
+
           <div className="space-y-2">
-            {country.cities.map((city) => {
+            {filteredCities.length === 0 && (
+              <p className="text-center text-ink-soft py-8">No cities match your search.</p>
+            )}
+            {filteredCities.map((city) => {
               const isChecked = visitedCityIds.has(city.id);
               const cityPoints = city.city_type === 'additional' ? 0.25 : 0.5;
               return (

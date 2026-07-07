@@ -13,6 +13,7 @@ import {
 import { computeProvinceTerritory } from '../lib/provinceTerritory.js';
 import { OWNER, hexToRgba, gradeOpacity } from '../lib/territory.js';
 import ProvinceMap from '../components/ProvinceMap';
+import CountryLink from '../components/CountryLink';
 
 // Atlas battle palette (CVD-validated on paper — see the visual refresh guide).
 // You = compass blue, opponent = sienna, contested = plum, unvisited = parchment.
@@ -294,9 +295,14 @@ export default function StateBattle() {
           </p>
           <div className="flex flex-wrap gap-2">
             {contested.map((p) => (
-              <span key={p.province_code} className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40">
+              <CountryLink
+                key={p.province_code}
+                code={country.code}
+                tab="provinces"
+                className="px-3 py-1.5 rounded-full text-sm text-ink bg-plum/10 border border-plum/40 hover:border-plum hover:text-compass"
+              >
                 {p.province_name}
-              </span>
+              </CountryLink>
             ))}
           </div>
         </div>

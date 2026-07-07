@@ -4,10 +4,23 @@
 // special honours. Original artwork per category lives in lib/trophyArt.js;
 // all logic lives in lib/trophies.js. This page is pure display.
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getTrophyStatusLocal } from '../lib/queries';
 import { evaluateCabinet, TIERS } from '../lib/trophies';
 import TrophyMedal from '../components/TrophyMedal';
+
+// Where progress on each ladder actually happens (issue #53) — a trophy's
+// progress bar should lead somewhere you can act on it.
+const LADDER_LINKS = {
+  points: '/add-countries',
+  countries: '/add-countries',
+  continents: '/map',
+  subregions: '/subregions',
+  cities: '/dashboard',
+  islands: '/map',
+  experiences: '/dashboard',
+};
 
 // "Mon YYYY" from the qualifying visit's visited_at; null when undated.
 function earnedDateLabel(earnedAt) {
@@ -47,7 +60,15 @@ function LadderRow({ ladder }) {
   return (
     <div className="bg-panel px-3 py-5 sm:px-5">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="font-display font-bold text-ink">{ladder.title}</h3>
+        <h3 className="font-display font-bold text-ink">
+          {LADDER_LINKS[ladder.key] ? (
+            <Link to={LADDER_LINKS[ladder.key]} className="hover:text-compass hover:underline">
+              {ladder.title}
+            </Link>
+          ) : (
+            ladder.title
+          )}
+        </h3>
         <span className="smallcaps text-ink-soft tabular-nums">{earnedCount} of {rungs.length}</span>
       </div>
 
@@ -99,7 +120,7 @@ function LadderRow({ ladder }) {
 
 // Conquests and specials share the 1.5 card: medal, name, requirement, and
 // either the earned line or the ink progress bar.
-function TrophyCard({ trophy }) {
+function TrophyCard({ trophy, to }) {
   const { name, requirement, medal, shape, glyph, earned, detail, progress } = trophy;
   const date = earned ? earnedDateLabel(trophy.earnedAt) : null;
   const shownCurrent = progress ? Math.round(progress.current) : 0;
@@ -109,7 +130,11 @@ function TrophyCard({ trophy }) {
     <div className="bg-panel flex flex-col items-center text-center px-3 py-5 sm:px-4">
       <TrophyMedal shape={shape} tier={medal} earned={earned} glyph={glyph} name={name} />
       <h3 className={`font-display font-bold mt-2 leading-snug ${earned ? 'text-ink' : 'text-ink-soft'}`}>
-        {name}
+        {to ? (
+          <Link to={to} className="hover:text-compass hover:underline">{name}</Link>
+        ) : (
+          name
+        )}
       </h3>
       <p className="smallcaps text-ink-soft mt-1.5 leading-relaxed">{requirement}</p>
 
@@ -220,7 +245,7 @@ export default function Trophies() {
         />
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-px bg-hairline border-t border-hairline">
           {cabinet.conquests.map((t) => (
-            <TrophyCard key={t.id} trophy={t} />
+            <TrophyCard key={t.id} trophy={t} to="/map" />
           ))}
         </div>
 

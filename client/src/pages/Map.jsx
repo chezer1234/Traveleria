@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -297,23 +297,32 @@ export default function Map() {
       {view === 'my' && (
         <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-hairline border border-hairline rounded-lg overflow-hidden mb-6">
           {[
-            { label: 'Countries', value: userCountries.length },
+            { label: 'Countries', value: userCountries.length, to: '/dashboard' },
             { label: 'Continents', value: continentsVisited },
-            { label: 'Sub-regions', value: subregionsVisited },
+            { label: 'Sub-regions', value: subregionsVisited, to: '/subregions' },
             { label: 'Cities', value: totalCitiesVisited },
             { label: 'Population visited', value: formatPopulation(totalPopulation) },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-panel p-4">
-              <p className="smallcaps text-ink-soft">{label}</p>
-              <p className="font-display font-black text-2xl sm:text-3xl tabular-nums text-ink mt-1">{value}</p>
-            </div>
-          ))}
-          <div className="bg-paper p-4 border-l-2 border-gold">
+          ].map(({ label, value, to }) => {
+            const body = (
+              <>
+                <p className="smallcaps text-ink-soft">{label}</p>
+                <p className="font-display font-black text-2xl sm:text-3xl tabular-nums text-ink mt-1">{value}</p>
+              </>
+            );
+            return to ? (
+              <Link key={label} to={to} className="bg-panel p-4 block hover:bg-paper transition-colors">
+                {body}
+              </Link>
+            ) : (
+              <div key={label} className="bg-panel p-4">{body}</div>
+            );
+          })}
+          <Link to="/dashboard" className="bg-paper p-4 border-l-2 border-gold block hover:bg-panel transition-colors">
             <p className="smallcaps text-ink">Total Points</p>
             <p className="font-display font-black text-2xl sm:text-3xl tabular-nums text-ink mt-1">
               {score ? Math.round(score.totalPoints).toLocaleString() : 0}
             </p>
-          </div>
+          </Link>
         </div>
       )}
 

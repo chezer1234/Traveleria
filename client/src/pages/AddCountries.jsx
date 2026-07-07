@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { addCountryOptimistic } from '../lib/mutations';
 import { getCountriesLocal } from '../lib/queries';
+import CountryLink from '../components/CountryLink';
 
 export default function AddCountries() {
   const { user, db, dbStatus } = useAuth();
@@ -126,39 +127,50 @@ export default function AddCountries() {
           const isVisited = visitedCodes.has(c.code);
           const isSelected = selected.has(c.code);
           return (
-            <button
+            <div
               key={c.code}
-              onClick={() => !isVisited && toggleSelect(c.code)}
-              disabled={isVisited}
-              className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+              className={`flex items-stretch rounded-lg border transition-colors ${
                 isVisited
-                  ? 'bg-paper border-hairline opacity-50 cursor-not-allowed'
+                  ? 'bg-paper border-hairline opacity-60'
                   : isSelected
                   ? 'bg-atlas/10 border-atlas/40'
                   : 'bg-panel border-hairline hover:border-compass'
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
-                <div className="min-w-0">
-                  <span className="font-medium text-ink">{c.name}</span>
-                  <span className="text-ink-soft/70 text-sm ml-2">{c.code}</span>
+              <button
+                onClick={() => !isVisited && toggleSelect(c.code)}
+                disabled={isVisited}
+                className={`flex-1 min-w-0 text-left px-4 py-3 ${isVisited ? 'cursor-not-allowed' : ''}`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
+                  <div className="min-w-0">
+                    <span className="font-medium text-ink">{c.name}</span>
+                    <span className="text-ink-soft/70 text-sm ml-2">{c.code}</span>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <span className="text-xs text-ink-soft">{c.region}</span>
+                    <span className="text-sm text-ink-soft tabular-nums">{c.baseline_points} pts</span>
+                    {isVisited && (
+                      <span className="text-xs bg-parchment text-ink-soft px-2 py-0.5 rounded-full">
+                        Visited
+                      </span>
+                    )}
+                    {isSelected && (
+                      <span className="text-xs bg-atlas/15 text-atlas-deep border border-atlas/40 px-2 py-0.5 rounded-full">
+                        Selected
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                  <span className="text-xs text-ink-soft">{c.region}</span>
-                  <span className="text-sm text-ink-soft tabular-nums">{c.baseline_points} pts</span>
-                  {isVisited && (
-                    <span className="text-xs bg-parchment text-ink-soft px-2 py-0.5 rounded-full">
-                      Visited
-                    </span>
-                  )}
-                  {isSelected && (
-                    <span className="text-xs bg-atlas/15 text-atlas-deep border border-atlas/40 px-2 py-0.5 rounded-full">
-                      Selected
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
+              </button>
+              {/* Peek at the country before adding it (issue #53) */}
+              <CountryLink
+                code={c.code}
+                className="flex items-center px-3 smallcaps text-compass hover:text-compass-deep border-l border-hairline/60"
+              >
+                View
+              </CountryLink>
+            </div>
           );
         })}
         {filtered.length === 0 && (

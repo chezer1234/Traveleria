@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
 import { getSubregionsLocal } from '../lib/queries';
 import { claimSubregionOptimistic, unclaimSubregionOptimistic } from '../lib/mutations';
+import CountryLink from '../components/CountryLink';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -85,6 +87,8 @@ function flag(code) {
 
 export default function Subregions() {
   const { user, db, dbStatus } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -225,7 +229,15 @@ export default function Subregions() {
                     fill={isVisited ? baseColor : (subregion ? baseColor + '55' : '#e4dccb')}
                     stroke="#f6f1e7"
                     strokeWidth={0.4}
-                    style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
+                    onClick={() => {
+                      // Same click-through the main Map has (issue #53).
+                      if (alpha2) navigate(`/countries/${alpha2}`, { state: { from: location.pathname } });
+                    }}
+                    style={{
+                      default: { outline: 'none' },
+                      hover: { outline: 'none', cursor: alpha2 ? 'pointer' : 'default' },
+                      pressed: { outline: 'none' },
+                    }}
                   />
                 );
               })
@@ -234,13 +246,20 @@ export default function Subregions() {
         </ComposableMap>
       </div>
 
-      {/* Colour legend */}
+      {/* Continent jump row — the coloured cards below are their own legend */}
       <div className="flex flex-wrap gap-2">
-        {Object.entries(SUBREGION_COLORS).map(([name, color]) => (
-          <span key={name} className="flex items-center gap-1 text-xs text-ink-soft">
-            <span className="inline-block w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-            {name}
-          </span>
+        {CONTINENT_ORDER.filter((c) => byCont[c]).map((continent) => (
+          <a
+            key={continent}
+            href={`#continent-${continent}`}
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById(`continent-${continent}`)?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="smallcaps px-3 py-1.5 rounded-full border border-hairline bg-panel text-ink-soft hover:text-ink hover:border-compass"
+          >
+            {continent}
+          </a>
         ))}
       </div>
 
@@ -249,7 +268,7 @@ export default function Subregions() {
         const srs = byCont[continent];
         if (!srs) return null;
         return (
-          <div key={continent}>
+          <div key={continent} id={`continent-${continent}`} className="scroll-mt-4">
             <h2 className="text-lg font-display font-bold text-ink mb-3">{continent}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {srs.map((sr) => {
@@ -363,7 +382,7 @@ export default function Subregions() {
                                 }`}
                               >
                                 <span>{flag(c.code)}</span>
-                                <span>{c.name}</span>
+                                <CountryLink code={c.code} name={c.name} />
                                 {c.visited && <span className="text-atlas">✓</span>}
                               </div>
                             ))}

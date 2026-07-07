@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserGroupsLocal, getLeaderboardLocal } from '../lib/queries';
+import { getUserGroupsLocal, getLeaderboardLocal, getUserPublicLocal } from '../lib/queries';
 import {
   createGroupOptimistic,
   deleteGroupOptimistic,
   leaveGroupOptimistic,
+  addGroupMemberOptimistic,
 } from '../lib/mutations';
 import { resolveColours } from '../lib/territory';
 
@@ -61,15 +62,25 @@ function MemberChips({ members, colourMap }) {
   );
 }
 
+const DEFAULT_MEMBER_COLOURS = { primary: '#ef4444', secondary: '#f59e0b' };
+
 export default function Groups() {
   const { user, db, dbStatus } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [groups, setGroups] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+
+  // "?add=<userId>" — arriving from the leaderboard's "+Group" button (issue
+  // #53; the param used to be silently ignored). Offers the traveller a place
+  // in one of your existing groups, or a new group with them pre-selected.
+  const [addTarget, setAddTarget] = useState(null);
+  const [addingTo, setAddingTo] = useState(null);
+  const [addError, setAddError] = useState('');
 
   // Creation form state.
   const [groupName, setGroupName] = useState('');
@@ -101,6 +112,54 @@ export default function Groups() {
   useEffect(() => {
     if (dbStatus === 'ready') load();
   }, [dbStatus, load]);
+
+  // Resolve the ?add= traveller once the DB is up. Self/unknown ids just
+  // clear the param and leave the plain Groups page.
+  const addUserId = searchParams.get('add');
+  useEffect(() => {
+    if (dbStatus !== 'ready' || !db) return;
+    if (!addUserId) { setAddTarget(null); return; }
+    let cancelled = false;
+    (async () => {
+      const target = addUserId !== user.id ? await getUserPublicLocal(db, addUserId) : null;
+      if (cancelled) return;
+      if (!target) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      setAddTarget(target);
+    })();
+    return () => { cancelled = true; };
+  }, [db, dbStatus, addUserId, user.id, setSearchParams]);
+
+  function dismissAdd() {
+    setAddTarget(null);
+    setAddError('');
+    setSearchParams({}, { replace: true });
+  }
+
+  function startGroupWith(target) {
+    setSelectedUserIds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
+    setMemberColours((mc) => ({ ...mc, [target.id]: mc[target.id] || { ...DEFAULT_MEMBER_COLOURS } }));
+    setShowCreate(true);
+  }
+
+  async function handleAddToGroup(group, target) {
+    setAddingTo(group.id);
+    setAddError('');
+    try {
+      await addGroupMemberOptimistic(db, group.id, {
+        user_id: target.id,
+        primary_colour: DEFAULT_MEMBER_COLOURS.primary,
+        secondary_colour: DEFAULT_MEMBER_COLOURS.secondary,
+      });
+      navigate(`/groups/${group.id}`);
+    } catch (err) {
+      setAddError(err.message);
+    } finally {
+      setAddingTo(null);
+    }
+  }
 
   function toggleMember(userId) {
     setSelectedUserIds((prev) => {
@@ -194,6 +253,65 @@ export default function Groups() {
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm mb-6">{error}</div>
+      )}
+
+      {/* "?add=" panel — add a leaderboard traveller to one of your groups */}
+      {addTarget && (
+        <div className="plate rounded-lg p-6 mb-8">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h2 className="text-lg font-display font-bold text-ink">
+              Add {addTarget.identifier} {flag(addTarget.home_country)} to a group
+            </h2>
+            <button
+              onClick={dismissAdd}
+              className="text-ink-soft/70 hover:text-ink smallcaps py-1"
+              aria-label="Dismiss"
+            >
+              Dismiss
+            </button>
+          </div>
+
+          {(() => {
+            // Only the creator can add members (server rule), and only where
+            // the traveller isn't already in.
+            const eligible = groups.filter(
+              (g) => g.created_by === user.id && !g.members.some((m) => m.user_id === addTarget.id),
+            );
+            return (
+              <>
+                {eligible.length > 0 ? (
+                  <div className="space-y-2 mb-4">
+                    {eligible.map((g) => (
+                      <div key={g.id} className="flex items-center justify-between bg-panel border border-hairline rounded-lg px-4 py-3">
+                        <span className="font-medium text-ink text-sm">{g.name}</span>
+                        <button
+                          onClick={() => handleAddToGroup(g, addTarget)}
+                          disabled={addingTo === g.id}
+                          className="px-3 py-2 text-sm bg-compass text-paper rounded-md hover:bg-compass-deep disabled:opacity-50 font-medium"
+                        >
+                          {addingTo === g.id ? 'Adding…' : 'Add'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-soft mb-4">
+                    {groups.some((g) => g.created_by === user.id)
+                      ? `${addTarget.identifier} is already in every group you run.`
+                      : "You don't run any groups yet — start one below."}
+                  </p>
+                )}
+                <button
+                  onClick={() => startGroupWith(addTarget)}
+                  className="text-sm text-compass font-medium hover:underline"
+                >
+                  + Start a new group with {addTarget.identifier}
+                </button>
+                {addError && <p role="alert" className="mt-3 text-sm text-red-600">{addError}</p>}
+              </>
+            );
+          })()}
+        </div>
       )}
 
       {/* Creation form */}

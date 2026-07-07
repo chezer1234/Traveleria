@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ChecklistOverlay from './ChecklistOverlay';
+import QuickSearch from './QuickSearch';
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -14,7 +15,7 @@ const NAV_LINKS = [
 ];
 
 const desktopLink = ({ isActive }) =>
-  `smallcaps py-1 border-b-2 transition-colors ${
+  `smallcaps py-1 border-b-2 transition-colors whitespace-nowrap ${
     isActive
       ? 'text-ink border-gold'
       : 'text-ink-soft border-transparent hover:text-ink hover:border-hairline'
@@ -49,12 +50,13 @@ export default function Layout() {
               </button>
             )}
             <Link to="/dashboard" className="font-display font-black text-2xl tracking-tight text-ink">
-              Travel<span className="text-gold">Points</span>
+              Travel<span className="text-gold">eria</span>
             </Link>
           </div>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-5">
+          <div className="hidden xl:flex items-center gap-3 lg:gap-4 min-w-0">
+            {user && <QuickSearch className="w-32 focus-within:w-48 transition-all shrink-0" />}
             {NAV_LINKS.map(({ to, label }) => (
               <NavLink key={to} to={to} className={desktopLink}>
                 {label}
@@ -62,10 +64,12 @@ export default function Layout() {
             ))}
             {user && (
               <>
-                <span className="text-sm text-ink-soft border-l border-hairline pl-5">{user.identifier}</span>
+                <span className="hidden lg:inline-block text-sm text-ink-soft border-l border-hairline pl-4 truncate max-w-32" title={user.identifier}>
+                  {user.identifier}
+                </span>
                 <button
                   onClick={logout}
-                  className="smallcaps text-sienna hover:text-ink"
+                  className="smallcaps text-sienna hover:text-ink shrink-0"
                 >
                   Logout
                 </button>
@@ -76,7 +80,7 @@ export default function Layout() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2.5 text-ink-soft hover:text-ink"
+            className="xl:hidden p-2.5 text-ink-soft hover:text-ink"
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
           >
@@ -92,7 +96,12 @@ export default function Layout() {
 
         {/* Mobile nav menu */}
         {menuOpen && (
-          <div className="md:hidden border-t border-hairline bg-panel px-4 py-2">
+          <div className="xl:hidden border-t border-hairline bg-panel px-4 py-2">
+            {user && (
+              <div className="py-3 border-b border-hairline/60">
+                <QuickSearch onNavigate={() => setMenuOpen(false)} />
+              </div>
+            )}
             {NAV_LINKS.map(({ to, label }) => (
               <NavLink key={to} to={to} onClick={() => setMenuOpen(false)} className={mobileLink}>
                 {label}

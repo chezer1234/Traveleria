@@ -1,41 +1,47 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getChecklistStatusLocal } from '../lib/queries';
+import { getChecklistStatusLocal, getLatestVisitedCountryLocal } from '../lib/queries';
 
+// The province/city steps happen on a country page, so they deep-link to the
+// user's latest visited country (issue #53); with nothing visited yet they
+// point at Add Countries, the only sensible first step.
 const ITEMS = [
   {
     key: 'hasCountry',
     label: 'Add your first country',
     hint: 'Log somewhere you\'ve been on the Add Countries page',
-    link: '/add-countries',
+    link: () => '/add-countries',
   },
   {
     key: 'hasProvince',
     label: 'Log a province',
     hint: 'Open a country\'s detail page and mark a province as visited',
-    link: null,
+    link: (latest) => (latest ? `/countries/${latest}?tab=provinces` : '/add-countries'),
   },
   {
     key: 'hasCity',
     label: 'Log a city',
     hint: 'Open a country\'s detail page and mark a city as visited',
-    link: null,
+    link: (latest) => (latest ? `/countries/${latest}?tab=cities` : '/add-countries'),
   },
   {
     key: 'hasSubregion',
     label: 'Claim a subregion',
     hint: 'Visit the Subregions page once you\'ve covered all countries in a region',
-    link: '/subregions',
+    link: () => '/subregions',
   },
 ];
 
 export default function ChecklistOverlay({ isOpen, onClose }) {
   const { user, db, dbStatus } = useAuth();
   const [status, setStatus] = useState(null);
+  const [latestCountry, setLatestCountry] = useState(null);
 
   useEffect(() => {
     if (!isOpen || dbStatus !== 'ready' || !db || !user) return;
     getChecklistStatusLocal(db, user.id).then(setStatus).catch(console.error);
+    getLatestVisitedCountryLocal(db, user.id).then(setLatestCountry).catch(console.error);
   }, [isOpen, db, user?.id, dbStatus]);
 
   if (!isOpen) return null;
@@ -77,6 +83,7 @@ export default function ChecklistOverlay({ isOpen, onClose }) {
         <div className="space-y-3">
           {ITEMS.map((item) => {
             const done = status ? !!status[item.key] : false;
+            const to = item.link(latestCountry);
             return (
               <div key={item.key} className="flex items-start gap-3">
                 <div
@@ -92,9 +99,19 @@ export default function ChecklistOverlay({ isOpen, onClose }) {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium leading-snug ${done ? 'text-ink-soft/70 line-through' : 'text-ink'}`}>
-                    {item.label}
-                  </p>
+                  {done ? (
+                    <p className="text-sm font-medium leading-snug text-ink-soft/70 line-through">
+                      {item.label}
+                    </p>
+                  ) : (
+                    <Link
+                      to={to}
+                      onClick={onClose}
+                      className="text-sm font-medium leading-snug text-ink hover:text-compass hover:underline block"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                   {!done && item.hint && (
                     <p className="text-xs text-ink-soft/70 mt-0.5 leading-snug">{item.hint}</p>
                   )}

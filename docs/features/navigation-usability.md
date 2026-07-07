@@ -1,7 +1,27 @@
 # Navigation & Usability — audit and plan
 
-**Status:** Proposal — audit complete, awaiting Q&A with Charlie before code
+**Status:** Implemented (PR #55) — decisions from Charlie's Q&A below
 **Issue:** [#53 — Usability and Navigation Updates](https://github.com/chezer1234/Traveleria/issues/53)
+
+## Decisions (Charlie, PR #55)
+
+1. **Global country search: in scope.** Shipped as `QuickSearch` in the nav
+   bar (desktop and mobile menu) — type-ahead over all 196 countries,
+   keyboard navigation, enter to jump.
+2. **CountryDetail uses tabs**, not anchors: Overview · States/Provinces ·
+   Experiences · Cities, with visited counts in the labels and the active
+   tab deep-linkable via `?tab=`.
+3. **"+Group" adds to an existing group** (option b): the Groups page now
+   reads `?add=<userId>` and offers every group you run that the traveller
+   isn't in (server rule: only the creator can add members), plus a
+   pre-selected new-group form as the fallback. Uses the existing
+   `addGroupMemberOptimistic` mutation.
+4. **Dashboard default sort is A–Z**, with Points and Recent one tap away.
+5. **Provinces stay in population order** — search added, order unchanged.
+
+One consequence of shipping QuickSearch + seven nav links: the desktop nav
+only fits at ≥1280px, so the hamburger menu now takes over below `xl`
+(previously `md`).
 
 ## What
 

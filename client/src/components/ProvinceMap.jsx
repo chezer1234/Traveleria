@@ -103,8 +103,8 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm text-gray-500">Loading map...</p>
+      <div className="flex items-center justify-center h-64 bg-panel rounded-lg border border-hairline">
+        <p className="text-sm text-ink-soft">Loading map...</p>
       </div>
     );
   }
@@ -132,7 +132,7 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
         <div className="flex flex-wrap gap-3 mt-3">
           {outlierFeatures.map((f, i) => (
             <div key={f.properties.code || i} className="flex-shrink-0">
-              <p className="text-xs text-gray-500 mb-1 px-1">
+              <p className="text-xs text-ink-soft mb-1 px-1">
                 {provinceMap[f.properties.code]?.name || f.properties.name}
               </p>
               <MapPanel
@@ -158,31 +158,31 @@ export default function ProvinceMap({ countryCode, provinces, visitedCodes, onTo
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg"
+          className="fixed z-50 pointer-events-none bg-ink text-paper text-xs rounded-lg px-3 py-2 shadow-lg"
           style={{ left: mousePos.x + 12, top: mousePos.y - 40 }}
         >
           <p className="font-medium">{tooltip.name}</p>
           {tooltip.lines ? (
-            tooltip.lines.map((line, i) => <p key={i} className="text-gray-300">{line}</p>)
+            tooltip.lines.map((line, i) => <p key={i} className="text-paper/70">{line}</p>)
           ) : (
-            <p className="text-gray-300">
+            <p className="text-paper/70">
               {tooltip.points} pts {tooltip.visited ? '(visited)' : ''}
             </p>
           )}
           {tooltip.percentExplored !== undefined && (
-            <p className="text-gray-300">{Math.round(tooltip.percentExplored * 1000) / 10}% explored</p>
+            <p className="text-paper/70">{Math.round(tooltip.percentExplored * 1000) / 10}% explored</p>
           )}
         </div>
       )}
 
       {/* Legend */}
       {legend || (
-        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 px-1">
+        <div className="flex items-center gap-4 mt-2 text-xs text-ink-soft px-1">
           <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-indigo-500"></span> Visited
+            <span className="inline-block w-3 h-3 rounded-sm bg-atlas"></span> Visited
           </div>
           <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-gray-300"></span> Not visited
+            <span className="inline-block w-3 h-3 rounded-sm bg-parchment border border-hairline"></span> Not visited
           </div>
           <span className="ml-auto">Click provinces to toggle</span>
         </div>
@@ -231,7 +231,7 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
   if (!pathGen) return null;
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${small ? 'inline-block' : ''}`}>
+    <div className={`bg-panel rounded-lg border border-hairline overflow-hidden ${small ? 'inline-block' : ''}`}>
       <svg
         viewBox={viewBox || `0 0 ${width} ${height}`}
         style={{ width: small ? `${width}px` : '100%', height: 'auto' }}
@@ -246,15 +246,15 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
           const d = pathGen(feature);
           if (!d) return null;
 
-          const fill = getFill ? getFill(code, province) : (isVisited ? '#6366f1' : '#d1d5db');
-          const hoverFill = getFill ? fill : (isVisited ? '#4f46e5' : '#a5b4fc');
+          const fill = getFill ? getFill(code, province) : (isVisited ? '#3e5f45' : '#e4dccb');
+          const hoverFill = getFill ? fill : (isVisited ? '#2f4a36' : '#d3c7ad');
 
           return (
             <path
               key={code || i}
               d={d}
               fill={fill}
-              stroke="#fff"
+              stroke="#f6f1e7"
               strokeWidth={small ? 0.3 : 0.5}
               style={{
                 cursor: isMatched && !disabled ? 'pointer' : 'default',

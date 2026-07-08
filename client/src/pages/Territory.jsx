@@ -10,6 +10,7 @@ import {
 import { computeTerritory, OWNER, hexToRgba, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
 import CountryLink from '../components/CountryLink';
+import { countryFlag as flag } from '../lib/flag';
 
 // Atlas battle palette (CVD-validated on paper — see the visual refresh guide).
 // You = compass blue, opponent = sienna, contested = plum, unvisited = parchment.
@@ -26,9 +27,6 @@ const COLORS = {
   [OWNER.CONTESTED]: { fill: BASE_COLORS[OWNER.CONTESTED].hex, hover: BASE_COLORS[OWNER.CONTESTED].hover },
   [OWNER.NONE]: { fill: BASE_COLORS[OWNER.NONE].hex, hover: BASE_COLORS[OWNER.NONE].hover },
 };
-
-const flag = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 

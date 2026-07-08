@@ -86,6 +86,18 @@ describe('Seed Data — Countries', () => {
     expect(au.region).toBe('Oceania');
   });
 
+  test('includes Antarctica (issue #59)', async () => {
+    const aq = await db('countries').where({ code: 'AQ' }).first();
+    expect(aq).toBeDefined();
+    expect(aq.name).toBe('Antarctica');
+    expect(aq.region).toBe('Antarctica');
+    expect(parseInt(aq.population, 10)).toBeGreaterThan(0);
+    expect(parseInt(aq.annual_tourists, 10)).toBeGreaterThan(0);
+    expect(aq.area_km2).toBeGreaterThan(0);
+    expect(aq.lat).not.toBeNull();
+    expect(aq.lng).not.toBeNull();
+  });
+
   test('country codes are unique (no duplicates)', async () => {
     const codes = await db('countries').pluck('code');
     const uniqueCodes = new Set(codes);

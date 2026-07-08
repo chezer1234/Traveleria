@@ -9,9 +9,7 @@ import {
   addGroupMemberOptimistic,
 } from '../lib/mutations';
 import { resolveColours } from '../lib/territory';
-
-const flag = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
+import { countryFlag as flag } from '../lib/flag';
 
 const COLOUR_PRESETS = [
   '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7',

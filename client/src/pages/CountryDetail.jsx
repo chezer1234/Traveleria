@@ -25,11 +25,7 @@ import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
 import BackLink from '../components/BackLink';
 import ListControls from '../components/ListControls';
-
-// Tier 0 (issue #46): flag banner at the top of the country page. Same emoji
-// derivation used on Leaderboard/Territory/Groups — no image assets exist yet.
-const flagEmoji = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
+import { countryFlag as flagEmoji } from '../lib/flag';
 
 // Dated visits first (newest first), undated ("no date") last. Mirrors the SQL
 // ordering in getCountryVisitsLocal so optimistic inserts land in the right spot.

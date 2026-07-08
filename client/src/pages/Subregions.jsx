@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getSubregionsLocal } from '../lib/queries';
 import { claimSubregionOptimistic, unclaimSubregionOptimistic } from '../lib/mutations';
 import CountryLink from '../components/CountryLink';
+import { countryFlag as flag } from '../lib/flag';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -79,11 +80,6 @@ const SUBREGION_CONTINENT = {
   'Melanesia': 'Oceania',        'Micronesia': 'Oceania',
   'Polynesia': 'Oceania',
 };
-
-function flag(code) {
-  if (!code || code.length !== 2) return '';
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
-}
 
 export default function Subregions() {
   const { user, db, dbStatus } = useAuth();

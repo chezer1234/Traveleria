@@ -2,9 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getCountryNamesLocal } from '../lib/queries';
-
-const flag = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
+import { countryFlag as flag } from '../lib/flag';
 
 // Global country search (issue #53) — type "Jap…", hit enter, land on Japan.
 // Lives in the nav bar; loads the country list lazily on first focus.

@@ -426,6 +426,12 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
   const tourismInfo = getTourismDifficulty(pop, tourists);
   const sizeRef = getSizeComparison(area);
 
+  // Antarctica (issue #59) is the one place the tourists-vs-residents difficulty
+  // model can't describe: a whole continent with no permanent population. The
+  // score itself stays 100% formula-driven (size + distance do the work); we
+  // only override the human narrative so it doesn't read "very easy to visit".
+  const isAntarctica = country.code === 'AQ';
+
   return {
     isMicrostate: false,
     distance: {
@@ -440,10 +446,12 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
     tourism: {
       population: pop,
       annualTourists: tourists,
-      difficulty: tourismInfo.label,
-      ratio: tourismInfo.ratio,
+      difficulty: isAntarctica ? 'Extremely hard to reach' : tourismInfo.label,
+      ratio: isAntarctica ? 'no permanent population — just scientists and a short tourist season' : tourismInfo.ratio,
       points: round2(tourismPts),
-      explanation: `${country.name} gets about ${formatNumber(tourists)} tourists a year for a population of ${formatNumber(pop)} — ${tourismInfo.ratio}`,
+      explanation: isAntarctica
+        ? `Antarctica has no permanent population — only around 1,100 scientists overwinter (up to ~5,000 in summer), joined by roughly ${formatNumber(tourists)} visitors each season. There's no meaningful tourists-per-resident ratio for an entire continent, so its score comes from its sheer size and how far it is from everywhere — not the usual difficulty measure.`
+        : `${country.name} gets about ${formatNumber(tourists)} tourists a year for a population of ${formatNumber(pop)} — ${tourismInfo.ratio}`,
     },
     size: {
       areaKm2: area,

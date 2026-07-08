@@ -8,10 +8,9 @@ import { GEO_URL, getAlpha2 } from '../lib/geo';
 import { CONTINENTS, getContinent } from '../lib/continents';
 import { leaveGroupOptimistic, deleteGroupOptimistic } from '../lib/mutations';
 import CountryLink from '../components/CountryLink';
+import { countryFlag as flag } from '../lib/flag';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
-const flag = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
 
 // Atlas battle palette (see the visual refresh guide). Member colours come from
 // resolveColours(); these cover the shared states.

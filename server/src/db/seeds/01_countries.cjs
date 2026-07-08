@@ -214,6 +214,15 @@ const countries = [
   { code: 'TO', name: 'Tonga', region: 'Oceania', population: 105695, annual_tourists: 60000, area_km2: 747, lat: -21.21, lng: -175.20 },
   { code: 'TV', name: 'Tuvalu', region: 'Oceania', population: 11792, annual_tourists: 3000, area_km2: 26, lat: -8.52, lng: 179.20 },
   { code: 'VU', name: 'Vanuatu', region: 'Oceania', population: 307145, annual_tourists: 116000, area_km2: 12189, lat: -17.73, lng: 168.32 },
+
+  // Antarctica (issue #59) — the seventh continent. No permanent population: the
+  // "population" figure is over-winter station residents (~1,100; up to ~5,000
+  // in summer, COMNAP), and annual_tourists is IAATO's 2019–20 season total.
+  // Coordinates are the geographic South Pole (Amundsen–Scott Station), the
+  // definitive reference point for the continent. It has no ISO subregion, so
+  // it sits outside the sub-region bonus / continent-conquest systems by design.
+  // Its score comes honestly from size + distance; see docs/features/antarctica.md.
+  { code: 'AQ', name: 'Antarctica', region: 'Antarctica', population: 1100, annual_tourists: 74000, area_km2: 14200000, lat: -90.00, lng: 0.00 },
 ];
 
 // ── UN M.49 subregion assignments ────────────────────────────────────────────
@@ -332,6 +341,19 @@ exports.seed = async function (knex) {
       console.log('Countries subregion updated.');
     } else {
       console.log('Countries already seeded, skipping.');
+    }
+
+    // Patch: insert any countries added to the seed after the initial load
+    // (e.g. Antarctica, issue #59). Idempotent — only inserts codes not
+    // already present, so re-running the seed on a live DB is safe.
+    const existingCodes = new Set(await knex('countries').pluck('code'));
+    const missing = countries
+      .filter(c => !existingCodes.has(c.code))
+      .map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null }));
+    if (missing.length > 0) {
+      console.log(`Inserting ${missing.length} new countr${missing.length === 1 ? 'y' : 'ies'}: ${missing.map(c => c.code).join(', ')}`);
+      await knex('countries').insert(missing);
+      console.log('New countries inserted.');
     }
     return;
   }

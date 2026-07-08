@@ -30,6 +30,7 @@ export const NUM_TO_ALPHA2 = {
   '792':'TR','795':'TM','798':'TV','800':'UG','804':'UA','807':'MK','818':'EG','826':'GB',
   '834':'TZ','840':'US','854':'BF','858':'UY','860':'UZ','862':'VE','887':'YE','894':'ZM',
   '732':'EH','736':'SD',
+  '010':'AQ', // Antarctica (issue #59) — makes the ice landmass clickable
 };
 
 export function getAlpha2(geo) {

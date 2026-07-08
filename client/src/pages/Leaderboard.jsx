@@ -2,9 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getLeaderboardLocal } from '../lib/queries';
-
-const flag = (code) =>
-  code ? String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '';
+import { countryFlag as flag } from '../lib/flag';
 
 export default function Leaderboard() {
   const { user, db, dbStatus } = useAuth();

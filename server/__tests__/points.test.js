@@ -574,6 +574,53 @@ describe('Full Country Points Calculation', () => {
   });
 });
 
+// ── Antarctica (issue #59) ───────────────────────────────────────────────────
+
+describe('Antarctica', () => {
+  const antarctica = {
+    code: 'AQ', name: 'Antarctica', region: 'Antarctica',
+    population: 1100, annual_tourists: 74000, area_km2: 14200000, lat: -90.0, lng: 0.0,
+  };
+  const allWithAq = [...sampleCountries, antarctica];
+
+  test('is a normal Tier 3 destination (not a microstate)', () => {
+    expect(getCountryTier('AQ')).toBe(3);
+  });
+
+  test('earns a substantial base score from size + distance alone', () => {
+    const pts = calculateCountryPoints(antarctica, homeGB, allWithAq, { allCities: [], includeBreakdown: true });
+    expect(pts.tier).toBe(3);
+    expect(pts.baseline).toBeGreaterThan(25);
+    expect(pts.baseline).toBeLessThanOrEqual(BASE_CAP);
+    // No cities/provinces exist for it yet, so the total is just the baseline.
+    expect(pts.total).toBe(pts.baseline);
+  });
+
+  test('scores higher the further you travel to reach it', () => {
+    const argentina = {
+      code: 'AR', name: 'Argentina', region: 'South America',
+      population: 45195774, annual_tourists: 7399000, area_km2: 2780400, lat: -34.6, lng: -58.38,
+    };
+    const fromUK = getBaseline(antarctica, homeGB, allWithAq);
+    const fromArgentina = getBaseline(antarctica, argentina, allWithAq);
+    // Buenos Aires is far closer to the pole than London, so it's worth less there.
+    expect(fromUK).toBeGreaterThan(fromArgentina);
+  });
+
+  test('the tourism ratio contributes almost nothing (no permanent population)', () => {
+    // Far more tourists than residents → the difficulty score is ~0, by design.
+    expect(getTourismScore(antarctica)).toBeLessThan(1);
+  });
+
+  test('breakdown explains the no-permanent-population scoring honestly', () => {
+    const pts = calculateCountryPoints(antarctica, homeGB, allWithAq, { allCities: [], includeBreakdown: true });
+    expect(pts.breakdown.tourism.difficulty).toBe('Extremely hard to reach');
+    expect(pts.breakdown.tourism.explanation).toMatch(/no permanent population/i);
+    // Never the absurd "very easy to visit" the raw ratio would otherwise print.
+    expect(pts.breakdown.tourism.difficulty).not.toMatch(/easy/i);
+  });
+});
+
 // ── Total travel points ─────────────────────────────────────────────────────
 
 describe('Total Travel Points', () => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, readLastIdentifier } from '../context/AuthContext';
 import { signin, ApiError } from '../api/client';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 
 export default function SignIn() {
   const { setUser } = useAuth();
@@ -28,7 +29,11 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
+      {/* Style choice works signed-out too — device-only until sign-in. */}
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
           <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">

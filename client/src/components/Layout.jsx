@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ChecklistOverlay from './ChecklistOverlay';
 import QuickSearch from './QuickSearch';
+import ThemeSwitcher from './ThemeSwitcher';
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -62,6 +63,7 @@ export default function Layout() {
                 {label}
               </NavLink>
             ))}
+            <ThemeSwitcher />
             {user && (
               <>
                 <span className="hidden lg:inline-block text-sm text-ink-soft border-l border-hairline pl-4 truncate max-w-32" title={user.identifier}>
@@ -107,6 +109,10 @@ export default function Layout() {
                 {label}
               </NavLink>
             ))}
+            <div className="pt-2">
+              <div className="smallcaps text-ink-soft/70 pt-2">Style</div>
+              <ThemeSwitcher variant="list" />
+            </div>
             {user && (
               <>
                 <div className="py-3 text-sm text-ink-soft">{user.identifier}</div>

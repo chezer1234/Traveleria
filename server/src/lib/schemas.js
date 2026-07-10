@@ -133,6 +133,11 @@ export const createGroupSchema = z.object({
 
 export const renameGroupSchema = z.object({ name: groupNameSchema });
 
+// User-selectable styles (issue #60) — the three design directions in docs/designs.
+export const updateStyleSchema = z.object({
+  style: z.enum(['atlas', 'orbit', 'jetstream']),
+});
+
 export const addGroupMemberSchema = z.object({
   id: clientIdSchema,
   user_id: z.string().uuid(),

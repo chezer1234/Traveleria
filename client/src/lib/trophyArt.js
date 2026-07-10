@@ -334,9 +334,13 @@ export const TROPHY_VIEWBOX = '0 0 120 150';
 // Inner SVG for one trophy. Wrap in
 //   <svg viewBox={TROPHY_VIEWBOX}>…</svg>
 // glyph is only used by letter-bearing shapes (laurel, seal).
-export function trophyMarkup(shape, { tier = 'gold', earned = true, glyph = '' } = {}) {
+// `finish` overrides the metal/locked palette — TrophyMedal.jsx passes a
+// theme-derived locked finish (issue #60) so blind-embossed trophies sit on
+// the selected style's paper. The gradients live in SVG attributes, so the
+// caller must resolve tokens to concrete colours first (no var() here).
+export function trophyMarkup(shape, { tier = 'gold', earned = true, glyph = '', finish = null } = {}) {
   const draw = SHAPES[shape] || SHAPES.compass;
-  const p = earned ? (FINISHES[tier] || FINISHES.gold) : LOCKED_FINISH;
+  const p = finish || (earned ? (FINISHES[tier] || FINISHES.gold) : LOCKED_FINISH);
   const id = `tro${++uid}`;
   const g = { m: `url(#${id}m)`, r: `url(#${id}r)` };
 

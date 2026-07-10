@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
 import { getUserGroupsLocal, getUserCountriesLocal, getUserDaysByCountry } from '../lib/queries';
-import { computeGroupTerritory, resolveColours, hexToRgba, gradeOpacity } from '../lib/territory';
+import { computeGroupTerritory, resolveColours, fadeColour, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
 import { CONTINENTS, getContinent } from '../lib/continents';
 import { leaveGroupOptimistic, deleteGroupOptimistic } from '../lib/mutations';
@@ -12,13 +12,13 @@ import { countryFlag as flag } from '../lib/flag';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-// Atlas battle palette (see the visual refresh guide). Member colours come from
-// resolveColours(); these cover the shared states.
-const CONTESTED_COLOUR = '#7b4a8f'; // plum
-const CONTESTED_HOVER = '#633a74';
-const NONE_COLOUR = '#e4dccb'; // parchment
-const NONE_HOVER = '#d3c7ad';
-const FALLBACK_MEMBER_COLOUR = '#6b6355'; // ink-soft
+// Shared battle states via theme tokens (issue #60). Member colours come from
+// resolveColours() and stay user-chosen — only the shared states follow the theme.
+const CONTESTED_COLOUR = 'var(--color-contested)';
+const CONTESTED_HOVER = 'color-mix(in srgb, var(--color-contested) 78%, var(--color-ink))';
+const NONE_COLOUR = 'var(--color-parchment)';
+const NONE_HOVER = 'var(--color-parchment-deep)';
+const FALLBACK_MEMBER_COLOUR = 'var(--color-ink-soft)';
 
 export default function GroupBattle() {
   const { groupId } = useParams();
@@ -109,7 +109,7 @@ export default function GroupBattle() {
     if (owner === 'contested') return CONTESTED_COLOUR;
     const colour = colourMap[owner] || FALLBACK_MEMBER_COLOUR;
     const grade = result.gradeByCode[code] || 'full';
-    return hexToRgba(colour, gradeOpacity(grade));
+    return fadeColour(colour, gradeOpacity(grade));
   }
 
   function getHoverFill(geo) {
@@ -287,8 +287,8 @@ export default function GroupBattle() {
                       onMouseEnter={() => handleEnter(geo)}
                       onMouseLeave={() => setTooltip('')}
                       style={{
-                        default: { fill: getFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none' },
-                        hover: { fill: getHoverFill(geo), stroke: '#f6f1e7', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+                        default: { fill: getFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none' },
+                        hover: { fill: getHoverFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
                         pressed: { outline: 'none' },
                       }}
                     />

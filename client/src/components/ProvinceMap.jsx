@@ -246,17 +246,21 @@ function MapPanel({ features, allFeatures, provinceMap, visitedCodes, onClick, o
           const d = pathGen(feature);
           if (!d) return null;
 
-          const fill = getFill ? getFill(code, province) : (isVisited ? '#3e5f45' : '#e4dccb');
-          const hoverFill = getFill ? fill : (isVisited ? '#2f4a36' : '#d3c7ad');
+          // Theme tokens (issue #60) — var() only works in style, not in SVG
+          // presentation attributes, so fill/stroke live in the style prop.
+          const fill = getFill ? getFill(code, province)
+            : (isVisited ? 'var(--color-atlas)' : 'var(--color-parchment)');
+          const hoverFill = getFill ? fill
+            : (isVisited ? 'var(--color-atlas-deep)' : 'var(--color-parchment-deep)');
 
           return (
             <path
               key={code || i}
               d={d}
-              fill={fill}
-              stroke="#f6f1e7"
               strokeWidth={small ? 0.3 : 0.5}
               style={{
+                fill,
+                stroke: 'var(--color-paper)',
                 cursor: isMatched && !disabled ? 'pointer' : 'default',
                 transition: 'fill 0.15s ease',
               }}

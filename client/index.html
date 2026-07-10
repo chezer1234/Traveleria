@@ -7,10 +7,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400..900&display=swap"
       rel="stylesheet"
     />
     <title>Traveleria</title>
+    <!-- Apply the saved style before first paint so there's no theme flash.
+         No attribute = Atlas (the default). See docs/features/user-selectable-styles.md -->
+    <script>
+      try {
+        var s = localStorage.getItem('traveleria.style');
+        if (s === 'orbit' || s === 'jetstream') document.documentElement.dataset.theme = s;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

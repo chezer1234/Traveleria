@@ -216,22 +216,24 @@ export default function Subregions() {
               geographies.map((geo) => {
                 const alpha2 = NUM_TO_ALPHA2[geo.id];
                 const subregion = alpha2 ? codeToSubregion[alpha2] : null;
-                const baseColor = subregion ? SUBREGION_COLORS[subregion] : '#e4dccb';
+                // Subregion hues are categorical data colours and stay fixed
+                // across styles; only the unmapped fill and strokes follow the
+                // theme (issue #60) — var() needs style, not SVG attributes.
+                const baseColor = subregion ? SUBREGION_COLORS[subregion] : 'var(--color-parchment)';
                 const isVisited = alpha2 && visitedCodes.has(alpha2);
+                const fill = isVisited ? baseColor : (subregion ? baseColor + '55' : 'var(--color-parchment)');
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={isVisited ? baseColor : (subregion ? baseColor + '55' : '#e4dccb')}
-                    stroke="#f6f1e7"
                     strokeWidth={0.4}
                     onClick={() => {
                       // Same click-through the main Map has (issue #53).
                       if (alpha2) navigate(`/countries/${alpha2}`, { state: { from: location.pathname } });
                     }}
                     style={{
-                      default: { outline: 'none' },
-                      hover: { outline: 'none', cursor: alpha2 ? 'pointer' : 'default' },
+                      default: { fill, stroke: 'var(--color-paper)', outline: 'none' },
+                      hover: { fill, stroke: 'var(--color-paper)', outline: 'none', cursor: alpha2 ? 'pointer' : 'default' },
                       pressed: { outline: 'none' },
                     }}
                   />
@@ -268,7 +270,7 @@ export default function Subregions() {
             <h2 className="text-lg font-display font-bold text-ink mb-3">{continent}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {srs.map((sr) => {
-                const color = SUBREGION_COLORS[sr.name] || '#6b7280';
+                const color = SUBREGION_COLORS[sr.name] || 'var(--color-ink-soft)';
                 const pct = sr.totalCount > 0 ? (sr.visitedCount / sr.totalCount) * 100 : 0;
                 const isExpanded = expanded === sr.name;
                 const maxTotal = sr.visitBonus === 0 ? 5 : sr.visitBonus * 2;

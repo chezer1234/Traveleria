@@ -109,17 +109,20 @@ export default function EuropeProvinceMap({ visitedProvinceCodes }) {
                 <path
                   key={code}
                   d={d}
-                  fill={isVisited ? '#3e5f45' : '#e4dccb'}
-                  stroke="#f6f1e7"
                   strokeWidth={0.5}
-                  style={{ cursor: 'pointer', transition: 'fill 0.15s ease' }}
+                  style={{
+                    fill: isVisited ? 'var(--color-atlas)' : 'var(--color-parchment)',
+                    stroke: 'var(--color-paper)',
+                    cursor: 'pointer',
+                    transition: 'fill 0.15s ease',
+                  }}
                   onClick={() => navigate(`/countries/${cc}`)}
                   onMouseEnter={e => {
-                    e.target.style.fill = isVisited ? '#2f4a36' : '#d3c7ad';
+                    e.target.style.fill = isVisited ? 'var(--color-atlas-deep)' : 'var(--color-parchment-deep)';
                     setTooltip({ name, isVisited });
                   }}
                   onMouseLeave={e => {
-                    e.target.style.fill = isVisited ? '#3e5f45' : '#e4dccb';
+                    e.target.style.fill = isVisited ? 'var(--color-atlas)' : 'var(--color-parchment)';
                     setTooltip(null);
                   }}
                 />

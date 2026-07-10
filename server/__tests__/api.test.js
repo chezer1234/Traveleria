@@ -5,6 +5,7 @@
 import crypto from 'crypto';
 import { db } from './setup.js';
 import { calculateCountryPoints, calculateTotalTravelPoints, getBaseline } from '../src/lib/points.js';
+import { updateStyleSchema } from '../src/lib/schemas.js';
 
 let testUser;
 
@@ -147,6 +148,24 @@ describe('User Travel Log — City Visits', () => {
 
     const remaining = await db('user_cities').where({ user_id: testUser.id });
     expect(remaining).toHaveLength(0);
+  });
+});
+
+describe('User Style Preference (issue #60)', () => {
+  test('style is null by default and persists once set', async () => {
+    expect(testUser.style ?? null).toBeNull();
+    await db('users').where({ id: testUser.id }).update({ style: 'orbit' });
+    const row = await db('users').where({ id: testUser.id }).first();
+    expect(row.style).toBe('orbit');
+  });
+
+  test('updateStyleSchema accepts exactly the three design directions', () => {
+    for (const style of ['atlas', 'orbit', 'jetstream']) {
+      expect(updateStyleSchema.safeParse({ style }).success).toBe(true);
+    }
+    expect(updateStyleSchema.safeParse({ style: 'neon' }).success).toBe(false);
+    expect(updateStyleSchema.safeParse({ style: '' }).success).toBe(false);
+    expect(updateStyleSchema.safeParse({}).success).toBe(false);
   });
 });
 

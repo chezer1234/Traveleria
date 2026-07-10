@@ -227,24 +227,37 @@ export default function Map() {
     }
   }
 
+  // Fills reference the theme tokens (issue #60) so the map follows the
+  // selected style. Explore mode and out-of-scope countries are tints mixed
+  // from the tokens rather than extra palette entries.
+  const FILL = {
+    visited: 'var(--color-atlas)',
+    visitedHover: 'var(--color-atlas-deep)',
+    unvisited: 'var(--color-parchment)',
+    unvisitedHover: 'var(--color-parchment-deep)',
+    explore: 'color-mix(in srgb, var(--color-compass) 30%, var(--color-paper))',
+    exploreHover: 'color-mix(in srgb, var(--color-compass) 45%, var(--color-paper))',
+    outOfScope: 'color-mix(in srgb, var(--color-parchment) 45%, var(--color-paper))',
+  };
+
   function getFill(geo) {
     const code = getAlpha2(geo);
-    if (view === 'explore') return '#b8c8e2';
+    if (view === 'explore') return FILL.explore;
     if (view === 'europe') {
-      if (!EUROPE_COUNTRY_CODES.has(code)) return '#efe9db';
-      return visitedCodes.has(code) ? '#3e5f45' : '#e4dccb';
+      if (!EUROPE_COUNTRY_CODES.has(code)) return FILL.outOfScope;
+      return visitedCodes.has(code) ? FILL.visited : FILL.unvisited;
     }
-    return visitedCodes.has(code) ? '#3e5f45' : '#e4dccb';
+    return visitedCodes.has(code) ? FILL.visited : FILL.unvisited;
   }
 
   function getHoverFill(geo) {
     const code = getAlpha2(geo);
-    if (view === 'explore') return '#9db4d8';
+    if (view === 'explore') return FILL.exploreHover;
     if (view === 'europe') {
-      if (!EUROPE_COUNTRY_CODES.has(code)) return '#efe9db';
-      return visitedCodes.has(code) ? '#2f4a36' : '#d3c7ad';
+      if (!EUROPE_COUNTRY_CODES.has(code)) return FILL.outOfScope;
+      return visitedCodes.has(code) ? FILL.visitedHover : FILL.unvisitedHover;
     }
-    return visitedCodes.has(code) ? '#2f4a36' : '#d3c7ad';
+    return visitedCodes.has(code) ? FILL.visitedHover : FILL.unvisitedHover;
   }
 
   if (loading || dbStatus !== 'ready') {
@@ -401,13 +414,13 @@ export default function Map() {
                       style={{
                         default: {
                           fill: getFill(geo),
-                          stroke: '#f6f1e7',
+                          stroke: 'var(--color-paper)',
                           strokeWidth: 0.5,
                           outline: 'none',
                         },
                         hover: {
                           fill: getHoverFill(geo),
-                          stroke: '#f6f1e7',
+                          stroke: 'var(--color-paper)',
                           strokeWidth: 0.5,
                           outline: 'none',
                           cursor: 'pointer',
@@ -424,10 +437,8 @@ export default function Map() {
                 <Marker key={`${country_code}-${name}`} coordinates={coords}>
                   <circle
                     r={5}
-                    fill="#2e5fa3"
-                    stroke="#f6f1e7"
                     strokeWidth={1.5}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', fill: 'var(--color-compass)', stroke: 'var(--color-paper)' }}
                     onClick={() => navigate(`/countries/${country_code}`)}
                     onMouseEnter={() => setTooltip(`${name} (${country_code})`)}
                     onMouseLeave={() => setTooltip('')}

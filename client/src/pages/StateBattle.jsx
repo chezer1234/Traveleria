@@ -11,17 +11,18 @@ import {
   getUserDaysByProvince,
 } from '../lib/queries';
 import { computeProvinceTerritory } from '../lib/provinceTerritory.js';
-import { OWNER, hexToRgba, gradeOpacity } from '../lib/territory.js';
+import { OWNER, fadeColour, gradeOpacity } from '../lib/territory.js';
 import ProvinceMap from '../components/ProvinceMap';
 import CountryLink from '../components/CountryLink';
 
-// Atlas battle palette (CVD-validated on paper — see the visual refresh guide).
-// You = compass blue, opponent = sienna, contested = plum, unvisited = parchment.
+// Battle palette via theme tokens (issue #60) — each style maps you/them/
+// contested to its own CVD-validated colours (see docs/designs/README.md).
+// Hovers deepen the fill toward ink, which flips to a lighten on dark themes.
 const BASE_COLORS = {
-  [OWNER.A]: { hex: '#2e5fa3', hover: '#244b82' },
-  [OWNER.B]: { hex: '#b4552d', hover: '#93431f' },
-  [OWNER.CONTESTED]: { hex: '#7b4a8f', hover: '#633a74' },
-  [OWNER.NONE]: { hex: '#e4dccb', hover: '#d3c7ad' },
+  [OWNER.A]: { hex: 'var(--color-you)', hover: 'color-mix(in srgb, var(--color-you) 78%, var(--color-ink))' },
+  [OWNER.B]: { hex: 'var(--color-them)', hover: 'color-mix(in srgb, var(--color-them) 78%, var(--color-ink))' },
+  [OWNER.CONTESTED]: { hex: 'var(--color-contested)', hover: 'color-mix(in srgb, var(--color-contested) 78%, var(--color-ink))' },
+  [OWNER.NONE]: { hex: 'var(--color-parchment)', hover: 'var(--color-parchment-deep)' },
 };
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -111,7 +112,7 @@ export default function StateBattle() {
     const owner = result.ownerByCode[code] || OWNER.NONE;
     if (owner === OWNER.A || owner === OWNER.B) {
       const grade = result.gradeByCode[code] || 'full';
-      return hexToRgba(BASE_COLORS[owner].hex, gradeOpacity(grade));
+      return fadeColour(BASE_COLORS[owner].hex, gradeOpacity(grade));
     }
     return BASE_COLORS[owner].hex;
   }

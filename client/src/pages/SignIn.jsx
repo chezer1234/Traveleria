@@ -37,7 +37,7 @@ export default function SignIn() {
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
           <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">
-            Travel<span className="text-gold">Points</span>
+            Travel<span className="text-gold">eria</span>
           </h1>
           <p className="text-ink-soft">Welcome back.</p>
         </div>

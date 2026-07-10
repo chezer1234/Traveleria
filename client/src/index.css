@@ -1,7 +1,13 @@
 @import "tailwindcss";
 
-/* Atlas design system — tokens per docs/features/visual-refresh-atlas.md
-   (chosen direction: docs/designs/direction-final.html). */
+/* Semantic design tokens. Defaults are the Atlas design system — tokens per
+   docs/features/visual-refresh-atlas.md (chosen direction:
+   docs/designs/direction-final.html).
+
+   The same token names are re-mapped per style under
+   :root[data-theme="orbit"] and :root[data-theme="jetstream"] below, so every
+   colour utility (bg-, text-, border-) in the app follows the selected style.
+   See docs/features/user-selectable-styles.md (issue #60). */
 @theme {
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -12,6 +18,7 @@
   --color-ink-soft: #6b6355;
   --color-hairline: #d8cfba;
   --color-parchment: #e4dccb;
+  --color-parchment-deep: #d3c7ad;
 
   --color-atlas: #3e5f45;
   --color-atlas-deep: #2f4a36;
@@ -20,9 +27,113 @@
   --color-sienna: #b4552d;
   --color-plum: #7b4a8f;
   --color-gold: #c9a227;
+
+  /* Battle palette (validated per concept for CVD separation + contrast). */
+  --color-you: #2e5fa3;
+  --color-them: #b4552d;
+  --color-contested: #7b4a8f;
 }
 
-/* Panel with the double-rule atlas border (plate framing). */
+/* ---------------------------------------------------------------------------
+   Orbit — night-flight mission control (dark).
+   Palette from docs/designs/concept-2-orbit.html implementation notes.
+--------------------------------------------------------------------------- */
+:root[data-theme="orbit"] {
+  color-scheme: dark;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-paper: #070d18;
+  --color-panel: #0d1626;
+  --color-ink: #e8eef7;
+  --color-ink-soft: #8fa3c0;
+  --color-hairline: #1e2f4a;
+  --color-parchment: #22314d;
+  --color-parchment-deep: #2e4266;
+
+  --color-atlas: #2bb3e0;
+  --color-atlas-deep: #55cdf0;
+  --color-compass: #38e1ff;
+  --color-compass-deep: #1e88b8;
+  --color-sienna: #d84a86;
+  --color-plum: #a3812c;
+  --color-gold: #e9c46a;
+
+  --color-you: #1e88b8;
+  --color-them: #d84a86;
+  --color-contested: #a3812c;
+
+  /* Stock reds (error states) re-tuned for the dark surface. */
+  --color-red-50: #251218;
+  --color-red-100: #331722;
+  --color-red-200: #55263a;
+  --color-red-600: #ff7d99;
+  --color-red-700: #ff92aa;
+  --color-red-800: #ffa9bc;
+
+  /* Rounded instrument panels. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Jetstream — bold travel-game energy (light).
+   Palette from docs/designs/concept-3-jetstream.html implementation notes.
+--------------------------------------------------------------------------- */
+:root[data-theme="jetstream"] {
+  --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #fdfbf7;
+  --color-panel: #ffffff;
+  --color-ink: #1f2430;
+  --color-ink-soft: #5b6472;
+  --color-hairline: #e3e0d6;
+  --color-parchment: #e7e4dc;
+  --color-parchment-deep: #dcd8ca;
+
+  --color-atlas: #0f9d8f;
+  --color-atlas-deep: #0b7f74;
+  --color-compass: #3b82f6;
+  --color-compass-deep: #2563eb;
+  --color-sienna: #ef4444;
+  --color-plum: #a855f7;
+  --color-gold: #f59e0b;
+
+  --color-you: #3b82f6;
+  --color-them: #ef4444;
+  --color-contested: #a855f7;
+
+  /* Everything rounder. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Atlas paper grain — a fixed, non-interactive noise wash over the whole app
+   (the concept applies grain to paper and panels; one overlay reads the same).
+   Atlas only: Orbit and Jetstream are clean surfaces.
+--------------------------------------------------------------------------- */
+:root:not([data-theme="orbit"]):not([data-theme="jetstream"]) body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.045'/></feComponentTransfer></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+}
+
+/* Panel framing — one class, three languages. */
+
+/* Atlas: the double-rule plate. */
 .plate {
   background: var(--color-panel);
   border: 1px solid var(--color-hairline);
@@ -31,7 +142,36 @@
     inset 0 0 0 4px var(--color-hairline);
 }
 
-/* Letterspaced small-caps microlabel. */
+/* Orbit: HUD instrument panel — 1px line, corner brackets, deep soft shadow. */
+:root[data-theme="orbit"] .plate {
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-compass) 4%, transparent),
+    0 18px 40px -24px rgba(0, 0, 0, 0.7);
+  --hud: color-mix(in srgb, var(--color-compass) 28%, transparent);
+  background-color: var(--color-panel);
+  background-image:
+    linear-gradient(var(--hud), var(--hud)), linear-gradient(var(--hud), var(--hud)),
+    linear-gradient(var(--hud), var(--hud)), linear-gradient(var(--hud), var(--hud)),
+    linear-gradient(var(--hud), var(--hud)), linear-gradient(var(--hud), var(--hud)),
+    linear-gradient(var(--hud), var(--hud)), linear-gradient(var(--hud), var(--hud));
+  background-repeat: no-repeat;
+  background-size: 14px 1px, 1px 14px, 14px 1px, 1px 14px, 14px 1px, 1px 14px, 14px 1px, 1px 14px;
+  background-position:
+    7px 7px, 7px 7px,
+    calc(100% - 7px) 7px, calc(100% - 7px) 7px,
+    7px calc(100% - 7px), 7px calc(100% - 7px),
+    calc(100% - 7px) calc(100% - 7px), calc(100% - 7px) calc(100% - 7px);
+}
+
+/* Jetstream: soft-shadow white card, no rules. */
+:root[data-theme="jetstream"] .plate {
+  border-color: transparent;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgb(31 36 48 / 0.08);
+}
+
+/* Letterspaced microlabel — Atlas small caps, Orbit mono telemetry,
+   Jetstream heavy rounded caps. */
 .smallcaps {
   font-family: var(--font-sans);
   text-transform: uppercase;
@@ -40,7 +180,19 @@
   font-weight: 600;
 }
 
-/* Rotated inked stamp (visited marks, cabinet counts). */
+:root[data-theme="orbit"] .smallcaps {
+  font-family: var(--font-mono);
+  letter-spacing: 0.18em;
+  font-size: 0.65rem;
+}
+
+:root[data-theme="jetstream"] .smallcaps {
+  letter-spacing: 0.1em;
+  font-weight: 800;
+}
+
+/* Visited marks / cabinet counts — Atlas rotated passport stamp,
+   Orbit status chip, Jetstream sticker badge. */
 .stamp {
   display: inline-block;
   transform: rotate(-4deg);
@@ -51,6 +203,23 @@
   letter-spacing: 0.14em;
   font-size: 0.6875rem;
   font-weight: 700;
+}
+
+:root[data-theme="orbit"] .stamp {
+  transform: none;
+  border-width: 1px;
+  border-radius: 0.375rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.18em;
+  box-shadow: 0 0 14px -4px currentColor;
+}
+
+:root[data-theme="jetstream"] .stamp {
+  transform: rotate(-2deg);
+  border-width: 2.5px;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+  font-weight: 900;
 }
 
 @keyframes spin {

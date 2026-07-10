@@ -120,6 +120,16 @@ export function getUser(id) {
   return request(`/users/${id}`);
 }
 
+// Style preference (issue #60): 'atlas' | 'orbit' | 'jetstream'. Device-local
+// state lives in localStorage (see context/ThemeContext.jsx); this persists the
+// choice to the account so it follows the user across devices.
+export function updateUserStyle(id, style) {
+  return request(`/users/${id}/style`, {
+    method: 'PUT',
+    body: JSON.stringify({ style }),
+  });
+}
+
 // ---------- User travel log ----------
 //
 // Read endpoints (getCountries, getCountry, getUserCountries, getUserScore,

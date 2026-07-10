@@ -33,12 +33,11 @@ export function gradeOpacity(grade) {
   return GRADE_OPACITY[grade] ?? 1.0;
 }
 
-// Blend a hex colour with opacity toward white, returning an rgba() string.
-export function hexToRgba(hex, opacity) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${opacity})`;
+// Fade a colour by mixing toward transparent. Done with CSS color-mix rather
+// than in JS so it works with any colour expression — including the
+// var(--color-you) theme tokens (issue #60), which only resolve in the browser.
+export function fadeColour(colour, opacity) {
+  return `color-mix(in srgb, ${colour} ${Math.round(opacity * 100)}%, transparent)`;
 }
 
 // `side` shape (one per user): { countries: [{country_code, country_name, total}],

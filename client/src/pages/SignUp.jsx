@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { signup, ApiError } from '../api/client';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 
 // Pre-signin we have no local DB, so the country dropdown is sourced from
 // /api/snapshot — a public, read-only endpoint that's also the cold-boot
@@ -58,11 +59,15 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
+      {/* Style choice works signed-out too — device-only until sign-in. */}
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
           <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">
-            Travel<span className="text-gold">Points</span>
+            Travel<span className="text-gold">eria</span>
           </h1>
           <p className="text-ink-soft">Track your travels. Earn points. See the world.</p>
         </div>

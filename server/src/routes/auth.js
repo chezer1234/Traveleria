@@ -49,7 +49,9 @@ router.post('/signup', validateBody(signupSchema), async (req, res) => {
   });
 
   const token = signToken(id);
-  res.status(201).json({ user: publicRow, token });
+  // `style` rides on auth responses but stays out of the change feed row —
+  // see the PUT /users/:id/style comment in routes/users.js.
+  res.status(201).json({ user: { ...publicRow, style: null }, token });
 });
 
 router.post('/signin', validateBody(signinSchema), async (req, res) => {
@@ -69,7 +71,7 @@ router.post('/signin', validateBody(signinSchema), async (req, res) => {
 
   const token = signToken(user.id);
   res.json({
-    user: { id: user.id, identifier: user.identifier, home_country: user.home_country },
+    user: { id: user.id, identifier: user.identifier, home_country: user.home_country, style: user.style || null },
     token,
   });
 });
@@ -89,7 +91,7 @@ router.get('/me', async (req, res) => {
 
   const user = await db('users')
     .where({ id: payload.sub })
-    .select('id', 'identifier', 'home_country')
+    .select('id', 'identifier', 'home_country', 'style')
     .first();
   if (!user) return res.status(401).json({ error: 'User no longer exists' });
 

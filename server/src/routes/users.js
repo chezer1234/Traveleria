@@ -10,6 +10,7 @@ import {
   addProvinceExperienceSchema,
   addVisitSchema,
   addProvinceVisitSchema,
+  updateStyleSchema,
   validateBody,
 } from '../lib/schemas.js';
 import * as changes from '../lib/changes.js';
@@ -19,11 +20,28 @@ const router = express.Router();
 router.get('/:id', async (req, res) => {
   const user = await db('users')
     .where({ id: req.params.id })
-    .select('id', 'identifier', 'home_country', 'created_at')
+    .select('id', 'identifier', 'home_country', 'style', 'created_at')
     .first();
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 });
+
+// Style preference (issue #60). Deliberately NOT recorded in the _changes
+// feed: it isn't travel data, other users never read it, and keeping it out
+// of the synced local-DB schema avoids a client schema-version bump.
+router.put(
+  '/:id/style',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(updateStyleSchema),
+  async (req, res) => {
+    const updated = await db('users')
+      .where({ id: req.params.id })
+      .update({ style: req.body.style });
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+    res.json({ id: req.params.id, style: req.body.style });
+  }
+);
 
 async function getUserTravelData(userId, homeCountryCode) {
   const allCountries = await db('countries')

@@ -433,7 +433,7 @@ export default function CountryDetail() {
 
       <div
         className="plate rounded-lg p-6 mb-6"
-        style={isTier0 ? { borderColor: 'rgba(201, 162, 39, 0.5)' } : undefined}
+        style={isTier0 ? { borderColor: 'color-mix(in srgb, var(--color-gold) 50%, transparent)' } : undefined}
       >
         <div className="flex flex-wrap items-center gap-3 mb-1">
           <span className="text-3xl leading-none" aria-hidden="true">{flagEmoji(country.code)}</span>

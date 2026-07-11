@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import ChecklistOverlay from './ChecklistOverlay';
 import QuickSearch from './QuickSearch';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -31,6 +32,10 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const { user, logout, db, dbStatus, dbError } = useAuth();
+  // Theme-owned wordmark (issue #63): each design system supplies its own
+  // logo treatment via the registry slot.
+  const { def: themeDef } = useTheme();
+  const Logo = themeDef.Logo;
 
   return (
     <div className="min-h-screen flex flex-col bg-paper text-ink font-sans">
@@ -50,8 +55,8 @@ export default function Layout() {
                 </svg>
               </button>
             )}
-            <Link to="/dashboard" className="font-display font-black text-2xl tracking-tight text-ink">
-              Travel<span className="text-gold">eria</span>
+            <Link to="/dashboard" aria-label="Traveleria — dashboard">
+              <Logo className="text-2xl" />
             </Link>
           </div>
 

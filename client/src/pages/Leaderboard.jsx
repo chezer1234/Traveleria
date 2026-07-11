@@ -4,6 +4,16 @@ import { useAuth } from '../context/AuthContext';
 import { getLeaderboardLocal } from '../lib/queries';
 import { countryFlag as flag } from '../lib/flag';
 
+// Top-3 medallions — trophy-metal colours are the achievement identity and
+// deliberately constant across themes (see docs/features/user-selectable-styles.md);
+// everything else on this page follows the selected style via tokens and the
+// theme-scoped .lb-* rules in index.css (issue #63 — no leaderboard mockup
+// exists, so this derives from each theme's vocabulary).
+function RankBadge({ rank }) {
+  const medal = rank === 1 ? 'lb-gold' : rank === 2 ? 'lb-silver' : rank === 3 ? 'lb-bronze' : '';
+  return <span className={`lb-rank ${medal}`}>{rank}</span>;
+}
+
 export default function Leaderboard() {
   const { user, db, dbStatus } = useAuth();
   const [entries, setEntries] = useState([]);
@@ -56,11 +66,14 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="font-display font-black text-2xl sm:text-3xl text-ink mb-6">Leaderboard</h1>
+      <header className="mb-6">
+        <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">Leaderboard</h1>
+        <p className="smallcaps text-ink-soft mt-1">Top 50 travellers · ranked by travel points</p>
+      </header>
 
-      <div className="bg-panel border border-hairline rounded-lg overflow-hidden">
+      <div className="plate lb-plate rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="lb-table w-full text-sm">
             <thead>
               <tr className="border-b border-hairline bg-paper">
                 <th className="px-4 py-3 text-left smallcaps text-ink-soft w-16">Rank</th>
@@ -77,9 +90,9 @@ export default function Leaderboard() {
                 return (
                   <tr
                     key={entry.user_id}
-                    className={`${isCurrentUser ? 'bg-gold/10 border-b border-gold/40' : 'border-b border-hairline/60 hover:bg-paper'}`}
+                    className={`lb-row ${entry.rank === 1 ? 'lb-first' : ''} ${isCurrentUser ? 'lb-you bg-gold/10 border-b border-gold/40' : 'border-b border-hairline/60 hover:bg-paper'}`}
                   >
-                    <td className="px-4 py-3 text-ink-soft font-display font-bold tabular-nums">{entry.rank}</td>
+                    <td className="px-4 py-3"><RankBadge rank={entry.rank} /></td>
                     <td className="px-4 py-3 text-ink font-medium">
                       {isCurrentUser ? (
                         entry.identifier
@@ -132,8 +145,8 @@ export default function Leaderboard() {
                       ...
                     </td>
                   </tr>
-                  <tr className="bg-gold/10 border-b border-gold/40">
-                    <td className="px-4 py-3 text-ink-soft font-display font-bold tabular-nums">{outsideUser.rank}</td>
+                  <tr className="lb-row lb-you bg-gold/10 border-b border-gold/40">
+                    <td className="px-4 py-3"><RankBadge rank={outsideUser.rank} /></td>
                     <td className="px-4 py-3 text-ink font-medium">
                       {outsideUser.identifier}
                       <span className="ml-2 text-xs text-compass">(you)</span>

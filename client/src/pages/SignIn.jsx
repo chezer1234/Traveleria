@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, readLastIdentifier } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { signin, ApiError } from '../api/client';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 
 export default function SignIn() {
   const { setUser } = useAuth();
+  const { def: themeDef } = useTheme();
+  const Logo = themeDef.Logo;
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState(() => readLastIdentifier());
   const [password, setPassword] = useState('');
@@ -36,8 +39,8 @@ export default function SignIn() {
       </div>
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">
-            Travel<span className="text-gold">eria</span>
+          <h1 className="mb-2">
+            <Logo className="text-4xl" />
           </h1>
           <p className="text-ink-soft">Welcome back.</p>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { signup, ApiError } from '../api/client';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 
@@ -12,6 +13,8 @@ const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
 export default function SignUp() {
   const { setUser } = useAuth();
+  const { def: themeDef } = useTheme();
+  const Logo = themeDef.Logo;
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -66,8 +69,8 @@ export default function SignUp() {
       </div>
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="font-display font-black text-4xl tracking-tight text-ink mb-2">
-            Travel<span className="text-gold">eria</span>
+          <h1 className="mb-2">
+            <Logo className="text-4xl" />
           </h1>
           <p className="text-ink-soft">Track your travels. Earn points. See the world.</p>
         </div>

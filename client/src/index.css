@@ -109,12 +109,22 @@
   --color-them: #ef4444;
   --color-contested: #a855f7;
 
+  /* Jet-trail gradient (issue #63) — decorative only, never on data. From the
+     concept's implementation notes: coral #ff6b4a → violet #7c5cff. */
+  --color-coral: #ff6b4a;
+  --color-violet: #7c5cff;
+
   /* Everything rounder. */
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
   --radius-2xl: 1.5rem;
+}
+
+/* Jet-trail gradient fill — Jetstream's signature decorative band. */
+.jet-grad {
+  background: linear-gradient(90deg, var(--color-coral), var(--color-violet));
 }
 
 /* ---------------------------------------------------------------------------
@@ -234,4 +244,223 @@
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   display: inline-block;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme wordmarks (issue #63) — each design system's Logo slot component
+   (src/themes/<id>/index.jsx) uses its own chrome class. Sizes are in em so
+   the mark scales with the font-size the caller sets.
+--------------------------------------------------------------------------- */
+
+/* Orbit: glowing planet orb with a tilted orbit ring. */
+.logo-orb {
+  width: 0.72em;
+  height: 0.72em;
+  border-radius: 50%;
+  position: relative;
+  flex: none;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--color-compass),
+    color-mix(in srgb, var(--color-compass) 40%, #001020) 70%
+  );
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-compass) 50%, transparent));
+}
+.logo-orb::after {
+  content: "";
+  position: absolute;
+  inset: -0.26em;
+  border: 1px solid color-mix(in srgb, var(--color-compass) 50%, transparent);
+  border-radius: 50%;
+  transform: rotate(-24deg) scaleY(0.45);
+}
+
+/* Jetstream: rounded jet-trail underline beneath the wordmark. */
+.logo-jet {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.16em;
+}
+.logo-jet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0.12em;
+  bottom: 0;
+  height: 0.13em;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-coral), var(--color-violet));
+}
+
+/* ---------------------------------------------------------------------------
+   Country header (issue #63) — one structure, three languages. The page
+   renders a main panel plus the theme's CountryStub slot; the chrome below
+   turns that into Atlas's expedition ticket (perforation + punch holes +
+   passport stamp), Orbit's instrument side-panel, and Jetstream's
+   boarding pass (gradient top edge + tear-off score stub + barcode).
+--------------------------------------------------------------------------- */
+.country-header {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.country-header .country-stub {
+  border-top: 2px dashed var(--color-hairline);
+  position: relative;
+}
+@media (min-width: 768px) {
+  .country-header {
+    flex-direction: row;
+  }
+  .country-header .country-stub {
+    border-top: 0;
+    border-left: 2px dashed var(--color-hairline);
+    width: 264px;
+    flex: none;
+  }
+  /* Punched notches straddling the perforation — clipped to semicircles by
+     the header's overflow:hidden, exactly like a torn ticket edge. */
+  .country-header .country-stub::before,
+  .country-header .country-stub::after {
+    content: "";
+    position: absolute;
+    left: -13px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-paper);
+    z-index: 1;
+  }
+  .country-header .country-stub::before { top: -12px; }
+  .country-header .country-stub::after { bottom: -12px; }
+}
+
+/* Atlas: aged-ticket tint on the stub + the dashed awaiting-stamp ring. */
+.country-header .country-stub {
+  background: color-mix(in srgb, var(--color-parchment) 35%, var(--color-panel));
+}
+.awaiting-stamp {
+  width: 7rem;
+  height: 7rem;
+  border: 2px dashed var(--color-hairline);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-6deg);
+}
+
+/* Orbit: solid instrument panel, no perforation theatre. */
+:root[data-theme="orbit"] .country-header .country-stub {
+  border-style: solid;
+  border-width: 1px;
+  background: color-mix(in srgb, var(--color-compass) 4%, var(--color-panel));
+}
+:root[data-theme="orbit"] .country-header .country-stub::before,
+:root[data-theme="orbit"] .country-header .country-stub::after {
+  display: none;
+}
+.orbit-glow {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-compass) 35%, transparent));
+}
+
+/* Jetstream: gradient top edge + faintly gradient-tinted tear-off stub. */
+:root[data-theme="jetstream"] .country-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-coral), var(--color-violet));
+  z-index: 2;
+}
+:root[data-theme="jetstream"] .country-header .country-stub {
+  background: linear-gradient(135deg, rgb(255 107 74 / 0.07), rgb(124 92 255 / 0.09));
+}
+
+/* ---------------------------------------------------------------------------
+   Dot-matrix world map (issue #63) — Orbit's signature rendering, from
+   concept-2-orbit.html: land as a dot grid, visited/owned dots lit with a
+   soft glow (the glow decorates; the colour carries the data). The classes
+   are token-driven so any future theme can turn `map.dots` on.
+--------------------------------------------------------------------------- */
+.grat {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  stroke-width: 0.7;
+}
+:root[data-theme="orbit"] .grat {
+  stroke: #233657;
+  opacity: 0.45;
+}
+
+.dot-layer circle { fill: var(--color-parchment); }
+.dot-layer .dt-visited circle { fill: var(--color-atlas); }
+.dot-layer .dt-visited {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-compass) 35%, transparent));
+}
+.dot-layer .dt-explore circle {
+  fill: color-mix(in srgb, var(--color-compass) 30%, var(--color-paper));
+}
+.dot-layer .dt-dim circle {
+  fill: color-mix(in srgb, var(--color-parchment) 45%, var(--color-paper));
+}
+.dot-layer .dt-you circle { fill: var(--color-you); }
+.dot-layer .dt-you { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-you) 45%, transparent)); }
+.dot-layer .dt-them circle { fill: var(--color-them); }
+.dot-layer .dt-them { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-them) 40%, transparent)); }
+.dot-layer .dt-contested circle { fill: var(--color-contested); }
+.dot-layer .dt-contested { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-contested) 45%, transparent)); }
+.dot-layer .dt-none circle { fill: var(--color-parchment); }
+
+/* ---------------------------------------------------------------------------
+   Leaderboard (issue #63) — no mockup page exists, so each theme's treatment
+   derives from its established vocabulary. Top-3 medallion metals are the
+   achievement identity and stay constant across themes (like trophy metals).
+--------------------------------------------------------------------------- */
+.lb-rank {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+}
+.lb-gold,
+.lb-silver,
+.lb-bronze {
+  border-radius: 50%;
+  border-width: 2px;
+  border-style: solid;
+  color: var(--color-ink);
+}
+.lb-gold { border-color: #d4a017; background: color-mix(in srgb, #d4a017 18%, transparent); }
+.lb-silver { border-color: #9aa2ad; background: color-mix(in srgb, #9aa2ad 18%, transparent); }
+.lb-bronze { border-color: #b0713a; background: color-mix(in srgb, #b0713a 18%, transparent); }
+
+/* Atlas: the champion's row gets the ledger's gold rule. */
+.lb-row.lb-first td { border-bottom: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent); }
+
+/* Orbit: mono telemetry ranks; the leader glows like the hero readout. */
+:root[data-theme="orbit"] .lb-rank {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+:root[data-theme="orbit"] .lb-row.lb-first .lb-rank {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-compass) 45%, transparent));
+}
+:root[data-theme="orbit"] .lb-table tbody tr {
+  border-bottom-style: dashed;
+}
+
+/* Jetstream: sticker-round medallions, a touch bigger and bolder. */
+:root[data-theme="jetstream"] .lb-rank {
+  font-weight: 900;
+}
+:root[data-theme="jetstream"] .lb-gold,
+:root[data-theme="jetstream"] .lb-silver,
+:root[data-theme="jetstream"] .lb-bronze {
+  border-width: 2.5px;
 }

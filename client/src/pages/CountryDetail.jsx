@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   addCityOptimistic,
   removeCityOptimistic,
@@ -52,6 +53,12 @@ export default function CountryDetail() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, db, dbStatus } = useAuth();
+  // Country-header slots (issue #63): each theme supplies its own header
+  // side-panel (Atlas ticket stub with passport stamp / Orbit telemetry /
+  // Jetstream boarding-pass stub with barcode) and visited mark.
+  const { def: themeDef } = useTheme();
+  const CountryStub = themeDef.CountryStub;
+  const VisitedMark = themeDef.VisitedMark;
   const homeCountry = user.home_country;
   const [country, setCountry] = useState(null);
   const [visitedCityIds, setVisitedCityIds] = useState(new Set());
@@ -431,10 +438,11 @@ export default function CountryDetail() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <BackLink />
 
-      <div
-        className="plate rounded-lg p-6 mb-6"
+      <header
+        className="plate country-header rounded-lg mb-6 overflow-hidden"
         style={isTier0 ? { borderColor: 'color-mix(in srgb, var(--color-gold) 50%, transparent)' } : undefined}
       >
+        <div className="country-header-main flex-1 min-w-0 p-6">
         <div className="flex flex-wrap items-center gap-3 mb-1">
           <span className="text-3xl leading-none" aria-hidden="true">{flagEmoji(country.code)}</span>
           <h1 className="font-display font-black text-3xl text-ink">{country.name}</h1>
@@ -445,11 +453,7 @@ export default function CountryDetail() {
           >
             {tierLabel}
           </span>
-          {isVisited && (
-            <span className="stamp text-compass ml-auto">
-              VISITED{stampYear ? ` · ${stampYear}` : ''}
-            </span>
-          )}
+          {isVisited && VisitedMark && <VisitedMark year={stampYear} />}
           {isTier0 && isVisited && (
             <div className="relative">
               <button
@@ -554,7 +558,18 @@ export default function CountryDetail() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+
+        {CountryStub && (
+          <CountryStub
+            country={country}
+            isVisited={isVisited}
+            stampYear={stampYear}
+            explored={explored}
+            passenger={user.identifier}
+          />
+        )}
+      </header>
 
       {error && (
         <div role="alert" className="bg-red-50 text-red-700 px-4 py-3 rounded-md mb-4 text-sm">{error}</div>

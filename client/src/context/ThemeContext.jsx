@@ -1,45 +1,43 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { updateUserStyle } from '../api/client';
+import { THEMES, DEFAULT_THEME_ID, getThemeDef } from '../themes/registry';
 
-// The three visual directions from docs/designs — see
-// docs/features/user-selectable-styles.md (issue #60).
-export const THEMES = [
-  { id: 'atlas', name: 'Atlas', tagline: 'Heirloom expedition atlas', swatch: ['#f6f1e7', '#3e5f45', '#c9a227'] },
-  { id: 'orbit', name: 'Orbit', tagline: 'Night-flight mission control', swatch: ['#070d18', '#38e1ff', '#d84a86'] },
-  { id: 'jetstream', name: 'Jetstream', tagline: 'Bold travel-game energy', swatch: ['#fdfbf7', '#0f9d8f', '#f59e0b'] },
-];
+// The user-selectable design systems (issues #60/#63). The registry in
+// src/themes/ owns the theme list and each theme's component slots; this
+// context owns which one is active and how the choice persists.
+export { THEMES };
 
 const THEME_IDS = THEMES.map((t) => t.id);
 const STORAGE_KEY = 'traveleria.style';
-// Page background per style, mirrored to <meta name="theme-color"> so the
-// browser chrome matches (mobile address bar etc.).
-const PAGE_COLOR = { atlas: '#f6f1e7', orbit: '#070d18', jetstream: '#fdfbf7' };
 
 function readStoredTheme() {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    return THEME_IDS.includes(v) ? v : 'atlas';
+    return THEME_IDS.includes(v) ? v : DEFAULT_THEME_ID;
   } catch {
-    return 'atlas';
+    return DEFAULT_THEME_ID;
   }
 }
 
-// Must mirror the pre-paint script in index.html: no attribute = Atlas.
+// Must mirror the pre-paint script in index.html: no attribute = the default
+// (Atlas); any other id becomes the data-theme attribute.
 function applyTheme(theme) {
   const root = document.documentElement;
-  if (theme === 'atlas') delete root.dataset.theme;
+  if (theme === DEFAULT_THEME_ID) delete root.dataset.theme;
   else root.dataset.theme = theme;
   try {
     localStorage.setItem(STORAGE_KEY, theme);
   } catch {}
+  // Mirror the page background to <meta name="theme-color"> so the browser
+  // chrome matches (mobile address bar etc.).
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement('meta');
     meta.name = 'theme-color';
     document.head.appendChild(meta);
   }
-  meta.content = PAGE_COLOR[theme];
+  meta.content = getThemeDef(theme).pageColor;
 }
 
 const ThemeContext = createContext(null);
@@ -78,7 +76,7 @@ export function ThemeProvider({ children }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES }}>
+    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES, def: getThemeDef(theme) }}>
       {children}
     </ThemeContext.Provider>
   );

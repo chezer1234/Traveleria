@@ -16,7 +16,9 @@
     <script>
       try {
         var s = localStorage.getItem('traveleria.style');
-        if (s === 'orbit' || s === 'jetstream') document.documentElement.dataset.theme = s;
+        // Generic on purpose (issue #63): future themes work without touching
+        // this script; an unknown id matches no CSS block and renders as Atlas.
+        if (s && s !== 'atlas') document.documentElement.dataset.theme = s;
       } catch (e) {}
     </script>
   </head>

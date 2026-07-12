@@ -133,9 +133,13 @@ export const createGroupSchema = z.object({
 
 export const renameGroupSchema = z.object({ name: groupNameSchema });
 
-// User-selectable styles (issue #60) — the three design directions in docs/designs.
+// User-selectable styles (issues #60/#63). Must stay in step with the client
+// theme registry (client/src/themes/registry.js) — adding a theme means adding
+// its id here so the account preference round-trips. When milestone-unlockable
+// themes land, this enum stays the gatekeeper for persisting a choice.
+export const STYLE_IDS = ['atlas', 'orbit', 'jetstream'];
 export const updateStyleSchema = z.object({
-  style: z.enum(['atlas', 'orbit', 'jetstream']),
+  style: z.enum(STYLE_IDS),
 });
 
 export const addGroupMemberSchema = z.object({

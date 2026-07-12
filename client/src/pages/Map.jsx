@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Graticule, Marker, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import DotMatrixLayer from '../components/DotMatrixLayer';
 import {
   getUserScoreLocal,
   getUserCountriesLocal,
@@ -141,8 +143,13 @@ function formatPopulation(n) {
 
 export default function Map() {
   const { user, db, dbStatus } = useAuth();
+  const { def: themeDef } = useTheme();
   const navigate = useNavigate();
   const homeCountry = user.home_country;
+  // Dot-matrix render mode (issue #63) — Orbit's signature world map. The
+  // country shapes stay mounted as transparent hit targets, so click/hover/
+  // zoom behave exactly like the polygon render.
+  const dotMode = !!themeDef.map?.dots;
 
   const [userCountries, setUserCountries] = useState([]);
   const [allCountries, setAllCountries] = useState([]);
@@ -258,6 +265,15 @@ export default function Map() {
       return visitedCodes.has(code) ? FILL.visitedHover : FILL.unvisitedHover;
     }
     return visitedCodes.has(code) ? FILL.visitedHover : FILL.unvisitedHover;
+  }
+
+  // Dot state per country — same view logic as getFill, expressed as the
+  // class suffixes DotMatrixLayer/index.css understand.
+  function dotStateFor(geo) {
+    const code = getAlpha2(geo);
+    if (view === 'explore') return 'explore';
+    if (view === 'europe' && !EUROPE_COUNTRY_CODES.has(code)) return 'dim';
+    return visitedCodes.has(code) ? 'visited' : 'unvisited';
   }
 
   if (loading || dbStatus !== 'ready') {
@@ -402,34 +418,60 @@ export default function Map() {
             style={{ width: '100%', height: 'auto' }}
           >
             <ZoomableGroup>
+              {dotMode && <Graticule step={[20, 20]} className="grat" />}
               <Geographies geography={GEO_URL}>
-                {({ geographies }) =>
-                  geographies.map((geo) => (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      onClick={() => handleCountryClick(geo)}
-                      onMouseEnter={() => handleCountryEnter(geo)}
-                      onMouseLeave={() => setTooltip('')}
-                      style={{
-                        default: {
-                          fill: getFill(geo),
-                          stroke: 'var(--color-paper)',
-                          strokeWidth: 0.5,
-                          outline: 'none',
-                        },
-                        hover: {
-                          fill: getHoverFill(geo),
-                          stroke: 'var(--color-paper)',
-                          strokeWidth: 0.5,
-                          outline: 'none',
-                          cursor: 'pointer',
-                        },
-                        pressed: { outline: 'none' },
-                      }}
-                    />
-                  ))
-                }
+                {({ geographies, path, projection }) => (
+                  <>
+                    {dotMode && (
+                      <DotMatrixLayer
+                        geographies={geographies}
+                        path={path}
+                        projection={projection}
+                        stateFor={dotStateFor}
+                      />
+                    )}
+                    {geographies.map((geo) => (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onClick={() => handleCountryClick(geo)}
+                        onMouseEnter={() => handleCountryEnter(geo)}
+                        onMouseLeave={() => setTooltip('')}
+                        style={
+                          dotMode
+                            ? {
+                                // Invisible hit target over the dots; hover gets a
+                                // faint scan-glow tint so the country reads.
+                                default: { fill: 'transparent', stroke: 'none', outline: 'none' },
+                                hover: {
+                                  fill: 'color-mix(in srgb, var(--color-compass) 12%, transparent)',
+                                  stroke: 'none',
+                                  outline: 'none',
+                                  cursor: 'pointer',
+                                },
+                                pressed: { outline: 'none' },
+                              }
+                            : {
+                                default: {
+                                  fill: getFill(geo),
+                                  stroke: 'var(--color-paper)',
+                                  strokeWidth: 0.5,
+                                  outline: 'none',
+                                },
+                                hover: {
+                                  fill: getHoverFill(geo),
+                                  stroke: 'var(--color-paper)',
+                                  strokeWidth: 0.5,
+                                  outline: 'none',
+                                  cursor: 'pointer',
+                                },
+                                pressed: { outline: 'none' },
+                              }
+                        }
+                      />
+                    ))}
+                  </>
+                )}
               </Geographies>
 
               {/* City markers — shown in Europe cities mode */}

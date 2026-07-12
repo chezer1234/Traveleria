@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Graticule, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import DotMatrixLayer from '../components/DotMatrixLayer';
 import {
   getUserCountriesLocal,
   getUserDaysByCountry,
@@ -34,6 +36,10 @@ const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximum
 export default function Territory() {
   const { userId: opponentId } = useParams();
   const { user, db, dbStatus } = useAuth();
+  const { def: themeDef } = useTheme();
+  // Dot-matrix render mode (issue #63) — the battle map reuses Orbit's dot
+  // grid with ownership colours, exactly like the concept's page 3.
+  const dotMode = !!themeDef.map?.dots;
 
   const [opponent, setOpponent] = useState(null);
   const [you, setYou] = useState({ countries: [], days: {} });
@@ -116,6 +122,14 @@ export default function Territory() {
     const code = getAlpha2(geo);
     const owner = result.ownerByCode[code] || OWNER.NONE;
     return BASE_COLORS[owner].hover;
+  }
+  function dotStateFor(geo) {
+    const code = getAlpha2(geo);
+    const owner = result.ownerByCode[code] || OWNER.NONE;
+    if (owner === OWNER.A) return 'you';
+    if (owner === OWNER.B) return 'them';
+    if (owner === OWNER.CONTESTED) return 'contested';
+    return 'none';
   }
   function handleEnter(geo) {
     const code = getAlpha2(geo);
@@ -273,22 +287,46 @@ export default function Territory() {
         <div className="p-2 sm:p-4">
           <ComposableMap projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }} style={{ width: '100%', height: 'auto' }}>
             <ZoomableGroup>
+              {dotMode && <Graticule step={[20, 20]} className="grat" />}
               <Geographies geography={GEO_URL}>
-                {({ geographies }) =>
-                  geographies.map((geo) => (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      onMouseEnter={() => handleEnter(geo)}
-                      onMouseLeave={() => setTooltip('')}
-                      style={{
-                        default: { fill: getFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none' },
-                        hover: { fill: getHoverFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-                        pressed: { outline: 'none' },
-                      }}
-                    />
-                  ))
-                }
+                {({ geographies, path, projection }) => (
+                  <>
+                    {dotMode && (
+                      <DotMatrixLayer
+                        geographies={geographies}
+                        path={path}
+                        projection={projection}
+                        stateFor={dotStateFor}
+                      />
+                    )}
+                    {geographies.map((geo) => (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onMouseEnter={() => handleEnter(geo)}
+                        onMouseLeave={() => setTooltip('')}
+                        style={
+                          dotMode
+                            ? {
+                                default: { fill: 'transparent', stroke: 'none', outline: 'none' },
+                                hover: {
+                                  fill: 'color-mix(in srgb, var(--color-compass) 12%, transparent)',
+                                  stroke: 'none',
+                                  outline: 'none',
+                                  cursor: 'pointer',
+                                },
+                                pressed: { outline: 'none' },
+                              }
+                            : {
+                                default: { fill: getFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none' },
+                                hover: { fill: getHoverFill(geo), stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+                                pressed: { outline: 'none' },
+                              }
+                        }
+                      />
+                    ))}
+                  </>
+                )}
               </Geographies>
             </ZoomableGroup>
           </ComposableMap>

@@ -79,6 +79,7 @@ Ports and versions are locked in — if CLAUDE.md, Makefile, compose files, Vite
 | `client/src/components/ScoreBreakdown.jsx` | Plain-English score explanation component |
 | `client/src/components/ProvinceMap.jsx` | Interactive SVG province map (d3-geo) |
 | `client/src/api/client.js` | API client — all fetch calls to the backend |
+| `client/src/themes/registry.js` | Theme registry — one definition per design system (tokens stay in `index.css`; component slots + docs/features/design-rendering.md) |
 
 ## Points System
 

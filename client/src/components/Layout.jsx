@@ -1,35 +1,14 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import BottomTabBar from './BottomTabBar';
 import ChecklistOverlay from './ChecklistOverlay';
 import QuickSearch from './QuickSearch';
+import SubTabStrip from './SubTabStrip';
 import ThemeSwitcher from './ThemeSwitcher';
 
-const NAV_LINKS = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/add-countries', label: 'Add Countries' },
-  { to: '/leaderboard', label: 'Leaderboard' },
-  { to: '/map', label: 'Map' },
-  { to: '/subregions', label: 'Subregions' },
-  { to: '/trophies', label: 'Trophies' },
-  { to: '/groups', label: 'Groups' },
-];
-
-const desktopLink = ({ isActive }) =>
-  `smallcaps py-1 border-b-2 transition-colors whitespace-nowrap ${
-    isActive
-      ? 'text-ink border-gold'
-      : 'text-ink-soft border-transparent hover:text-ink hover:border-hairline'
-  }`;
-
-const mobileLink = ({ isActive }) =>
-  `block py-3 smallcaps border-b border-hairline/60 ${
-    isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
-  }`;
-
 export default function Layout() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const { user, logout, db, dbStatus, dbError } = useAuth();
   // Theme-owned wordmark (issue #63): each design system supplies its own
@@ -39,13 +18,16 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-paper text-ink font-sans">
-      <nav aria-label="Main navigation" className="bg-panel border-b-2 border-ink">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {/* Top bar (issue #65): logo + checklist on the left, search/style/account
+          on the right. Section navigation lives in the bottom tab bar instead —
+          no hamburger, no dropdown menu to declutter. */}
+      <nav aria-label="Top bar" className="bg-panel border-b-2 border-ink">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {user && (
               <button
                 onClick={() => setChecklistOpen((o) => !o)}
-                className="relative p-2.5 text-ink-soft hover:text-compass rounded-lg hover:bg-paper transition-colors"
+                className="relative p-2.5 text-ink-soft hover:text-compass rounded-lg hover:bg-paper transition-colors shrink-0"
                 aria-label="Open explorer checklist"
                 aria-expanded={checklistOpen}
               >
@@ -55,19 +37,13 @@ export default function Layout() {
                 </svg>
               </button>
             )}
-            <Link to="/dashboard" aria-label="Traveleria — dashboard">
+            <Link to="/dashboard" aria-label="Traveleria — dashboard" className="shrink-0">
               <Logo className="text-2xl" />
             </Link>
           </div>
 
-          {/* Desktop nav */}
-          <div className="hidden xl:flex items-center gap-3 lg:gap-4 min-w-0">
-            {user && <QuickSearch className="w-32 focus-within:w-48 transition-all shrink-0" />}
-            {NAV_LINKS.map(({ to, label }) => (
-              <NavLink key={to} to={to} className={desktopLink}>
-                {label}
-              </NavLink>
-            ))}
+          <div className="flex items-center gap-3 min-w-0">
+            {user && <QuickSearch className="w-24 sm:w-32 focus-within:w-48 transition-all shrink-0" />}
             <ThemeSwitcher />
             {user && (
               <>
@@ -83,55 +59,10 @@ export default function Layout() {
               </>
             )}
           </div>
-
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="xl:hidden p-2.5 text-ink-soft hover:text-ink"
-            aria-label="Toggle menu"
-            aria-expanded={menuOpen}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
         </div>
-
-        {/* Mobile nav menu */}
-        {menuOpen && (
-          <div className="xl:hidden border-t border-hairline bg-panel px-4 py-2">
-            {user && (
-              <div className="py-3 border-b border-hairline/60">
-                <QuickSearch onNavigate={() => setMenuOpen(false)} />
-              </div>
-            )}
-            {NAV_LINKS.map(({ to, label }) => (
-              <NavLink key={to} to={to} onClick={() => setMenuOpen(false)} className={mobileLink}>
-                {label}
-              </NavLink>
-            ))}
-            <div className="pt-2">
-              <div className="smallcaps text-ink-soft/70 pt-2">Style</div>
-              <ThemeSwitcher variant="list" />
-            </div>
-            {user && (
-              <>
-                <div className="py-3 text-sm text-ink-soft">{user.identifier}</div>
-                <button
-                  onClick={() => { logout(); setMenuOpen(false); }}
-                  className="block py-3 smallcaps text-sienna hover:text-ink"
-                >
-                  Logout
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </nav>
+
+      {user && <SubTabStrip />}
 
       <ChecklistOverlay isOpen={checklistOpen} onClose={() => setChecklistOpen(false)} />
 
@@ -176,6 +107,12 @@ export default function Layout() {
           Traveleria &copy; {new Date().getFullYear()} &middot; Estd 2026 &middot; 195 sovereign nations
         </div>
       </footer>
+
+      {/* Spacer so the fixed bottom tab bar never covers the footer or the
+          end of a scrolled page. */}
+      {user && <div aria-hidden="true" className="h-16" style={{ height: 'calc(4rem + env(safe-area-inset-bottom))' }} />}
+
+      {user && <BottomTabBar />}
     </div>
   );
 }

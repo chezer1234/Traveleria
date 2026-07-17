@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getLeaderboardLocal } from '../lib/queries';
 import { countryFlag as flag } from '../lib/flag';
+import GlobalLeaderboardStats from '../components/GlobalLeaderboardStats';
 
 // Top-3 medallions — trophy-metal colours are the achievement identity and
 // deliberately constant across themes (see docs/features/user-selectable-styles.md);
@@ -174,6 +175,8 @@ export default function Leaderboard() {
           </table>
         </div>
       </div>
+
+      <GlobalLeaderboardStats db={db} />
     </div>
   );
 }

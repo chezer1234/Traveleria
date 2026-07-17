@@ -16,7 +16,8 @@ import {
   calculateSubregionBonuses,
   getDistanceKm,
 } from './points.js';
-import { getContinent } from './continents.js';
+import { getContinent, CONTINENTS } from './continents.js';
+import { rankMostLeastVisited } from './globalStats.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
@@ -386,10 +387,12 @@ export async function getUserStatusForCountry(db, userId, code) {
 
 // ---------- Leaderboard ----------
 
-// Matches GET /api/leaderboard?user_id=... shape — entries sorted by total
-// points DESC. If the signed-in user isn't in the top 50, we append them
-// tagged with current_user: true, same as the old server behaviour.
-export async function getLeaderboardLocal(db, currentUserId) {
+// Shared by getLeaderboardLocal and getGlobalLeaderboardStatsLocal: loops
+// over every user once, building each user's visitedCountries (with the full
+// blob calculateCountryPoints needs) and their personalised totals. Both the
+// per-user leaderboard rank and the community-wide stats (visit counts,
+// continent totals) come out of this single pass.
+async function computeAllUserTravelResults(db) {
   const users = await db.all(
     `SELECT id, identifier, home_country FROM users_public`,
   );
@@ -409,7 +412,7 @@ export async function getLeaderboardLocal(db, currentUserId) {
     (claimedByUser[r.user_id] ||= new Set()).add(r.subregion);
   }
 
-  const entries = [];
+  const results = [];
   for (const u of users) {
     const home = allCountries.find((c) => c.code === (u.home_country || '').toUpperCase()) || null;
     const visits = visitsByUser[u.id] || [];
@@ -447,14 +450,26 @@ export async function getLeaderboardLocal(db, currentUserId) {
     const visitedCodes = new Set(visits.map(v => v.country_code));
     const claimedSubregions = claimedByUser[u.id] || new Set();
     const { totalBonusPoints } = calculateSubregionBonuses(home, allCountries, visitedCodes, claimedSubregions);
-    entries.push({
-      user_id: u.id,
-      identifier: u.identifier,
-      home_country: u.home_country,
-      total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
-      countries_visited: visitedCountries.length,
-    });
+
+    results.push({ user: u, visitedCountries, result, totalBonusPoints });
   }
+
+  return { allCountries, results };
+}
+
+// Matches GET /api/leaderboard?user_id=... shape — entries sorted by total
+// points DESC. If the signed-in user isn't in the top 50, we append them
+// tagged with current_user: true, same as the old server behaviour.
+export async function getLeaderboardLocal(db, currentUserId) {
+  const { results } = await computeAllUserTravelResults(db);
+
+  const entries = results.map(({ user: u, visitedCountries, result, totalBonusPoints }) => ({
+    user_id: u.id,
+    identifier: u.identifier,
+    home_country: u.home_country,
+    total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
+    countries_visited: visitedCountries.length,
+  }));
 
   entries.sort((a, b) => b.total_points - a.total_points);
   entries.forEach((e, i) => { e.rank = i + 1; });
@@ -469,6 +484,47 @@ export async function getLeaderboardLocal(db, currentUserId) {
   }
 
   return top50;
+}
+
+// Community-wide leaderboard stats (issue #67): most/least logged countries,
+// per-country visitor counts (for the choropleth), and a continent
+// leaderboard. The continent total is every user's own personalised points
+// per country (base + explorer + city/province, computed against *their*
+// home country — same as the main leaderboard), bucketed by continent and
+// summed across every account. It's never broken out per-user, only shown
+// as this global aggregate.
+export async function getGlobalLeaderboardStatsLocal(db) {
+  const { allCountries, results } = await computeAllUserTravelResults(db);
+
+  const visitorsByCountry = {};
+  for (const { visitedCountries } of results) {
+    for (const { country } of visitedCountries) {
+      visitorsByCountry[country.code] = (visitorsByCountry[country.code] || 0) + 1;
+    }
+  }
+  const maxVisitors = Math.max(0, ...Object.values(visitorsByCountry));
+
+  const { mostVisited, leastVisited, moreZeroCount } = rankMostLeastVisited(allCountries, visitorsByCountry);
+
+  const continentPoints = {};
+  const continentCountries = {};
+  for (const { visitedCountries, result } of results) {
+    visitedCountries.forEach(({ country }, i) => {
+      const continent = getContinent(country.subregion);
+      if (!continent) return;
+      const total = result.countries[i]?.total || 0;
+      continentPoints[continent] = Math.round(((continentPoints[continent] || 0) + total) * 100) / 100;
+      (continentCountries[continent] ||= new Set()).add(country.code);
+    });
+  }
+
+  const continents = CONTINENTS.map((continent) => ({
+    continent,
+    points: continentPoints[continent] || 0,
+    countriesLogged: continentCountries[continent]?.size || 0,
+  })).sort((a, b) => b.points - a.points);
+
+  return { mostVisited, leastVisited, moreZeroCount, visitorsByCountry, maxVisitors, continents };
 }
 
 // ---------- Country time-log visits (territory score, issue #29) ----------

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { publicName } from '../lib/names';
 import { getUserGroupsLocal, getLeaderboardLocal, getUserPublicLocal } from '../lib/queries';
 import {
   createGroupOptimistic,
@@ -46,9 +47,9 @@ function MemberChips({ members, colourMap }) {
           key={m.id}
           className="w-7 h-7 rounded-full border-2 border-panel flex items-center justify-center text-xs font-bold text-white"
           style={{ background: colourMap[m.user_id] || '#6b7280' }}
-          title={m.user?.identifier || m.user_id}
+          title={m.user ? publicName(m.user) : m.user_id}
         >
-          {(m.user?.identifier || '?')[0].toUpperCase()}
+          {publicName(m.user)[0].toUpperCase()}
         </div>
       ))}
       {members.length > 6 && (
@@ -258,7 +259,7 @@ export default function Groups() {
         <div className="plate rounded-lg p-6 mb-8">
           <div className="flex items-start justify-between gap-3 mb-3">
             <h2 className="text-lg font-display font-bold text-ink">
-              Add {addTarget.identifier} {flag(addTarget.home_country)} to a group
+              Add {publicName(addTarget)} {flag(addTarget.home_country)} to a group
             </h2>
             <button
               onClick={dismissAdd}
@@ -295,7 +296,7 @@ export default function Groups() {
                 ) : (
                   <p className="text-sm text-ink-soft mb-4">
                     {groups.some((g) => g.created_by === user.id)
-                      ? `${addTarget.identifier} is already in every group you run.`
+                      ? `${publicName(addTarget)} is already in every group you run.`
                       : "You don't run any groups yet — start one below."}
                   </p>
                 )}
@@ -303,7 +304,7 @@ export default function Groups() {
                   onClick={() => startGroupWith(addTarget)}
                   className="text-sm text-compass font-medium hover:underline"
                 >
-                  + Start a new group with {addTarget.identifier}
+                  + Start a new group with {publicName(addTarget)}
                 </button>
                 {addError && <p role="alert" className="mt-3 text-sm text-red-600">{addError}</p>}
               </>
@@ -353,7 +354,7 @@ export default function Groups() {
                             onChange={() => toggleMember(entry.user_id)}
                             className="rounded border-hairline accent-compass"
                           />
-                          <span className="font-medium text-ink text-sm">{entry.identifier}</span>
+                          <span className="font-medium text-ink text-sm">{publicName(entry)}</span>
                           <span>{flag(entry.home_country)}</span>
                           <span className="text-xs text-ink-soft/70">#{entry.rank}</span>
                         </label>
@@ -416,7 +417,7 @@ export default function Groups() {
                   </Link>
                   <p className="text-xs text-ink-soft/70 mt-0.5">
                     {group.members.length} member{group.members.length !== 1 ? 's' : ''} ·{' '}
-                    {group.members.map((m) => m.user?.identifier || '?').join(', ')}
+                    {group.members.map((m) => publicName(m.user)).join(', ')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

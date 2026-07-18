@@ -20,8 +20,9 @@ test('/api/snapshot returns reference data + a cursor', async () => {
   expect(typeof body.cursor).toBe('number');
 
   // users_public must contain exactly the agreed minimal shape — nothing else.
+  // display_name joined in issue #69 (the Settings tab's leaderboard name).
   for (const u of body.users_public) {
-    expect(Object.keys(u).sort()).toEqual(['home_country', 'id', 'identifier']);
+    expect(Object.keys(u).sort()).toEqual(['display_name', 'home_country', 'id', 'identifier']);
   }
 });
 

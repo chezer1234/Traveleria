@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { publicName } from '../lib/names';
 import {
   getUserPublicLocal,
   getUserCountryScoreLocal,
@@ -101,7 +102,7 @@ export default function StateBattle() {
   }, [result]);
 
   const youName = 'You';
-  const themName = opponent?.identifier || 'Opponent';
+  const themName = publicName(opponent) !== '?' ? publicName(opponent) : 'Opponent';
 
   const provinceMapData = useMemo(
     () => you.provinceBreakdown.map((p) => ({ code: p.code, name: p.name })),

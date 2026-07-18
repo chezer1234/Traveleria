@@ -41,7 +41,7 @@ router.post('/signup', validateBody(signupSchema), async (req, res) => {
   const password_hash = await hashPassword(password);
 
   // Only the public shape goes into the change feed — never the password hash.
-  const publicRow = { id, identifier, home_country };
+  const publicRow = { id, identifier, display_name: null, home_country };
 
   await db.transaction(async (trx) => {
     await trx('users').insert({ id, identifier, password_hash, home_country });
@@ -71,7 +71,13 @@ router.post('/signin', validateBody(signinSchema), async (req, res) => {
 
   const token = signToken(user.id);
   res.json({
-    user: { id: user.id, identifier: user.identifier, home_country: user.home_country, style: user.style || null },
+    user: {
+      id: user.id,
+      identifier: user.identifier,
+      display_name: user.display_name || null,
+      home_country: user.home_country,
+      style: user.style || null,
+    },
     token,
   });
 });
@@ -91,7 +97,7 @@ router.get('/me', async (req, res) => {
 
   const user = await db('users')
     .where({ id: payload.sub })
-    .select('id', 'identifier', 'home_country', 'style')
+    .select('id', 'identifier', 'display_name', 'home_country', 'style')
     .first();
   if (!user) return res.status(401).json({ error: 'User no longer exists' });
 

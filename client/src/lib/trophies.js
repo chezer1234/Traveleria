@@ -2,10 +2,10 @@
 // Feature doc: docs/features/trophies-1-6.md (issue #52)
 // Artwork: lib/trophyArt.js · art sheet: docs/designs/trophies-1-6.html
 //
-// Forty-six trophies in three groups:
+// Forty-nine trophies in three groups:
 //   · seven LADDERS, five tiers each (bronze → silver → gold → diamond → platinum)
 //   · six CONQUESTS — complete a continent, platinum only
-//   · five SPECIALS — one-off honours
+//   · eight SPECIALS — five one-off honours + three style unlocks (issue #69)
 //
 // `evaluateTrophies(stats)` consumes the stats object built by
 // getTrophyStatusLocal in lib/queries.js:
@@ -27,6 +27,7 @@
 
 import { getTourismDifficulty } from './points.js';
 import { CONTINENTS, getContinent } from './continents.js';
+import { STYLE_UNLOCK_POINTS } from './styleUnlocks.js';
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
 // Charlie tunes the ladder targets in LADDERS below — change freely.
@@ -457,8 +458,47 @@ export const SPECIALS = [
   },
 ];
 
+// ── Style unlocks (issue #69) ────────────────────────────────────────────────
+// One trophy per non-default style, earned at that style's points threshold
+// (lib/styleUnlocks.js — kept in step with the server gate), so the unlock is
+// discoverable from the cabinet. They render with the specials.
+
+function styleTrophy({ styleId, styleName, name, medal, glyph }) {
+  const target = STYLE_UNLOCK_POINTS[styleId];
+  return {
+    id: `style-${styleId}`,
+    name,
+    medal,
+    shape: 'seal',
+    glyph,
+    group: 'special',
+    requirement: `Earn ${target.toLocaleString()} Travel Points to unlock the ${styleName} style`,
+    evaluate(stats) {
+      const current = Number(stats.totalPoints) || 0;
+      if (current >= target) {
+        return {
+          earned: true,
+          detail: `The ${styleName} style is yours — equip it in Settings.`,
+        };
+      }
+      return {
+        earned: false,
+        progress: { current: Math.round(current), target },
+        detail: `${Math.ceil(target - current).toLocaleString()} pts until the ${styleName} look unlocks.`,
+      };
+    },
+  };
+}
+
+export const STYLE_TROPHIES = [
+  styleTrophy({ styleId: 'orbit', styleName: 'Orbit', name: 'Night Flight', medal: 'silver', glyph: 'O' }),
+  styleTrophy({ styleId: 'jetstream', styleName: 'Jetstream', name: 'Jet Set', medal: 'gold', glyph: 'J' }),
+  styleTrophy({ styleId: 'antiquity', styleName: 'Antiquity', name: 'The Antiquarian', medal: 'diamond', glyph: 'A' }),
+];
+
 // ── The cabinet ──────────────────────────────────────────────────────────────
-// All 46, in display order: ladders (by tier), conquests, specials.
+// All 49, in display order: ladders (by tier), conquests, specials (including
+// the three style unlocks).
 // evaluate(stats) returns { earned, detail, progress?: {current, target},
 // earnedAt?: string|null }.
 
@@ -468,6 +508,7 @@ export const TROPHIES = [
   ...LADDERS.flatMap((ladder) => TIERS.map((tier) => ladderTrophy(ladder, tier))),
   ...CONQUESTS,
   ...SPECIALS,
+  ...STYLE_TROPHIES,
 ];
 
 // Every trophy with its evaluation folded in — what Trophies.jsx renders.

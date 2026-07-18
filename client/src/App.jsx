@@ -16,6 +16,7 @@ import StateBattle from './pages/StateBattle';
 import Groups from './pages/Groups';
 import GroupBattle from './pages/GroupBattle';
 import Trophies from './pages/Trophies';
+import Settings from './pages/Settings';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -41,7 +42,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* The map is the landing page (issue #69). */}
+        <Route path="/" element={<Navigate to="/map" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/add-countries" element={<AddCountries />} />
         <Route path="/countries/:code" element={<CountryDetail />} />
@@ -53,8 +55,9 @@ function AppRoutes() {
         <Route path="/map" element={<Map />} />
         <Route path="/subregions" element={<Subregions />} />
         <Route path="/trophies" element={<Trophies />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/map" replace />} />
     </Routes>
   );
 }

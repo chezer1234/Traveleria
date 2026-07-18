@@ -394,7 +394,7 @@ export async function getUserStatusForCountry(db, userId, code) {
 // continent totals) come out of this single pass.
 async function computeAllUserTravelResults(db) {
   const users = await db.all(
-    `SELECT id, identifier, home_country FROM users_public`,
+    `SELECT id, identifier, display_name, home_country FROM users_public`,
   );
   const allCountries = await loadAllCountries(db);
   const provincesByCountry = await loadAllProvincesByCountry(db);
@@ -466,6 +466,7 @@ export async function getLeaderboardLocal(db, currentUserId) {
   const entries = results.map(({ user: u, visitedCountries, result, totalBonusPoints }) => ({
     user_id: u.id,
     identifier: u.identifier,
+    display_name: u.display_name || null,
     home_country: u.home_country,
     total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
     countries_visited: visitedCountries.length,
@@ -590,7 +591,7 @@ export async function getUserDaysByProvince(db, userId, provinceCodes) {
 // have both been to the country).
 export async function getUsersWhoVisitedCountryLocal(db, countryCode, excludeUserId) {
   const rows = await db.all(
-    `SELECT u.id, u.identifier, u.home_country
+    `SELECT u.id, u.identifier, u.display_name, u.home_country
        FROM user_countries uc
        JOIN users_public u ON u.id = uc.user_id
        WHERE uc.country_code = ? AND uc.user_id != ?`,
@@ -602,7 +603,7 @@ export async function getUsersWhoVisitedCountryLocal(db, countryCode, excludeUse
 // A public user record from the locally-synced users_public table (no network).
 export async function getUserPublicLocal(db, userId) {
   return db.get(
-    `SELECT id, identifier, home_country FROM users_public WHERE id = ?`,
+    `SELECT id, identifier, display_name, home_country FROM users_public WHERE id = ?`,
     [userId],
   );
 }
@@ -628,7 +629,7 @@ export async function getUserGroupsLocal(db, userId) {
   const userIds = [...new Set(allMembers.map((m) => m.user_id))];
   const userPlaceholders = userIds.map(() => '?').join(',');
   const users = userIds.length
-    ? await db.all(`SELECT id, identifier, home_country FROM users_public WHERE id IN (${userPlaceholders})`, userIds)
+    ? await db.all(`SELECT id, identifier, display_name, home_country FROM users_public WHERE id IN (${userPlaceholders})`, userIds)
     : [];
   const userById = Object.fromEntries(users.map((u) => [u.id, u]));
 

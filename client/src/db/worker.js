@@ -35,7 +35,7 @@ const TABLE_MAP = {
 };
 
 const TABLE_COLUMNS = {
-  users_public: ['id', 'identifier', 'home_country'],
+  users_public: ['id', 'identifier', 'display_name', 'home_country'],
   user_countries: ['id', 'user_id', 'country_code', 'visited_at'],
   user_cities: ['id', 'user_id', 'city_id', 'visited_at'],
   user_provinces: ['id', 'user_id', 'province_code', 'visited_at'],
@@ -110,6 +110,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS users_public (
     id TEXT PRIMARY KEY,
     identifier TEXT,
+    display_name TEXT,
     home_country TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS user_countries (
@@ -186,6 +187,7 @@ function ensureSchema() {
   try { db.exec('ALTER TABLE provinces ADD COLUMN subregion TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE cities ADD COLUMN province_code TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE cities ADD COLUMN city_type TEXT'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE users_public ADD COLUMN display_name TEXT'); } catch { /* already exists */ }
 }
 
 function bulkInsert(table, rows, columns) {
@@ -223,7 +225,7 @@ async function hydrate(apiBase, authToken) {
       'id', 'country_code', 'code', 'name', 'population', 'area_km2', 'disputed', 'subregion',
     ]);
     bulkInsert('province_experiences', snap.province_experiences || [], ['id', 'province_code', 'name', 'description']);
-    bulkInsert('users_public', snap.users_public, ['id', 'identifier', 'home_country']);
+    bulkInsert('users_public', snap.users_public, ['id', 'identifier', 'display_name', 'home_country']);
     // User-visit tables are part of the cold-boot payload so pre-existing
     // writes (made before this client's cursor) aren't orphaned. The changes
     // feed then handles everything from the snapshot cursor forward.

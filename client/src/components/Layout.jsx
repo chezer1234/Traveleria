@@ -6,7 +6,8 @@ import BottomTabBar from './BottomTabBar';
 import ChecklistOverlay from './ChecklistOverlay';
 import QuickSearch from './QuickSearch';
 import SubTabStrip from './SubTabStrip';
-import ThemeSwitcher from './ThemeSwitcher';
+import { publicName } from '../lib/names';
+import { IconGear } from './icons/NavIcons';
 
 export default function Layout() {
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -44,12 +45,25 @@ export default function Layout() {
 
           <div className="flex items-center gap-3 min-w-0">
             {user && <QuickSearch className="w-24 sm:w-32 focus-within:w-48 transition-all shrink-0" />}
-            <ThemeSwitcher />
+            {/* Style switching moved into Settings (issue #69) — styles are
+                earned with points now, so the picker needs the unlock UI. */}
             {user && (
               <>
-                <span className="hidden lg:inline-block text-sm text-ink-soft border-l border-hairline pl-4 truncate max-w-32" title={user.identifier}>
-                  {user.identifier}
-                </span>
+                <Link
+                  to="/settings"
+                  className="p-2 text-ink-soft hover:text-compass rounded-lg hover:bg-paper transition-colors shrink-0"
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <IconGear className="w-5 h-5" />
+                </Link>
+                <Link
+                  to="/settings"
+                  className="hidden lg:inline-block text-sm text-ink-soft hover:text-ink border-l border-hairline pl-4 truncate max-w-32"
+                  title={`${publicName(user)} — settings`}
+                >
+                  {publicName(user)}
+                </Link>
                 <button
                   onClick={logout}
                   className="smallcaps text-sienna hover:text-ink shrink-0"

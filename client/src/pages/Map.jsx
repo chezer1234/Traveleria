@@ -134,6 +134,13 @@ const EUROPE_CITY_COORDS = {
   },
 };
 
+// Optional theme slot (issue #69): a theme can wrap the world-map plate in
+// its own furniture (Antiquity's Greek columns + physical-map unfold).
+// Identity wrapper when the active theme doesn't provide one.
+function MapPlateFrame({ Frame, children }) {
+  return Frame ? <Frame>{children}</Frame> : children;
+}
+
 function formatPopulation(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
   if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
@@ -394,6 +401,7 @@ export default function Map() {
         <EuropeProvinceMap visitedProvinceCodes={visitedProvinceCodes} />
       ) : (
         /* World map (react-simple-maps) — used for all other modes */
+        <MapPlateFrame Frame={themeDef.MapFrame}>
         <div
           className="plate rounded-lg relative"
           onMouseMove={handleMouseMove}
@@ -500,6 +508,7 @@ export default function Map() {
             </div>
           )}
         </div>
+        </MapPlateFrame>
       )}
 
       {/* Legend */}

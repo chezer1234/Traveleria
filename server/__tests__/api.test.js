@@ -5,7 +5,8 @@
 import crypto from 'crypto';
 import { db } from './setup.js';
 import { calculateCountryPoints, calculateTotalTravelPoints, getBaseline } from '../src/lib/points.js';
-import { updateStyleSchema } from '../src/lib/schemas.js';
+import { updateStyleSchema, updateProfileSchema } from '../src/lib/schemas.js';
+import { STYLE_UNLOCK_POINTS, isStyleUnlocked } from '../src/lib/styleUnlocks.js';
 
 let testUser;
 
@@ -159,13 +160,53 @@ describe('User Style Preference (issue #60)', () => {
     expect(row.style).toBe('orbit');
   });
 
-  test('updateStyleSchema accepts exactly the three design directions', () => {
-    for (const style of ['atlas', 'orbit', 'jetstream']) {
+  test('updateStyleSchema accepts exactly the four design directions', () => {
+    for (const style of ['atlas', 'orbit', 'jetstream', 'antiquity']) {
       expect(updateStyleSchema.safeParse({ style }).success).toBe(true);
     }
     expect(updateStyleSchema.safeParse({ style: 'neon' }).success).toBe(false);
     expect(updateStyleSchema.safeParse({ style: '' }).success).toBe(false);
     expect(updateStyleSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('Style unlocks (issue #69)', () => {
+  test('unlock order and thresholds follow the points ladder', () => {
+    expect(STYLE_UNLOCK_POINTS.atlas).toBe(0);
+    expect(STYLE_UNLOCK_POINTS.orbit).toBeLessThan(STYLE_UNLOCK_POINTS.jetstream);
+    expect(STYLE_UNLOCK_POINTS.jetstream).toBeLessThan(STYLE_UNLOCK_POINTS.antiquity);
+  });
+
+  test('isStyleUnlocked gates on total points', () => {
+    expect(isStyleUnlocked('atlas', 0)).toBe(true);
+    expect(isStyleUnlocked('orbit', STYLE_UNLOCK_POINTS.orbit - 1)).toBe(false);
+    expect(isStyleUnlocked('orbit', STYLE_UNLOCK_POINTS.orbit)).toBe(true);
+    expect(isStyleUnlocked('antiquity', STYLE_UNLOCK_POINTS.antiquity - 0.01)).toBe(false);
+    expect(isStyleUnlocked('antiquity', STYLE_UNLOCK_POINTS.antiquity)).toBe(true);
+    expect(isStyleUnlocked('neon', 999999)).toBe(false);
+    expect(isStyleUnlocked('orbit', null)).toBe(false);
+  });
+});
+
+describe('Display name (issue #69)', () => {
+  test('display_name is null by default and persists once set', async () => {
+    expect(testUser.display_name ?? null).toBeNull();
+    await db('users').where({ id: testUser.id }).update({ display_name: 'Charlie the Explorer' });
+    const row = await db('users').where({ id: testUser.id }).first();
+    expect(row.display_name).toBe('Charlie the Explorer');
+  });
+
+  test('updateProfileSchema trims, caps at 40 chars, and maps empty to null', () => {
+    const ok = updateProfileSchema.safeParse({ display_name: '  Charlie  ' });
+    expect(ok.success).toBe(true);
+    expect(ok.data.display_name).toBe('Charlie');
+
+    const cleared = updateProfileSchema.safeParse({ display_name: '   ' });
+    expect(cleared.success).toBe(true);
+    expect(cleared.data.display_name).toBeNull();
+
+    expect(updateProfileSchema.safeParse({ display_name: 'x'.repeat(41) }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({}).success).toBe(false);
   });
 });
 

@@ -1,5 +1,6 @@
 import { StampMark } from '../shared';
 import { barcodeBars } from '../../lib/themeArt';
+import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 
 // Jetstream — bold travel-game energy (light).
 // Design source: docs/designs/concept-3-jetstream.html
@@ -88,5 +89,5 @@ export default {
   VisitedMark: StampMark,
   CountryStub: JetstreamCountryStub,
   map: { dots: false },
-  unlock: null,
+  unlock: { points: STYLE_UNLOCK_POINTS.jetstream },
 };

@@ -79,6 +79,7 @@ router.get('/', async (req, res) => {
       entries.push({
         user_id: u.id,
         identifier: u.identifier,
+        display_name: u.display_name || null,
         home_country: u.home_country,
         total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
         countries_visited: visitedCountries.length,

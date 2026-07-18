@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, readLastIdentifier } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { signin, ApiError } from '../api/client';
-import ThemeSwitcher from '../components/ThemeSwitcher';
 
 export default function SignIn() {
   const { setUser } = useAuth();
@@ -22,7 +21,7 @@ export default function SignIn() {
     try {
       const user = await signin({ identifier: identifier.trim(), password });
       setUser(user);
-      navigate('/dashboard', { replace: true });
+      navigate('/map', { replace: true });
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
       setError(msg);
@@ -33,10 +32,8 @@ export default function SignIn() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
-      {/* Style choice works signed-out too — device-only until sign-in. */}
-      <div className="absolute top-4 right-4">
-        <ThemeSwitcher />
-      </div>
+      {/* Styles are earned now (issue #69) — changing them lives in Settings,
+          so no switcher on the auth pages. */}
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
           <h1 className="mb-2">

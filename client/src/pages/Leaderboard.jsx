@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getLeaderboardLocal } from '../lib/queries';
 import { countryFlag as flag } from '../lib/flag';
 import GlobalLeaderboardStats from '../components/GlobalLeaderboardStats';
+import { publicName } from '../lib/names';
 
 // Top-3 medallions — trophy-metal colours are the achievement identity and
 // deliberately constant across themes (see docs/features/user-selectable-styles.md);
@@ -96,14 +97,14 @@ export default function Leaderboard() {
                     <td className="px-4 py-3"><RankBadge rank={entry.rank} /></td>
                     <td className="px-4 py-3 text-ink font-medium">
                       {isCurrentUser ? (
-                        entry.identifier
+                        publicName(entry)
                       ) : (
                         <Link
                           to={`/territory/${entry.user_id}`}
                           className="hover:text-compass hover:underline"
-                          title={`Territory battle vs ${entry.identifier}`}
+                          title={`Territory battle vs ${publicName(entry)}`}
                         >
-                          {entry.identifier}
+                          {publicName(entry)}
                         </Link>
                       )}
                       {isCurrentUser && <span className="ml-2 text-xs text-compass">(you)</span>}
@@ -121,14 +122,14 @@ export default function Leaderboard() {
                           <Link
                             to={`/territory/${entry.user_id}`}
                             className="inline-flex items-center gap-1 bg-ink text-paper smallcaps px-2.5 py-2 rounded hover:bg-ink/80"
-                            title={`Territory battle vs ${entry.identifier}`}
+                            title={`Territory battle vs ${publicName(entry)}`}
                           >
                             ⚔<span className="hidden sm:inline">Battle</span>
                           </Link>
                           <Link
                             to={`/groups?add=${entry.user_id}`}
                             className="inline-flex items-center gap-1 px-1.5 py-2 text-atlas hover:text-atlas-deep font-medium"
-                            title={`Add ${entry.identifier} to a group`}
+                            title={`Add ${publicName(entry)} to a group`}
                           >
                             +<span className="hidden sm:inline">Group</span>
                           </Link>
@@ -149,7 +150,7 @@ export default function Leaderboard() {
                   <tr className="lb-row lb-you bg-gold/10 border-b border-gold/40">
                     <td className="px-4 py-3"><RankBadge rank={outsideUser.rank} /></td>
                     <td className="px-4 py-3 text-ink font-medium">
-                      {outsideUser.identifier}
+                      {publicName(outsideUser)}
                       <span className="ml-2 text-xs text-compass">(you)</span>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">

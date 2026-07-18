@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
+import { publicName } from '../lib/names';
 import { getUserGroupsLocal, getUserCountriesLocal, getUserDaysByCountry } from '../lib/queries';
 import { computeGroupTerritory, resolveColours, fadeColour, gradeOpacity } from '../lib/territory';
 import { GEO_URL, getAlpha2 } from '../lib/geo';
@@ -58,7 +59,7 @@ export default function GroupBattle() {
             getUserCountriesLocal(db, m.user_id, homeCountry),
             getUserDaysByCountry(db, m.user_id),
           ]);
-          return { userId: m.user_id, identifier: m.user?.identifier || m.user_id, homeCountry, countries, days };
+          return { userId: m.user_id, identifier: m.user ? publicName(m.user) : m.user_id, homeCountry, countries, days };
         }),
       );
       setSides(loadedSides);

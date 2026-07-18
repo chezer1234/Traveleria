@@ -133,13 +133,24 @@ export const createGroupSchema = z.object({
 
 export const renameGroupSchema = z.object({ name: groupNameSchema });
 
-// User-selectable styles (issues #60/#63). Must stay in step with the client
-// theme registry (client/src/themes/registry.js) — adding a theme means adding
-// its id here so the account preference round-trips. When milestone-unlockable
-// themes land, this enum stays the gatekeeper for persisting a choice.
-export const STYLE_IDS = ['atlas', 'orbit', 'jetstream'];
+// User-selectable styles (issues #60/#63/#69). Must stay in step with the
+// client theme registry (client/src/themes/registry.js) — adding a theme means
+// adding its id here so the account preference round-trips. This enum plus the
+// points gate in PUT /users/:id/style (lib/styleUnlocks.js) is the server-side
+// gatekeeper for persisting a choice.
+export const STYLE_IDS = ['atlas', 'orbit', 'jetstream', 'antiquity'];
 export const updateStyleSchema = z.object({
   style: z.enum(STYLE_IDS),
+});
+
+// Display name (issue #69): shown on the leaderboard/battles instead of the
+// sign-in identifier. Empty string clears it (falls back to the identifier).
+export const updateProfileSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .max(40, 'Display name is too long (max 40 characters)')
+    .transform((v) => (v === '' ? null : v)),
 });
 
 export const addGroupMemberSchema = z.object({

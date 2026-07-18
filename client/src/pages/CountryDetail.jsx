@@ -27,6 +27,7 @@ import ScoreBreakdown from '../components/ScoreBreakdown';
 import BackLink from '../components/BackLink';
 import ListControls from '../components/ListControls';
 import { countryFlag as flagEmoji } from '../lib/flag';
+import { publicName } from '../lib/names';
 
 // Dated visits first (newest first), undated ("no date") last. Mirrors the SQL
 // ordering in getCountryVisitsLocal so optimistic inserts land in the right spot.
@@ -486,7 +487,7 @@ export default function CountryDetail() {
                             }}
                             className="w-full text-left text-sm text-ink px-2 py-2.5 rounded-md hover:bg-parchment/60"
                           >
-                            {opp.identifier}
+                            {publicName(opp)}
                           </button>
                         </li>
                       ))}

@@ -13,9 +13,10 @@ router.get('/', async (req, res) => {
     // Tier 0 (issue #46): reference data, like countries/cities/provinces —
     // cold-boot only, no _changes feed entries (it doesn't change per-user).
     db('province_experiences').select('*'),
-    // users_public is deliberately minimal: id, identifier, home_country — see
-    // docs/db-speed.md. Any extension requires bumping APP_SCHEMA_VERSION.
-    db('users').select('id', 'identifier', 'home_country'),
+    // users_public is deliberately minimal: id, identifier, display_name,
+    // home_country — see docs/db-speed.md. Any extension requires bumping
+    // APP_SCHEMA_VERSION.
+    db('users').select('id', 'identifier', 'display_name', 'home_country'),
     // User-visit tables ride along so a cold-booting client (or a returning
     // user on a new device) gets a complete picture in one round-trip. Without
     // this, writes that landed before the snapshot cursor would be orphaned:

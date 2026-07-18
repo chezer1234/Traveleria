@@ -14,6 +14,7 @@ import {
   ISLAND_NATIONS,
 } from '../trophies.js';
 import { CONTINENTS } from '../continents.js';
+import { STYLE_UNLOCK_POINTS } from '../styleUnlocks.js';
 
 // Minimal country row. Subregion defaults to Western Europe (→ Europe).
 function country(code, over = {}) {
@@ -57,8 +58,8 @@ function get(evaluated, id) {
 }
 
 describe('the cabinet roster', () => {
-  it('holds 46 trophies: 7 ladders × 5 tiers + 6 conquests + 5 specials', () => {
-    expect(TROPHIES).toHaveLength(7 * 5 + CONTINENTS.length + 5);
+  it('holds 49 trophies: 7 ladders × 5 tiers + 6 conquests + 5 specials + 3 style unlocks', () => {
+    expect(TROPHIES).toHaveLength(7 * 5 + CONTINENTS.length + 5 + 3);
   });
 
   it('has unique ids', () => {
@@ -253,6 +254,40 @@ describe('special honours', () => {
   });
 });
 
+describe('style unlock trophies (issue #69)', () => {
+  it('mirror the styleUnlocks thresholds and unlock in order', () => {
+    const ids = ['style-orbit', 'style-jetstream', 'style-antiquity'];
+    const targets = ids.map((id) => TROPHIES.find((t) => t.id === id));
+    for (const t of targets) expect(t).toBeTruthy();
+    const [orbit, jetstream, antiquity] = targets.map((t) => t.evaluate(stats({ totalPoints: 0 })).progress.target);
+    expect(STYLE_UNLOCK_POINTS.orbit).toBe(orbit);
+    expect(STYLE_UNLOCK_POINTS.jetstream).toBe(jetstream);
+    expect(STYLE_UNLOCK_POINTS.antiquity).toBe(antiquity);
+    expect(orbit).toBeLessThan(jetstream);
+    expect(jetstream).toBeLessThan(antiquity);
+  });
+
+  it('earn exactly at the threshold and report points to go below it', () => {
+    const evaluatedAt = (pts) => evaluateTrophies(stats({ totalPoints: pts }));
+    const below = get(evaluatedAt(STYLE_UNLOCK_POINTS.jetstream - 60), 'style-jetstream');
+    expect(below.earned).toBe(false);
+    expect(below.progress.target).toBe(STYLE_UNLOCK_POINTS.jetstream);
+    expect(below.detail).toContain('60');
+
+    const at = get(evaluatedAt(STYLE_UNLOCK_POINTS.jetstream), 'style-jetstream');
+    expect(at.earned).toBe(true);
+    expect(at.detail).toContain('Settings');
+  });
+
+  it('render with the specials so the unlock is discoverable', () => {
+    const cabinet = evaluateCabinet(stats());
+    const specialIds = cabinet.specials.map((t) => t.id);
+    for (const id of ['style-orbit', 'style-jetstream', 'style-antiquity']) {
+      expect(specialIds).toContain(id);
+    }
+  });
+});
+
 describe('evaluateCabinet', () => {
   it('groups ladders in tier order with conquests and specials aside', () => {
     const cabinet = evaluateCabinet(stats());
@@ -261,7 +296,7 @@ describe('evaluateCabinet', () => {
       expect(ladder.trophies.map((t) => t.medal)).toEqual(TIERS);
     }
     expect(cabinet.conquests).toHaveLength(CONTINENTS.length);
-    expect(cabinet.specials).toHaveLength(5);
+    expect(cabinet.specials).toHaveLength(8);
     expect(cabinet.all).toHaveLength(TROPHIES.length);
   });
 });

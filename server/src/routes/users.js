@@ -1,7 +1,8 @@
 import express from 'express';
 import crypto from 'crypto';
 import db from '../db/connection.js';
-import { calculateCountryPoints, calculateTotalTravelPoints, getCountryTier } from '../lib/points.js';
+import { calculateCountryPoints, calculateTotalTravelPoints, calculateSubregionBonuses, getCountryTier } from '../lib/points.js';
+import { STYLE_UNLOCK_POINTS, isStyleUnlocked } from '../lib/styleUnlocks.js';
 import { requireAuth, requireOwnership } from '../middleware/auth.js';
 import {
   addCountrySchema,
@@ -11,6 +12,7 @@ import {
   addVisitSchema,
   addProvinceVisitSchema,
   updateStyleSchema,
+  updateProfileSchema,
   validateBody,
 } from '../lib/schemas.js';
 import * as changes from '../lib/changes.js';
@@ -20,26 +22,87 @@ const router = express.Router();
 router.get('/:id', async (req, res) => {
   const user = await db('users')
     .where({ id: req.params.id })
-    .select('id', 'identifier', 'home_country', 'style', 'created_at')
+    .select('id', 'identifier', 'display_name', 'home_country', 'style', 'created_at')
     .first();
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 });
 
+// The user's total Travel Points as the dashboard/leaderboard define them:
+// score engine total + sub-region bonuses. Mirrors the client's
+// getUserScoreLocal (client/src/lib/queries.js) — the style unlock gate must
+// agree with the number the user sees.
+async function getUserTotalPoints(userId, homeCountryCode) {
+  const { homeCountry, allCountries, visitedCountries } = await getUserTravelData(
+    userId, homeCountryCode,
+  );
+  const result = calculateTotalTravelPoints(homeCountry, allCountries, visitedCountries);
+  const visitedCodes = new Set(visitedCountries.map(({ country }) => country.code));
+  const claimedRows = await db('user_subregions').where({ user_id: userId }).pluck('subregion');
+  const { totalBonusPoints } = calculateSubregionBonuses(
+    homeCountry, allCountries, visitedCodes, new Set(claimedRows),
+  );
+  return Math.round((result.totalPoints + totalBonusPoints) * 100) / 100;
+}
+
 // Style preference (issue #60). Deliberately NOT recorded in the _changes
 // feed: it isn't travel data, other users never read it, and keeping it out
 // of the synced local-DB schema avoids a client schema-version bump.
+// Unlockable styles (issue #69): a style can only be persisted once the
+// user's Travel Points clear its threshold — the enum + this gate is the
+// server-side gatekeeper; the Settings UI is convenience.
 router.put(
   '/:id/style',
   requireAuth,
   requireOwnership('id'),
   validateBody(updateStyleSchema),
   async (req, res) => {
-    const updated = await db('users')
-      .where({ id: req.params.id })
-      .update({ style: req.body.style });
-    if (!updated) return res.status(404).json({ error: 'User not found' });
-    res.json({ id: req.params.id, style: req.body.style });
+    const user = await db('users').where({ id: req.params.id }).first();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const totalPoints = await getUserTotalPoints(user.id, user.home_country);
+    if (!isStyleUnlocked(req.body.style, totalPoints)) {
+      const required = STYLE_UNLOCK_POINTS[req.body.style];
+      return fail(
+        res,
+        'style',
+        `Locked — the ${req.body.style} style unlocks at ${required} Travel Points (you have ${Math.round(totalPoints)})`,
+      );
+    }
+
+    await db('users').where({ id: user.id }).update({ style: req.body.style });
+    res.json({ id: user.id, style: req.body.style });
+  }
+);
+
+// Display name (issue #69) — the leaderboard-facing name. Unlike style, other
+// users DO read it (it's part of users_public), so the update rides the
+// _changes feed with the full public row.
+router.put(
+  '/:id/profile',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(updateProfileSchema),
+  async (req, res) => {
+    const user = await db('users').where({ id: req.params.id }).first();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const display_name = req.body.display_name;
+    const publicRow = {
+      id: user.id,
+      identifier: user.identifier,
+      display_name,
+      home_country: user.home_country,
+    };
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('users').where({ id: user.id }).update({ display_name });
+      change_id = await changes.record(trx, {
+        table: 'users', pk: user.id, op: 'update', row: publicRow,
+      });
+    });
+    res.json({ ...publicRow, change_id });
   }
 );
 

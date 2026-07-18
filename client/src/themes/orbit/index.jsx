@@ -1,4 +1,5 @@
 import { StampMark } from '../shared';
+import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 
 // Orbit — night-flight mission control (dark).
 // Design source: docs/designs/concept-2-orbit.html
@@ -58,5 +59,5 @@ export default {
   // The signature dot-matrix Earth (issue #63): world maps render as a glowing
   // dot grid; sub-national maps stay solid polygons per the concept.
   map: { dots: true },
-  unlock: null,
+  unlock: { points: STYLE_UNLOCK_POINTS.orbit },
 };

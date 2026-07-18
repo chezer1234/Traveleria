@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { signup, ApiError } from '../api/client';
-import ThemeSwitcher from '../components/ThemeSwitcher';
 
 // Pre-signin we have no local DB, so the country dropdown is sourced from
 // /api/snapshot — a public, read-only endpoint that's also the cold-boot
@@ -46,7 +45,7 @@ export default function SignUp() {
         home_country: homeCountry,
       });
       setUser(user);
-      navigate('/dashboard', { replace: true });
+      navigate('/map', { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.errors.length) {
         const byField = {};
@@ -63,10 +62,7 @@ export default function SignUp() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-paper text-ink font-sans px-4">
-      {/* Style choice works signed-out too — device-only until sign-in. */}
-      <div className="absolute top-4 right-4">
-        <ThemeSwitcher />
-      </div>
+      {/* Styles are earned now (issue #69) — changing them lives in Settings. */}
       <div className="w-full max-w-md plate rounded-lg p-8">
         <div className="text-center mb-8">
           <h1 className="mb-2">

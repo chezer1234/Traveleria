@@ -130,6 +130,15 @@ export function updateUserStyle(id, style) {
   });
 }
 
+// Display name (issue #69): the leaderboard-facing name, editable from the
+// Settings tab. Empty string clears it back to the identifier.
+export function updateUserProfile(id, display_name) {
+  return request(`/users/${id}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify({ display_name }),
+  });
+}
+
 // ---------- User travel log ----------
 //
 // Read endpoints (getCountries, getCountry, getUserCountries, getUserScore,

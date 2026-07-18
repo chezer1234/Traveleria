@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Graticule, ZoomableGroup } from 'react-simple-maps';
 import { useAuth } from '../context/AuthContext';
+import { publicName } from '../lib/names';
 import { useTheme } from '../context/ThemeContext';
 import DotMatrixLayer from '../components/DotMatrixLayer';
 import {
@@ -107,7 +108,7 @@ export default function Territory() {
   const handleMouseMove = useCallback((e) => setMousePos({ x: e.clientX, y: e.clientY }), []);
 
   const youName = 'You';
-  const themName = opponent?.identifier || 'Opponent';
+  const themName = publicName(opponent) !== '?' ? publicName(opponent) : 'Opponent';
 
   function getFill(geo) {
     const code = getAlpha2(geo);

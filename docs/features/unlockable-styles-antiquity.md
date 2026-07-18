@@ -41,7 +41,7 @@ the whole app:
 | Atlas | 0 (default) | — | everyone |
 | Orbit | **100 pts** | The 100 Club (bronze) | a real trip or two — an early reward that teaches "styles are earned" |
 | Jetstream | **500 pts** | The 500 Club (silver) | a committed traveller |
-| Antiquity | **2,000 pts** | The 2,000 Club (diamond) | top scorers only — the prestige style |
+| Antiquity | **1,500 pts** | between the gold and diamond clubs | top scorers only — the prestige style |
 
 A brand-new user sees all four styles in Settings from day one (locked ones
 show their price and a progress bar), so the chase is visible. Each unlock
@@ -75,7 +75,7 @@ Numbers live in `styleUnlocks.js` (client + server copies, kept in step like
 |--------|-------|-----------|
 | Night Flight (Orbit) | silver seal · "O" | 100 pts |
 | Jet Set (Jetstream) | gold seal · "J" | 500 pts |
-| The Antiquarian (Antiquity) | diamond seal · "A" | 2,000 pts |
+| The Antiquarian (Antiquity) | diamond seal · "A" | 1,500 pts |
 
 Earned detail points at Settings ("equip it in Settings"), locked detail
 shows points to go — the unlock is discoverable from the cabinet.
@@ -127,7 +127,8 @@ re-rendered in Antiquity):
 
 ## Open questions
 
-- Are 100 / 500 / 2,000 right once we can eyeball the live leaderboard? The
+- Are 100 / 500 / 1,500 right once we can eyeball the live leaderboard?
+  (Antiquity started at 2,000; Charlie set it to 1,500 on review.) The
   constants are one-line changes in `styleUnlocks.js` (both copies).
 - Should the *dashboard* keep its "first tab" spot in the bottom bar now the
   map is the landing page? (Left as-is for now.)

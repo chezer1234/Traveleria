@@ -140,7 +140,9 @@ This one is more than an edge case we noticed — it's a previously-shipped, del
 
 That doc's own numbers: Antarctica's old score leaned on a size contribution of **~8.3 points**, out of a total ~28–45 depending on home country. Removing size from base doesn't just create an edge case for Antarctica — it directly invalidates the reasoning the existing feature was built on, because Antarctica has no usable population/tourism data for the danger or tourism factors to compensate with either. Tested: Antarctica's new formula-driven total falls to **0.67**, a >98% collapse, worse than any other country in the dataset by a wide margin.
 
-**Recommendation:** don't let Antarctica fall through to the general floor. Give it an explicit flat override, in the same spirit as the microstate table, ideally anchored close to its original deliberately-designed value (~40ish for a UK-home baseline) rather than an arbitrary small number. Exact value is an open question — see below.
+**Resolved: flat override, `AQ = 100`, the same for every user regardless of home country** — not just simpler, arguably more correct than the home-country-distance model every other country uses. Nearly all Antarctic tourism funnels through the same handful of expedition gateways (Ushuaia, Punta Arenas) regardless of where the traveler started, so "distance from home" isn't really tracking real difficulty here the way it does everywhere else — unlike every other country, where being closer genuinely does make the trip easier.
+
+Anchored against the hardest *formula-driven* scores in the dataset at final settings (North Korea 111.1, Afghanistan 97.4) — 100 lands Antarctica just below North Korea rather than above it: extreme, but not declared the single hardest achievement in the entire game. That was a deliberate choice, not a default.
 
 ### Microstates
 Unchanged — still a flat-points override table (VA=1, MC=2, SM=2, LI=2, AD=2, SG=3), unaffected by any of this.
@@ -181,7 +183,7 @@ Constants that were tested with placeholders throughout this doc but not finally
 | `FLOOR` (total-level) | 1.0 | **Agreed** |
 | `DANGER_CAP` | 6.0 | Illustrative only |
 | `FLOOR_POP` (province weighting) | 100,000 | Illustrative only |
-| Antarctica override value | ~5 tested, ~40 recommended | Not decided |
+| Antarctica override value | 100 | **Agreed** |
 | Advisory data source(s) to blend | UK FCDO used in examples | Needs real sourcing/licensing decision |
 | Full list of NK/Antarctica-style override countries | NK, Antarctica only, so far | Worth a deliberate pass (Turkmenistan? Eritrea?) rather than assuming it's just these two |
 | Belarus/Moldova > Germany/France | Accepted provisionally | Confirm this reads as correct, not surprising, before shipping |

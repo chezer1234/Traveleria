@@ -85,19 +85,23 @@ Ports and versions are locked in — if CLAUDE.md, Makefile, compose files, Vite
 
 Full docs: [docs/points-system.md](docs/points-system.md)
 
-**Base points** = `distance_multiplier x (tourism_score + size_score)`, floor 5, cap 200.
+**Visit base** (the score shown to the user) = `distance_multiplier x (tourism_score + danger_score)`. No size — size only affects exploration (below). Country **total** (visit base + exploration) is floored at 1; the visit base itself isn't floored, so close/easy countries stay honestly differentiated instead of clustering at a shared minimum.
 
 - Distance: `1 + log2(km / 1000 + 1)` — continuous, from real lat/lng via haversine
-- Tourism: `min(20, log2(pop/tourists + 1) x 3)` — capped to prevent single-country dominance
-- Size: `log10(area/1000 + 1) x 2`
+- Tourism: `min(20, log2(pop/tourists + 1) x 5)` — capped to prevent single-country dominance
+- Danger: `(advisory_level - 1) / 3 x 6` — from a per-country travel-advisory level (1-4), **not** crime stats (those make authoritarian states look artificially safe). Currently only sourced for the ~35 countries this feature was tested against; flagged as provisional, see `docs/features/points-redesign.md`.
 
-**Explorer ceiling** = `base x log10(area / regional_value + 1)` — log-scaled to prevent explosion.
+**Explore base** (drives the exploration ceiling only, never shown as the score) = `distance_multiplier x (tourism_score + danger_score + size_score)`, where `size_score = log10(area/1000 + 1) x 2`. Size legitimately widens "how much is there to explore" even though it doesn't belong in "how hard was it to get here."
+
+**Explorer ceiling** = `explore_base x log10(area / regional_value + 1)` — log-scaled to prevent explosion. A dangerous-but-accessible country stays more rewarding to fully explore, since danger raises both numbers; size only raises the ceiling.
 
 Regional values are inversely proportional to average regional population (Asia=10K, Europe=50K, Oceania=273K).
 
-**Tiers:** Top 10 by pop = Tier 1 (provinces), 11-30 = Tier 2 (provinces), rest = Tier 3 (cities), 6 microstates = flat points.
+**Province/experience points are population-INVERSE**: less-visited provinces are worth more, not less — replaced the old population-proportional model that rewarded visiting the capital over anywhere rural. Log-dampened with a floor population so a near-zero-population province can't dominate.
 
-Constants are at the top of `points.js`: `TOURISM_WEIGHT`, `TOURISM_CAP`, `SIZE_WEIGHT`, `FLOOR`, `BASE_CAP`, `EUROPE_ANCHOR`.
+**Tiers:** Tier 0 = US/China (deep state/province system), top 10 by pop = Tier 1 (provinces), 11-30 = Tier 2 (provinces), rest = Tier 3 (cities), 6 microstates = flat points. **North Korea** and **Antarctica** are explicit overrides outside the formula — see `docs/points-system.md#overrides`.
+
+Constants are at the top of `points.js`: `TOURISM_WEIGHT`, `TOURISM_CAP`, `SIZE_WEIGHT`, `DANGER_CAP`, `FLOOR`, `BASE_CAP`, `FLOOR_POP`, `AQ_OVERRIDE_POINTS`, `EUROPE_ANCHOR`.
 
 ### Data Quality
 

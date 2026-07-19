@@ -3,7 +3,7 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
 
   if (!breakdown) return null;
 
-  if (breakdown.isMicrostate) {
+  if (breakdown.isMicrostate || breakdown.isFlatOverride) {
     return (
       <div className="plate rounded-lg mb-6">
         <div className="text-center px-5 pt-5 pb-4 border-b border-hairline">
@@ -15,7 +15,7 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
     );
   }
 
-  const { distance, tourism, size, exploration } = breakdown;
+  const { distance, tourism, danger, size, exploration } = breakdown;
 
   // Compute actual exploration progress. Tier 0 uses the real per-province
   // earned/max (90%-140%+ scale) from scoreDetail when available; Tier 1/2
@@ -44,14 +44,15 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
 
   const maxTotal = baseline_points + explorer_ceiling;
 
-  // Printed-sum strip: base = multiplier × (tourism + size). Only shown when
-  // every piece exists AND the arithmetic matches the displayed base — the
-  // engine's floor (5) and cap (200) can override the raw formula, and a sum
-  // that doesn't add up would betray the whole ledger.
-  const sumPieces = [distance?.multiplier, tourism?.points, size?.points, baseline_points];
+  // Printed-sum strip: base = multiplier × (tourism + danger). Size no longer
+  // feeds the visit score — it only widens the exploration ceiling below.
+  // Only shown when every piece exists AND the arithmetic matches the
+  // displayed base — the engine's cap (200) can still override the raw
+  // formula, and a sum that doesn't add up would betray the whole ledger.
+  const sumPieces = [distance?.multiplier, tourism?.points, danger?.points, baseline_points];
   const showSum =
     sumPieces.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
-    Math.abs(distance.multiplier * (tourism.points + size.points) - baseline_points) < 0.25;
+    Math.abs(distance.multiplier * (tourism.points + danger.points) - baseline_points) < 0.25;
 
   return (
     <div className="plate rounded-lg mb-6">
@@ -82,14 +83,24 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
         contribution={`+${tourism.points}`}
       />
 
-      {/* Size */}
+      {/* Danger */}
+      <BreakdownRow
+        icon="⚠️"
+        question="How risky is it?"
+        sublabel="Travel advisory"
+        value={danger.difficulty}
+        explanation={danger.explanation}
+        contribution={`+${danger.points}`}
+      />
+
+      {/* Size — no longer part of the visit score, only the exploration ceiling */}
       <BreakdownRow
         icon="🗺️"
         question="How big is it?"
         sublabel="Country size"
         value={`${Number(size.areaKm2).toLocaleString()} km²`}
-        explanation={`${size.comparison}. ${size.explanation}.`}
-        contribution={`+${size.points}`}
+        explanation={`${size.comparison}. ${size.explanation}`}
+        contribution="→ exploring"
       />
 
       {/* Printed sum — base points arithmetic, accounts-book style */}
@@ -97,7 +108,7 @@ export default function ScoreBreakdown({ country, visitedProvinceCodes, visitedC
         <div className="bg-paper border-b border-hairline text-center px-5 py-3">
           <p className="smallcaps text-ink-soft">Base points, the printed sum</p>
           <p className="font-display text-xl text-ink tabular-nums mt-0.5">
-            {distance.multiplier} × ({tourism.points} + {size.points}) ={' '}
+            {distance.multiplier} × ({tourism.points} + {danger.points}) ={' '}
             <b className="font-black border-b-[3px] border-double border-ink pb-px">{baseline_points}</b>
           </p>
         </div>

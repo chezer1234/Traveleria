@@ -79,7 +79,8 @@ const DDL = [
     annual_tourists INTEGER,
     area_km2 REAL,
     lat REAL,
-    lng REAL
+    lng REAL,
+    advisory_level INTEGER
   )`,
   `CREATE TABLE IF NOT EXISTS cities (
     id TEXT PRIMARY KEY,
@@ -184,6 +185,7 @@ function ensureSchema() {
   }
   // Idempotent column additions for existing DBs (ALTER TABLE fails silently if already present)
   try { db.exec('ALTER TABLE countries ADD COLUMN subregion TEXT'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE countries ADD COLUMN advisory_level INTEGER'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE provinces ADD COLUMN subregion TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE cities ADD COLUMN province_code TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE cities ADD COLUMN city_type TEXT'); } catch { /* already exists */ }
@@ -218,7 +220,7 @@ async function hydrate(apiBase, authToken) {
   db.exec('BEGIN');
   try {
     bulkInsert('countries', snap.countries, [
-      'code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng',
+      'code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level',
     ]);
     bulkInsert('cities', snap.cities, ['id', 'country_code', 'name', 'population', 'province_code', 'city_type']);
     bulkInsert('provinces', snap.provinces, [

@@ -108,7 +108,7 @@ router.put(
 
 async function getUserTravelData(userId, homeCountryCode) {
   const allCountries = await db('countries')
-    .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
+    .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level');
   const homeCountry = allCountries.find(c => c.code === (homeCountryCode || '').toUpperCase());
 
   const allProvincesRaw = await db('provinces');

@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
 
     const users = await db('users');
     const allCountries = await db('countries')
-      .select('code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
+      .select('code', 'name', 'region', 'subregion', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level');
 
     // Pre-fetch all provinces grouped by country
     const allProvincesRaw = await db('provinces');

@@ -10,8 +10,11 @@ import {
   getDistanceKm,
   getTourismScore,
   getSizeScore,
+  getDangerScore,
   getBaseline,
+  getExploreBase,
   getExplorerCeiling,
+  getProvinceWeights,
   getCityPercentage,
   calculateProvinceExploration,
   calculateCityExploration,
@@ -26,8 +29,10 @@ import {
   getSizeComparison,
   formatNumber,
   TOURISM_CAP,
+  DANGER_CAP,
   FLOOR,
   BASE_CAP,
+  AQ_OVERRIDE_POINTS,
   TIER0_VISIT_RATIO,
   TIER0_EXPERIENCE_RATIO,
   CITY_MAJOR_POINTS,
@@ -169,6 +174,93 @@ describe('Size Score', () => {
   });
 });
 
+// ── Danger score ─────────────────────────────────────────────────────────────
+
+describe('Danger Score', () => {
+  test('advisory_level 1 (or missing) contributes zero danger', () => {
+    const fr = sampleCountries.find(c => c.code === 'FR'); // no advisory_level set
+    expect(getDangerScore(fr)).toBe(0);
+  });
+
+  test('advisory_level 4 contributes the full DANGER_CAP', () => {
+    expect(getDangerScore({ advisory_level: 4 })).toBeCloseTo(DANGER_CAP, 5);
+  });
+
+  test('danger score scales linearly between level 1 and level 4', () => {
+    expect(getDangerScore({ advisory_level: 2 })).toBeCloseTo(DANGER_CAP / 3, 5);
+    expect(getDangerScore({ advisory_level: 3 })).toBeCloseTo(DANGER_CAP * 2 / 3, 5);
+  });
+});
+
+// ── Explore base vs visit base ──────────────────────────────────────────────
+
+describe('Explore Base vs Visit Base', () => {
+  test('explore base includes size; the visible visit base (getBaseline) does not', () => {
+    const de = sampleCountries.find(c => c.code === 'DE');
+    const visitBase = getBaseline(de, homeGB, sampleCountries);
+    const exploreBase = getExploreBase(de, homeGB);
+    expect(exploreBase).toBeGreaterThan(visitBase);
+  });
+
+  test('danger raises both the visit base and the explore base for the same country', () => {
+    const dangerous = { code: 'ZZ', region: 'Europe', population: 1000000, annual_tourists: 1000000, area_km2: 50000, lat: 48, lng: 2, advisory_level: 4 };
+    const safe = { ...dangerous, code: 'YY', advisory_level: 1 };
+    expect(getBaseline(dangerous, homeGB, sampleCountries)).toBeGreaterThan(getBaseline(safe, homeGB, sampleCountries));
+    expect(getExploreBase(dangerous, homeGB)).toBeGreaterThan(getExploreBase(safe, homeGB));
+  });
+
+  test('microstate and Antarctica explore base is 0 (no exploration formula applies)', () => {
+    const va = sampleCountries.find(c => c.code === 'VA');
+    const antarctica = { code: 'AQ', region: 'Antarctica', population: 1100, annual_tourists: 74000, area_km2: 14200000, lat: -90, lng: 0 };
+    expect(getExploreBase(va, homeGB)).toBe(0);
+    expect(getExploreBase(antarctica, homeGB)).toBe(0);
+  });
+});
+
+// ── North Korea exploration override ────────────────────────────────────────
+
+describe('North Korea Exploration Override', () => {
+  test('explorer ceiling is forced to 0 regardless of explore base', () => {
+    const nk = sampleCountries.find(c => c.code === 'KP');
+    expect(getExplorerCeiling(999, nk, sampleCountries)).toBe(0);
+  });
+
+  test('visit base is still fully formula-driven, not overridden', () => {
+    const nk = sampleCountries.find(c => c.code === 'KP');
+    expect(getBaseline(nk, homeGB, sampleCountries)).toBeGreaterThan(0);
+  });
+});
+
+// ── Population-inverse province weighting ───────────────────────────────────
+
+describe('Population-Inverse Province Weighting', () => {
+  const nationalPop = 331002651;
+  const provinces = [
+    { code: 'BIG', population: 39538223 },
+    { code: 'SMALL', population: 576851 },
+  ];
+
+  test('a less-populous province gets a bigger weight than a more-populous one', () => {
+    const weights = getProvinceWeights(provinces, nationalPop);
+    const bigWeight = weights[provinces.findIndex(p => p.code === 'BIG')];
+    const smallWeight = weights[provinces.findIndex(p => p.code === 'SMALL')];
+    expect(smallWeight).toBeGreaterThan(bigWeight);
+  });
+
+  test('weights always sum to 1, so fully exploring a country still earns the whole ceiling', () => {
+    const weights = getProvinceWeights(provinces, nationalPop);
+    expect(weights.reduce((s, w) => s + w, 0)).toBeCloseTo(1, 5);
+  });
+
+  test('FLOOR_POP prevents a near-zero-population province from dominating the weighting', () => {
+    const withTiny = [...provinces, { code: 'TINY', population: 1 }];
+    const weights = getProvinceWeights(withTiny, nationalPop);
+    const tinyWeight = weights[withTiny.findIndex(p => p.code === 'TINY')];
+    // Without the floor this would run away toward 1; with it, it's bounded.
+    expect(tinyWeight).toBeLessThan(0.6);
+  });
+});
+
 // ── Baseline ────────────────────────────────────────────────────────────────
 
 describe('Baseline', () => {
@@ -200,10 +292,15 @@ describe('Baseline', () => {
     expect(baseline).toBeGreaterThan(40);
   });
 
-  test('baseline respects floor', () => {
-    const tiny = { code: 'XX', population: 100, annual_tourists: 100000, area_km2: 1, lat: 51, lng: 0 };
+  test('the floor applies to the country total, not the raw visit base', () => {
+    // A close, easy, undangerous country can legitimately compute a visit
+    // base below FLOOR now that size no longer props it up — the floor only
+    // guarantees the final total, so it stays visible and honest here.
+    const tiny = { code: 'XX', region: 'Europe', population: 100, annual_tourists: 100000, area_km2: 1, lat: 51, lng: 0 };
     const baseline = getBaseline(tiny, homeGB, sampleCountries);
-    expect(baseline).toBeGreaterThanOrEqual(FLOOR);
+    const pts = calculateCountryPoints(tiny, homeGB, sampleCountries, {});
+    expect(pts.total).toBeGreaterThanOrEqual(FLOOR);
+    expect(pts.total).toBeGreaterThanOrEqual(baseline);
   });
 
   test('baseline respects cap', () => {
@@ -314,7 +411,8 @@ describe('Tier 0 Province Exploration', () => {
     const visited = [{ code: 'US-CA' }];
     const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, []);
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
-    const x = (39538223 / 331002651) * 100;
+    const weights = getProvinceWeights(mockProvinces, mockCountry.population);
+    const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
     expect(ca.earnedPoints).toBeCloseTo(x * TIER0_VISIT_RATIO, 2);
   });
 
@@ -324,7 +422,8 @@ describe('Tier 0 Province Exploration', () => {
       100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, ['e1', 'e2'],
     );
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
-    const x = (39538223 / 331002651) * 100;
+    const weights = getProvinceWeights(mockProvinces, mockCountry.population);
+    const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
     expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO), 2);
     expect(ca.experiences.visited).toBe(2);
     expect(ca.experiences.earned).toBeCloseTo(x * TIER0_EXPERIENCE_RATIO, 2);
@@ -333,7 +432,8 @@ describe('Tier 0 Province Exploration', () => {
   test('cities are a bonus on top of the 1.4x ceiling, pushing maxPoints above 1.4x', () => {
     const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], mockCities, [], mockExperiences, []);
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
-    const x = (39538223 / 331002651) * 100;
+    const weights = getProvinceWeights(mockProvinces, mockCountry.population);
+    const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
     expect(ca.maxPoints).toBeCloseTo(x * 1.4 + 1.0, 2); // 2 major cities = 1.0 pt
   });
 
@@ -354,7 +454,8 @@ describe('Tier 0 Province Exploration', () => {
     ];
     const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], [], [], threeExperiences, ['e1']);
     const wy = result.provinceBreakdown.find(p => p.code === 'US-WY');
-    const x = (576851 / 331002651) * 100;
+    const weights = getProvinceWeights(mockProvinces, mockCountry.population);
+    const x = weights[mockProvinces.findIndex(p => p.code === 'US-WY')] * 100;
     // pointsEach is rounded to 2dp in the implementation (round2)
     expect(wy.experiences.pointsEach).toBeCloseTo((x * TIER0_EXPERIENCE_RATIO) / 3, 2);
   });
@@ -378,22 +479,25 @@ describe('Tier 0 Subregion Bonus', () => {
   test('visiting every state in a sub-region earns half the sum of their base x values', () => {
     const result = calculateTier0SubregionBonus(100, mockCountry, mockProvinces, [{ code: 'US-CA' }, { code: 'US-WY' }]);
     const west = result.subregionBreakdown.find(s => s.name === 'West');
-    const xCA = (39538223 / 331002651) * 100;
-    const xWY = (576851 / 331002651) * 100;
+    const weights = getProvinceWeights(mockProvinces, mockCountry.population);
+    const xCA = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
+    const xWY = weights[mockProvinces.findIndex(p => p.code === 'US-WY')] * 100;
     expect(west.earned).toBe(true);
     expect(west.bonus).toBeCloseTo(0.5 * (xCA + xWY), 2);
     expect(result.totalBonus).toBeCloseTo(0.5 * (xCA + xWY), 2);
   });
 
   test('sub-region bonus trigger is visiting, not fully exploring', () => {
+    // Only a bare province visit (no experiences/cities) is needed — this
+    // function only takes visitedProvinces, confirming the binary trigger.
     const result = calculateTier0SubregionBonus(100, mockCountry, mockProvinces, [{ code: 'US-CA' }, { code: 'US-WY' }]);
     expect(result.totalBonus).toBeGreaterThan(0);
   });
 });
 
-// ── City exploration (Tier 3) ───────────────────────────────────────────────
+// ── City exploration (flat 0.5 per city, all tiers) ────────────────────────
 
-describe('City Exploration (Tier 3)', () => {
+describe('City Exploration (flat 0.5 pts/city)', () => {
   const mockCountry = { code: 'PT', population: 10196709 };
   const mockCities = [
     { id: '1', name: 'Lisbon', population: 504718 },
@@ -408,14 +512,14 @@ describe('City Exploration (Tier 3)', () => {
     expect(result.explored).toBe(0);
   });
 
-  test('visiting the largest city earns 0.5 pts', () => {
+  test('visiting 1 city = 0.5 pts', () => {
     const visited = [{ id: '1', name: 'Lisbon', population: 504718 }];
     const result = calculateCityExploration(50, mockCountry, mockCities, visited);
     expect(result.explorerPoints).toBe(0.5);
     expect(result.explored).toBe(1);
   });
 
-  test('visiting all 4 cities earns 2.0 pts', () => {
+  test('visiting 4 cities = 2.0 pts', () => {
     const result = calculateCityExploration(50, mockCountry, mockCities, mockCities);
     expect(result.explorerPoints).toBe(2.0);
     expect(result.explored).toBe(1);
@@ -563,7 +667,7 @@ describe('Full Country Points Calculation', () => {
     });
 
     expect(pts.tier).toBe(0);
-    expect(pts.subregionBonus).toBeGreaterThan(0);
+    expect(pts.subregionBonus).toBeGreaterThan(0); // both West states visited
     expect(pts.cityPoints).toBe(0.5);
     expect(pts.total).toBeCloseTo(
       pts.baseline + pts.explorationPoints + pts.cityPoints + pts.subregionBonus, 2,
@@ -581,41 +685,50 @@ describe('Antarctica', () => {
   };
   const allWithAq = [...sampleCountries, antarctica];
 
-  test('is a normal Tier 3 destination (not a microstate)', () => {
-    expect(getCountryTier('AQ')).toBe(3);
+  test('is its own flat-override tier, not a formula-driven destination', () => {
+    // No usable population/tourism data exists for it — see
+    // docs/features/points-redesign.md for why the old formula-driven score
+    // (leaning on size) was invalidated by removing size from the visit base.
+    expect(getCountryTier('AQ')).toBe('antarctica');
   });
 
-  test('earns a substantial base score from size + distance alone', () => {
+  test('awards the flat override regardless of exploration data', () => {
     const pts = calculateCountryPoints(antarctica, homeGB, allWithAq, { allCities: [], includeBreakdown: true });
-    expect(pts.tier).toBe(3);
-    expect(pts.baseline).toBeGreaterThan(25);
-    expect(pts.baseline).toBeLessThanOrEqual(BASE_CAP);
-    // No cities/provinces exist for it yet, so the total is just the baseline.
-    expect(pts.total).toBe(pts.baseline);
+    expect(pts.tier).toBe('antarctica');
+    expect(pts.baseline).toBe(AQ_OVERRIDE_POINTS);
+    expect(pts.explorerCeiling).toBe(0);
+    expect(pts.total).toBe(AQ_OVERRIDE_POINTS);
   });
 
-  test('scores higher the further you travel to reach it', () => {
+  test('scores the same regardless of home country', () => {
+    // Almost all Antarctic tourism funnels through the same expedition
+    // gateways regardless of where the traveler started, so unlike every
+    // other country, distance-from-home isn't a meaningful difficulty
+    // signal here — the override is deliberately flat for everyone.
     const argentina = {
       code: 'AR', name: 'Argentina', region: 'South America',
       population: 45195774, annual_tourists: 7399000, area_km2: 2780400, lat: -34.6, lng: -58.38,
     };
     const fromUK = getBaseline(antarctica, homeGB, allWithAq);
     const fromArgentina = getBaseline(antarctica, argentina, allWithAq);
-    // Buenos Aires is far closer to the pole than London, so it's worth less there.
-    expect(fromUK).toBeGreaterThan(fromArgentina);
+    expect(fromUK).toBe(fromArgentina);
+    expect(fromUK).toBe(AQ_OVERRIDE_POINTS);
   });
 
   test('the tourism ratio contributes almost nothing (no permanent population)', () => {
     // Far more tourists than residents → the difficulty score is ~0, by design.
+    // getTourismScore itself is unaffected by the override — it's just never
+    // used for Antarctica's actual score anymore.
     expect(getTourismScore(antarctica)).toBeLessThan(1);
   });
 
-  test('breakdown explains the no-permanent-population scoring honestly', () => {
+  test('breakdown explains the flat override honestly instead of running the broken tourism-ratio math', () => {
     const pts = calculateCountryPoints(antarctica, homeGB, allWithAq, { allCities: [], includeBreakdown: true });
-    expect(pts.breakdown.tourism.difficulty).toBe('Extremely hard to reach');
-    expect(pts.breakdown.tourism.explanation).toMatch(/no permanent population/i);
+    expect(pts.breakdown.isFlatOverride).toBe(true);
+    expect(pts.breakdown.explanation).toMatch(/no permanent population/i);
+    expect(pts.breakdown.explanation).toContain(String(AQ_OVERRIDE_POINTS));
     // Never the absurd "very easy to visit" the raw ratio would otherwise print.
-    expect(pts.breakdown.tourism.difficulty).not.toMatch(/easy/i);
+    expect(pts.breakdown.explanation).not.toMatch(/easy to visit/i);
   });
 });
 

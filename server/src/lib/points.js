@@ -1,24 +1,47 @@
 /**
- * Travel Points Calculation Engine — Distance-Based Rebalance
+ * Travel Points Calculation Engine — Danger/Explore-Base Redesign
  *
- * Base points:     distance_multiplier × (tourism_score + size_score)
- * Explorer ceiling: baseline × log10(area / regional_value + 1)
+ * Visit base (shown score): distance_multiplier × (tourism_score + danger_score)
+ * Explore base (ceiling driver only, never shown): distance_multiplier × (tourism_score + danger_score + size_score)
+ * Explorer ceiling: explore_base × log10(area / regional_value + 1)
+ * Country total: max(FLOOR, visit_base + exploration_points + city_points + subregion_bonus) — FLOOR applies
+ *   to the total, not the visit base, so close/easy countries stay differentiated instead of clustering.
  *
- * Distance replaces the old regional multiplier table.
- * Tourism score is log-scaled and capped.
- * Explorer uses inverse-population regional values.
+ * Size no longer feeds the visible score — it only feeds the explorer ceiling, since "how much is there
+ * to see" is a legitimate reason for size to matter even though "how hard was it to get here" isn't.
+ * Danger score comes from a per-country advisory_level (1–4), not crime statistics — see
+ * docs/features/points-redesign.md for why crime data breaks on cases like North Korea.
+ * Province/experience points are weighted population-INVERSE: less-visited places are worth more,
+ * not less. North Korea and Antarctica are explicit overrides, not formula-driven — see the same doc.
  *
- * See docs/points-rebalance-plan.md for full spec.
+ * See docs/points-rebalance-plan.md for the original distance-based rebalance, and
+ * docs/features/points-redesign.md for the full spec and worked examples behind this rewrite.
  */
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-export const TOURISM_WEIGHT = 3.0;
+export const TOURISM_WEIGHT = 5.0;
 export const TOURISM_CAP = 20.0;
 export const SIZE_WEIGHT = 2.0;
-export const FLOOR = 5.0;
+export const DANGER_CAP = 6.0;
+export const FLOOR = 1.0; // applied to the country TOTAL, not the visit base — see module docstring
 export const BASE_CAP = 200.0;
+export const FLOOR_POP = 100000; // minimum population used in province/experience weighting, prevents a near-zero-population province from dominating
 const EUROPE_ANCHOR = 50000;
+
+// Antarctica: flat override, same for every user regardless of home country.
+// No usable population/tourism data exists for it, and almost all Antarctic
+// tourism funnels through the same expedition gateways regardless of where
+// the traveler started — distance-from-home isn't a meaningful difficulty
+// signal here the way it is for every other country. See antarctica.md +
+// docs/features/points-redesign.md for the full reasoning.
+export const AQ_OVERRIDE_POINTS = 100;
+
+// North Korea: no genuine tourist access to provinces/cities, and no seed
+// data to explore even if there were — the explorer ceiling would otherwise
+// be unearnable fiction. Visit base (tourism + danger) is still fully
+// formula-driven; only exploration is zeroed.
+export const NO_EXPLORATION_OVERRIDE = new Set(['KP']);
 
 // ── Country tier classification ─────────────────────────────────────────────
 
@@ -68,6 +91,7 @@ export const MICROSTATE_POINTS = {
 };
 
 export function getCountryTier(code) {
+  if (code === 'AQ') return 'antarctica';
   if (MICROSTATE_POINTS[code] !== undefined) return 'microstate';
   if (TIER_0_CODES.has(code)) return 0;
   if (TIER_1_CODES.has(code)) return 1;
@@ -122,7 +146,22 @@ export function getTourismScore(country) {
   return Math.min(raw, TOURISM_CAP);
 }
 
+// ── Danger score ─────────────────────────────────────────────────────────────
+// From a per-country advisory_level (1 = no restrictions .. 4 = advise against
+// all travel) — a blended consensus of government travel-advisory feeds, NOT
+// crime statistics. Crime data actively misleads here: authoritarian states
+// with total internal control often report near-zero violent crime, which
+// would make somewhere like North Korea look safer than reality. Advisory
+// levels already fold in political risk, detainment risk, and unrest, which
+// is what "danger" needs to mean for this formula.
+
+export function getDangerScore(country) {
+  const level = Number(country.advisory_level) || 1;
+  return (level - 1) / 3 * DANGER_CAP;
+}
+
 // ── Size score ──────────────────────────────────────────────────────────────
+// No longer part of the visible visit score — only feeds getExploreBase below.
 
 export function getSizeScore(country) {
   const area = Number(country.area_km2) || 1;
@@ -130,16 +169,31 @@ export function getSizeScore(country) {
 }
 
 // ── Base points ─────────────────────────────────────────────────────────────
+// Two numbers: getBaseline is the visit base shown to the user (no size).
+// getExploreBase is used only to drive the explorer ceiling (includes size).
 
 export function getBaseline(country, homeCountry, _allCountries) {
   const tier = getCountryTier(country.code);
   if (tier === 'microstate') return MICROSTATE_POINTS[country.code];
+  if (tier === 'antarctica') return AQ_OVERRIDE_POINTS;
 
   const distMult = getDistanceMultiplier(homeCountry, country);
   const tourism = getTourismScore(country);
+  const danger = getDangerScore(country);
+  const raw = distMult * (tourism + danger);
+  return Math.min(BASE_CAP, round2(raw));
+}
+
+export function getExploreBase(country, homeCountry) {
+  const tier = getCountryTier(country.code);
+  if (tier === 'microstate' || tier === 'antarctica') return 0;
+
+  const distMult = getDistanceMultiplier(homeCountry, country);
+  const tourism = getTourismScore(country);
+  const danger = getDangerScore(country);
   const size = getSizeScore(country);
-  const raw = distMult * (tourism + size);
-  return Math.max(FLOOR, Math.min(BASE_CAP, round2(raw)));
+  const raw = distMult * (tourism + danger + size);
+  return Math.min(BASE_CAP, round2(raw));
 }
 
 // ── Inverse regional values ─────────────────────────────────────────────────
@@ -178,17 +232,38 @@ export function computeRegionalValues(allCountries) {
 }
 
 // ── Explorer ceiling ────────────────────────────────────────────────────────
-// Log-scaled: baseline × log10(area / regional_value + 1)
-// Prevents massive countries from getting astronomical explorer points.
+// Log-scaled: explore_base × log10(area / regional_value + 1)
+// Driven by explore_base (includes size), not the visible visit base, so a
+// dangerous-but-accessible country stays more rewarding to fully explore —
+// danger raises both numbers, size only raises this one.
 
-export function getExplorerCeiling(baseline, country, allCountries) {
+export function getExplorerCeiling(exploreBase, country, allCountries) {
   const tier = getCountryTier(country.code);
-  if (tier === 'microstate') return 0;
+  if (tier === 'microstate' || tier === 'antarctica') return 0;
+  if (NO_EXPLORATION_OVERRIDE.has(country.code)) return 0;
 
   const regionalValues = computeRegionalValues(allCountries);
   const rv = regionalValues[country.region] || EUROPE_ANCHOR;
   const area = Number(country.area_km2) || 1;
-  return round2(baseline * Math.log10(area / rv + 1));
+  return round2(exploreBase * Math.log10(area / rv + 1));
+}
+
+// ── Province/experience weighting ───────────────────────────────────────────
+// Population-INVERSE: a province fewer people live in is worth more, not
+// less — the old model rewarded visiting the capital over anywhere rural,
+// which was backwards. Log-dampened (same philosophy as every other log
+// scale in this file) so a near-zero-population province doesn't swallow
+// the whole ceiling; FLOOR_POP sets the minimum population used in the
+// weighting itself. Weights are normalized to sum to 1, so the total
+// available across all provinces still equals the full explorer ceiling.
+
+export function getProvinceWeights(allProvinces, nationalPop) {
+  const rawWeights = allProvinces.map(p => {
+    const pop = Math.max(Number(p.population) || 0, FLOOR_POP);
+    return Math.log10(nationalPop / pop + 1);
+  });
+  const total = rawWeights.reduce((s, w) => s + w, 0) || 1;
+  return rawWeights.map(w => w / total);
 }
 
 // ── Province points (Tiers 1 & 2) ──────────────────────────────────────────
@@ -205,16 +280,15 @@ export function getCityPointValue(city) {
 export function calculateProvinceExploration(explorerCeiling, country, allProvinces, visitedProvinces, allCities, visitedCities) {
   const nationalPop = Number(country.population) || 1;
   const visitedCodes = new Set(visitedProvinces.map(p => p.code));
+  const weights = getProvinceWeights(allProvinces, nationalPop);
 
   let totalExplorerPoints = 0;
   const provinceBreakdown = [];
 
-  for (const province of allProvinces) {
-    const provincePop = Number(province.population) || 0;
-    const x = (provincePop / nationalPop) * explorerCeiling;
+  allProvinces.forEach((province, i) => {
+    const x = weights[i] * explorerCeiling;
     const visited = visitedCodes.has(province.code);
-    const basePoints = visited ? x : 0;
-    const total = basePoints;
+    const total = visited ? x : 0;
     totalExplorerPoints += total;
 
     provinceBreakdown.push({
@@ -224,7 +298,7 @@ export function calculateProvinceExploration(explorerCeiling, country, allProvin
       maxPoints: round2(x),
       earnedPoints: round2(total),
     });
-  }
+  });
 
   const maxPossible = explorerCeiling;
   const explored = maxPossible > 0 ? Math.min(totalExplorerPoints / maxPossible, 1.0) : 0;
@@ -249,6 +323,7 @@ export function calculateTier0ProvinceExploration(
   const visitedProvinceCodes = new Set(visitedProvinces.map(p => p.code));
   const visitedCityIds = new Set(visitedCities.map(c => c.id));
   const visitedExpIds = new Set(visitedExperienceIds);
+  const weights = getProvinceWeights(allProvinces, nationalPop);
 
   const citiesByProvince = {};
   for (const city of allCities) {
@@ -264,9 +339,8 @@ export function calculateTier0ProvinceExploration(
   let totalCeiling = 0;
   const provinceBreakdown = [];
 
-  for (const province of allProvinces) {
-    const provincePop = Number(province.population) || 0;
-    const x = (provincePop / nationalPop) * explorerCeiling;
+  allProvinces.forEach((province, i) => {
+    const x = weights[i] * explorerCeiling;
     const visited = visitedProvinceCodes.has(province.code);
 
     const experiences = experiencesByProvince[province.code] || [];
@@ -304,7 +378,7 @@ export function calculateTier0ProvinceExploration(
       cities: { max: round2(cityMax), earned: round2(cityEarned) },
       percentExplored: totalAvailable > 0 ? round4(totalEarnedForProvince / totalAvailable) : 0,
     });
-  }
+  });
 
   const explored = totalCeiling > 0 ? Math.min(totalEarned / totalCeiling, 1.0) : 0;
 
@@ -322,6 +396,9 @@ export function calculateTier0ProvinceExploration(
 export function calculateTier0SubregionBonus(explorerCeiling, country, allProvinces, visitedProvinces) {
   const nationalPop = Number(country.population) || 1;
   const visitedCodes = new Set(visitedProvinces.map(p => p.code));
+  const weights = getProvinceWeights(allProvinces, nationalPop);
+  const weightByCode = {};
+  allProvinces.forEach((p, i) => { weightByCode[p.code] = weights[i]; });
 
   const bySubregion = {};
   for (const p of allProvinces) {
@@ -332,7 +409,7 @@ export function calculateTier0SubregionBonus(explorerCeiling, country, allProvin
   let totalBonus = 0;
   const subregionBreakdown = [];
   for (const [name, provinces] of Object.entries(bySubregion)) {
-    const sumX = provinces.reduce((s, p) => s + ((Number(p.population) || 0) / nationalPop) * explorerCeiling, 0);
+    const sumX = provinces.reduce((s, p) => s + weightByCode[p.code] * explorerCeiling, 0);
     const bonus = round2(TIER0_SUBREGION_BONUS_RATIO * sumX);
     const visitedCount = provinces.filter(p => visitedCodes.has(p.code)).length;
     const complete = provinces.length > 0 && visitedCount === provinces.length;
@@ -394,6 +471,13 @@ export function getTourismDifficulty(population, annualTourists) {
   return { label: 'Extremely hard to visit', ratio: `roughly 1 tourist for every ${Math.round(ratio).toLocaleString()} people` };
 }
 
+export function getDangerDifficulty(advisoryLevel) {
+  if (advisoryLevel >= 4) return 'Advised against all travel';
+  if (advisoryLevel === 3) return 'Advised against travel to parts of the country';
+  if (advisoryLevel === 2) return 'Some heightened risk';
+  return 'No elevated travel risk';
+}
+
 function getDistancePercentile(distanceKm, homeCountry, allCountries) {
   if (distanceKm === null) return null;
   const distances = allCountries
@@ -414,23 +498,27 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
       explanation: `${country.name} is a microstate and receives a flat ${MICROSTATE_POINTS[country.code]} point${MICROSTATE_POINTS[country.code] !== 1 ? 's' : ''} for visiting.`,
     };
   }
+  if (tier === 'antarctica') {
+    return {
+      isMicrostate: false,
+      isFlatOverride: true,
+      explanation: `Antarctica has no permanent population and no real tourism data to score against, so it gets a flat ${AQ_OVERRIDE_POINTS} points for the achievement of getting there at all — the same for every traveler, regardless of where you live. Almost all Antarctic trips funnel through the same handful of expedition gateways, so distance from home isn't a meaningful difficulty signal here the way it is for every other country.`,
+    };
+  }
 
   const distKm = getDistanceKm(homeCountry, country);
   const distMult = getDistanceMultiplier(homeCountry, country);
   const tourismPts = getTourismScore(country);
+  const dangerPts = getDangerScore(country);
   const sizePts = getSizeScore(country);
   const pop = Number(country.population);
   const tourists = Number(country.annual_tourists);
   const area = Number(country.area_km2);
+  const advisoryLevel = Number(country.advisory_level) || 1;
   const percentile = getDistancePercentile(distKm, homeCountry, allCountries);
   const tourismInfo = getTourismDifficulty(pop, tourists);
   const sizeRef = getSizeComparison(area);
-
-  // Antarctica (issue #59) is the one place the tourists-vs-residents difficulty
-  // model can't describe: a whole continent with no permanent population. The
-  // score itself stays 100% formula-driven (size + distance do the work); we
-  // only override the human narrative so it doesn't read "very easy to visit".
-  const isAntarctica = country.code === 'AQ';
+  const isNoExplorationOverride = NO_EXPLORATION_OVERRIDE.has(country.code);
 
   return {
     isMicrostate: false,
@@ -446,29 +534,37 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
     tourism: {
       population: pop,
       annualTourists: tourists,
-      difficulty: isAntarctica ? 'Extremely hard to reach' : tourismInfo.label,
-      ratio: isAntarctica ? 'no permanent population — just scientists and a short tourist season' : tourismInfo.ratio,
+      difficulty: tourismInfo.label,
+      ratio: tourismInfo.ratio,
       points: round2(tourismPts),
-      explanation: isAntarctica
-        ? `Antarctica has no permanent population — only around 1,100 scientists overwinter (up to ~5,000 in summer), joined by roughly ${formatNumber(tourists)} visitors each season. There's no meaningful tourists-per-resident ratio for an entire continent, so its score comes from its sheer size and how far it is from everywhere — not the usual difficulty measure.`
-        : `${country.name} gets about ${formatNumber(tourists)} tourists a year for a population of ${formatNumber(pop)} — ${tourismInfo.ratio}`,
+      explanation: `${country.name} gets about ${formatNumber(tourists)} tourists a year for a population of ${formatNumber(pop)} — ${tourismInfo.ratio}`,
+    },
+    danger: {
+      advisoryLevel,
+      difficulty: getDangerDifficulty(advisoryLevel),
+      points: round2(dangerPts),
+      explanation: dangerPts > 0
+        ? `${country.name} carries a real travel-advisory risk, which adds ${round2(dangerPts)} points on top of its tourism difficulty.`
+        : `${country.name} has no elevated travel-advisory risk right now.`,
     },
     size: {
       areaKm2: area,
       comparison: `about the same size as ${sizeRef}`,
       points: round2(sizePts),
-      explanation: `Larger countries have more to see and take more effort to travel across`,
+      explanation: `${country.name}'s size doesn't count toward its visit score anymore — but it does widen how many bonus points are available for exploring inside it.`,
     },
     exploration: {
-      method: tier === 0 ? 'tier0' : (tier === 1 || tier === 2) ? 'provinces' : 'cities',
+      method: isNoExplorationOverride ? 'unavailable' : tier === 0 ? 'tier0' : (tier === 1 || tier === 2) ? 'provinces' : 'cities',
       ceiling: round2(explorerCeiling),
       earned: round2(explorerEarned || 0),
       ...(explorationDetail || {}),
-      explanation: tier === 0
-        ? `${country.name} is a Tier 0 nation. Visiting a state/province earns ${Math.round(TIER0_VISIT_RATIO * 100)}% of its value immediately; logging all its experiences earns the remaining ${Math.round(TIER0_EXPERIENCE_RATIO * 100)}%. Cities add ${CITY_MAJOR_POINTS} pts (major) or ${CITY_ADDITIONAL_POINTS} pts (additional) on top, and visiting every state in a sub-region earns a bonus.`
-        : (tier === 1 || tier === 2)
-          ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
-          : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
+      explanation: isNoExplorationOverride
+        ? `${country.name} has no genuine tourist access to provinces or cities, so there's no exploration bonus available — your score here comes entirely from having visited at all.`
+        : tier === 0
+          ? `${country.name} is a Tier 0 nation. Visiting a state/province earns ${Math.round(TIER0_VISIT_RATIO * 100)}% of its value immediately; logging all its experiences earns the remaining ${Math.round(TIER0_EXPERIENCE_RATIO * 100)}%. Cities add ${CITY_MAJOR_POINTS} pts (major) or ${CITY_ADDITIONAL_POINTS} pts (additional) on top, and visiting every state in a sub-region earns a bonus.`
+          : (tier === 1 || tier === 2)
+            ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points — less-visited provinces are worth more, not less. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
+            : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
     },
   };
 }
@@ -512,13 +608,32 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     return result;
   }
 
+  // Antarctica: flat points, no exploration — see docs/features/points-redesign.md
+  if (tier === 'antarctica') {
+    const result = {
+      tier: 'antarctica',
+      baseline: AQ_OVERRIDE_POINTS,
+      explorerCeiling: 0,
+      explorationPoints: 0,
+      explored: 0,
+      total: AQ_OVERRIDE_POINTS,
+    };
+    if (includeBreakdown) {
+      result.breakdown = getScoreBreakdown(country, homeCountry, allCountries, 0, 0, null);
+    }
+    return result;
+  }
+
   // homeCountry can be a country object or a region string (legacy)
   // If it's a string (region), we can't compute distance — use fallback
   const homeObj = typeof homeCountry === 'object' ? homeCountry : null;
   const baseline = homeObj
     ? getBaseline(country, homeObj, allCountries)
     : getBaseline(country, homeCountry, allCountries);
-  const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
+  const exploreBase = homeObj
+    ? getExploreBase(country, homeObj)
+    : getExploreBase(country, homeCountry);
+  const explorerCeiling = getExplorerCeiling(exploreBase, country, allCountries);
 
   let explorationPoints = 0;
   let explored = 0;
@@ -545,6 +660,9 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
   // City bonus applies to all tiers: 0.5 pts (major) or 0.25 pts (Tier 0 additional) per visited city
   const cityPoints = calculateCityPoints(visitedCities);
 
+  // FLOOR applies to the country TOTAL, not the visit base — see module docstring
+  const total = Math.max(FLOOR, round2(baseline + explorationPoints + cityPoints + subregionBonus.totalBonus));
+
   const pointsResult = {
     tier,
     baseline: round2(baseline),
@@ -552,7 +670,7 @@ export function calculateCountryPoints(country, homeCountry, allCountries, opts 
     explorationPoints: round2(explorationPoints),
     cityPoints: round2(cityPoints),
     explored: round4(explored),
-    total: round2(baseline + explorationPoints + cityPoints + subregionBonus.totalBonus),
+    total,
     ...(provinceBreakdown ? { provinceBreakdown } : {}),
     ...(tier === 0 ? { subregionBonus: subregionBonus.totalBonus, subregionBreakdown: subregionBonus.subregionBreakdown } : {}),
   };

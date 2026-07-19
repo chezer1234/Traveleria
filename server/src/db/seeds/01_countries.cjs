@@ -314,6 +314,20 @@ const SUBREGIONS = {
   WS: 'Polynesia', TO: 'Polynesia', TV: 'Polynesia',
 };
 
+// ── Advisory levels (points redesign, docs/features/points-redesign.md) ─────
+// 1 = no restrictions, 4 = advisor against all travel. Sourced from general
+// knowledge of current travel-advisory posture for the countries this
+// feature has actually been discussed and tested against — NOT a real blend
+// of government advisory feeds yet (see the feature doc's Open Questions).
+// Every country not listed here defaults to 1 via the column's DB default.
+const ADVISORY_LEVELS = {
+  KP: 4, AF: 4, SY: 4, SO: 4, YE: 4, ML: 4,
+  IR: 3, RU: 3, MM: 3, VE: 3, HT: 3, LY: 3,
+  MX: 2, BR: 2, EG: 2, TR: 2, PH: 2, ZA: 2, IN: 2,
+  TH: 1, LA: 1, US: 1, CN: 1, JP: 1, FR: 1, BE: 1,
+  AU: 1, NZ: 1, CH: 1, ES: 1, IS: 1, DE: 1, MT: 1, GB: 1,
+};
+
 /**
  * @param {import('knex').Knex} knex
  */
@@ -343,13 +357,25 @@ exports.seed = async function (knex) {
       console.log('Countries already seeded, skipping.');
     }
 
+    // Patch advisory_level on the countries this feature has been tested
+    // against. The column defaults to 1 for everyone (via the migration),
+    // so this always re-applies the non-default entries — cheap, and safe
+    // to run every time the seed executes.
+    console.log('Updating countries with advisory_level data...');
+    await knex.transaction(async (trx) => {
+      for (const [code, advisory_level] of Object.entries(ADVISORY_LEVELS)) {
+        await trx('countries').where({ code }).update({ advisory_level });
+      }
+    });
+    console.log('Countries advisory_level updated.');
+
     // Patch: insert any countries added to the seed after the initial load
     // (e.g. Antarctica, issue #59). Idempotent — only inserts codes not
     // already present, so re-running the seed on a live DB is safe.
     const existingCodes = new Set(await knex('countries').pluck('code'));
     const missing = countries
       .filter(c => !existingCodes.has(c.code))
-      .map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null }));
+      .map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null, advisory_level: ADVISORY_LEVELS[c.code] || 1 }));
     if (missing.length > 0) {
       console.log(`Inserting ${missing.length} new countr${missing.length === 1 ? 'y' : 'ies'}: ${missing.map(c => c.code).join(', ')}`);
       await knex('countries').insert(missing);
@@ -360,7 +386,11 @@ exports.seed = async function (knex) {
 
   // Insert in a single transaction to avoid per-batch autocommit overhead
   const batchSize = 50;
-  const countriesWithSubregion = countries.map(c => ({ ...c, subregion: SUBREGIONS[c.code] || null }));
+  const countriesWithSubregion = countries.map(c => ({
+    ...c,
+    subregion: SUBREGIONS[c.code] || null,
+    advisory_level: ADVISORY_LEVELS[c.code] || 1,
+  }));
   await knex.transaction(async (trx) => {
     for (let i = 0; i < countriesWithSubregion.length; i += batchSize) {
       await trx('countries').insert(countriesWithSubregion.slice(i, i + batchSize));

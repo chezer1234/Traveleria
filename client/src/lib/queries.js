@@ -10,7 +10,9 @@ import {
   calculateTotalTravelPoints,
   getBaseline,
   getCountryTier,
+  getExploreBase,
   getExplorerCeiling,
+  getProvinceWeights,
   getCityPercentage,
   getScoreBreakdown,
   calculateSubregionBonuses,
@@ -21,7 +23,7 @@ import { rankMostLeastVisited } from './globalStats.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
-const COUNTRY_COLS = 'code, name, region, subregion, population, annual_tourists, area_km2, lat, lng';
+const COUNTRY_COLS = 'code, name, region, subregion, population, annual_tourists, area_km2, lat, lng, advisory_level';
 
 async function loadAllCountries(db) {
   return db.all(`SELECT ${COUNTRY_COLS} FROM countries ORDER BY name`);
@@ -238,7 +240,8 @@ export async function getCountryLocal(db, code, homeCountryCode) {
 
   const tier = getCountryTier(country.code);
   const baseline = getBaseline(country, home, allCountries);
-  const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
+  const exploreBase = getExploreBase(country, home);
+  const explorerCeiling = getExplorerCeiling(exploreBase, country, allCountries);
 
   const cities = await loadCitiesForCountry(db, country.code);
   const citiesWithPercentage = cities.map((city) => ({
@@ -258,14 +261,15 @@ export async function getCountryLocal(db, code, homeCountryCode) {
       [country.code],
     );
     const nationalPop = Number(country.population) || 1;
-    provinces = rawProvinces.map((p) => ({
+    const provinceWeights = getProvinceWeights(rawProvinces, nationalPop);
+    provinces = rawProvinces.map((p, i) => ({
       code: p.code,
       name: p.name,
       population: p.population,
       area_km2: p.area_km2,
       disputed: p.disputed,
       subregion: p.subregion,
-      maxPoints: Math.round(((Number(p.population) / nationalPop) * explorerCeiling) * 100) / 100,
+      maxPoints: Math.round((provinceWeights[i] * explorerCeiling) * 100) / 100,
     }));
 
     if (tier === 0) {

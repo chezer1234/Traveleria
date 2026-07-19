@@ -4,7 +4,9 @@ import {
   getBaseline,
   getCityPercentage,
   getCountryTier,
+  getExploreBase,
   getExplorerCeiling,
+  getProvinceWeights,
   getScoreBreakdown,
 } from '../lib/points.js';
 
@@ -17,7 +19,7 @@ router.get('/', async (req, res) => {
   try {
     console.log('[countries] Starting query...');
     const allCountries = await db('countries')
-      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng')
+      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level')
       .orderBy('name');
     console.log(`[countries] Query done: ${allCountries.length} rows in ${Date.now() - t0}ms`);
 
@@ -56,13 +58,14 @@ router.get('/:code', async (req, res) => {
     }
 
     const allCountries = await db('countries')
-      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng');
+      .select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level');
     const homeCountryCode = (req.query.home_country || '').toUpperCase();
     const homeCountry = allCountries.find(c => c.code === homeCountryCode);
 
     const tier = getCountryTier(country.code);
     const baseline = getBaseline(country, homeCountry, allCountries);
-    const explorerCeiling = getExplorerCeiling(baseline, country, allCountries);
+    const exploreBase = getExploreBase(country, homeCountry);
+    const explorerCeiling = getExplorerCeiling(exploreBase, country, allCountries);
 
     const cities = await db('cities').where({ country_code: country.code }).orderBy('population', 'desc');
     const citiesWithPercentage = cities.map(city => ({
@@ -80,14 +83,15 @@ router.get('/:code', async (req, res) => {
     if (tier === 0 || tier === 1 || tier === 2) {
       const rawProvinces = await db('provinces').where({ country_code: country.code }).orderBy('population', 'desc');
       const nationalPop = Number(country.population) || 1;
-      provinces = rawProvinces.map(p => ({
+      const provinceWeights = getProvinceWeights(rawProvinces, nationalPop);
+      provinces = rawProvinces.map((p, i) => ({
         code: p.code,
         name: p.name,
         population: p.population,
         area_km2: p.area_km2,
         disputed: p.disputed,
         subregion: p.subregion,
-        maxPoints: Math.round(((Number(p.population) / nationalPop) * explorerCeiling) * 100) / 100,
+        maxPoints: Math.round((provinceWeights[i] * explorerCeiling) * 100) / 100,
       }));
 
       if (tier === 0) {

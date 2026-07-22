@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traveleria — Logo &amp; App Icon Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6f1e7; --ink: #2b2a26; --ink-soft: #6b675c;
+    --compass: #3e5f45; --gold: #c9a227; --hairline: #d9d2c0;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: Inter, system-ui, sans-serif; padding: 48px 24px 96px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-family: Fraunces, serif; font-weight: 900; font-size: 2.4rem; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-soft); margin-top: 10px; max-width: 62ch; line-height: 1.55; }
+  .howto { margin-top: 18px; padding: 14px 18px; border: 1.5px solid var(--gold); border-radius: 10px; background: #fff9ea; font-size: 0.92rem; line-height: 1.5; }
+  .grid { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 28px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #fffdf8; border: 1.5px solid var(--hairline); border-radius: 16px; padding: 24px; }
+  .card h2 { font-family: Fraunces, serif; font-size: 1.3rem; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'Space Grotesk', monospace; font-size: 0.85rem; color: var(--gold); font-weight: 700; }
+  .feature { display: inline-block; margin-top: 6px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--compass); background: #e9efe6; border-radius: 999px; padding: 3px 10px; }
+  .card p { margin-top: 10px; font-size: 0.9rem; color: var(--ink-soft); line-height: 1.5; }
+  .previews { margin-top: 18px; display: flex; gap: 14px; align-items: stretch; }
+  .hero img { width: 168px; height: 168px; display: block; }
+  .sizes { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .strip { flex: 1; display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 12px; }
+  .strip.light { background: #ffffff; border: 1px solid var(--hairline); }
+  .strip.dark  { background: #070d18; }
+  .strip img { display: block; }
+  .strip .label { margin-left: auto; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .strip.light .label { color: var(--ink-soft); }
+  .strip.dark .label { color: #7a8aa0; }
+  .lockup { flex: 1; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--hairline); }
+  .lockup img { width: 34px; height: 34px; }
+  .wordmark { font-family: Fraunces, serif; font-weight: 900; font-size: 1.45rem; letter-spacing: -0.01em; }
+  .wordmark .accent { color: var(--gold); }
+  footer { margin-top: 56px; color: var(--ink-soft); font-size: 0.85rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Traveleria — logo &amp; app icon concepts</h1>
+  <p class="sub">
+    Ten candidate marks to replace the stock Vite favicon and give Traveleria a real identity.
+    Each one is a single SVG that works as the browser favicon, the PWA/app icon, and the mark
+    beside the wordmark. Every concept is built from a <em>feature we actually shipped</em> —
+    the logo should promise the fun, not just decorate it.
+  </p>
+  <p class="howto"><strong>Charlie — how to pick:</strong> squint at the 16&nbsp;px row (that's the browser tab),
+    then look at the big tile (that's the home-screen icon). The winner needs to survive both.
+    Comment on the PR with the number you want — or a top three and what you'd change.</p>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2><span class="num">01</span> Passport Stamp</h2>
+      <span class="feature">Passport stamps · Atlas</span>
+      <p>The entry stamp every logged country earns you, promoted to brand mark. Tilted like it was
+      actually thumped onto the page. The ring reads TRAVELERIA · 195 NATIONS.</p>
+      <div class="previews">
+        <div class="hero"><img src="01-passport-stamp.svg" alt="Passport stamp mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="01-passport-stamp.svg" width="48" height="48" alt=""><img src="01-passport-stamp.svg" width="32" height="32" alt=""><img src="01-passport-stamp.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="01-passport-stamp.svg" width="48" height="48" alt=""><img src="01-passport-stamp.svg" width="32" height="32" alt=""><img src="01-passport-stamp.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="01-passport-stamp.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">02</span> Tug-of-War World</h2>
+      <span class="feature">Territory battles</span>
+      <p>The world split down a jagged front line between you and your rival, contested star on the
+      border, and the battle screen's tug-of-war bar underneath. The most "come fight me" of the ten.</p>
+      <div class="previews">
+        <div class="hero"><img src="02-territory-battle.svg" alt="Territory battle mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="02-territory-battle.svg" width="48" height="48" alt=""><img src="02-territory-battle.svg" width="32" height="32" alt=""><img src="02-territory-battle.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="02-territory-battle.svg" width="48" height="48" alt=""><img src="02-territory-battle.svg" width="32" height="32" alt=""><img src="02-territory-battle.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="02-territory-battle.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">03</span> Trophy Globe</h2>
+      <span class="feature">46-trophy cabinet</span>
+      <p>A gold cup whose bowl is the world itself: travel the world, win the world. Nods straight
+      at the bronze→platinum honours system.</p>
+      <div class="previews">
+        <div class="hero"><img src="03-trophy-globe.svg" alt="Trophy globe mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="03-trophy-globe.svg" width="48" height="48" alt=""><img src="03-trophy-globe.svg" width="32" height="32" alt=""><img src="03-trophy-globe.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="03-trophy-globe.svg" width="48" height="48" alt=""><img src="03-trophy-globe.svg" width="32" height="32" alt=""><img src="03-trophy-globe.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="03-trophy-globe.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">04</span> Boarding Pass</h2>
+      <span class="feature">Boarding-pass pages · Jetstream</span>
+      <p>Jetstream's tear-off ticket with a big T, perforation and barcode stub. Every country is a
+      ticket to somewhere. Bold travel-game energy in teal and amber.</p>
+      <div class="previews">
+        <div class="hero"><img src="04-boarding-pass.svg" alt="Boarding pass mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="04-boarding-pass.svg" width="48" height="48" alt=""><img src="04-boarding-pass.svg" width="32" height="32" alt=""><img src="04-boarding-pass.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="04-boarding-pass.svg" width="48" height="48" alt=""><img src="04-boarding-pass.svg" width="32" height="32" alt=""><img src="04-boarding-pass.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="04-boarding-pass.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">05</span> The Great Circle</h2>
+      <span class="feature">Distance scoring</span>
+      <p>A dashed great-circle route leaves your home pin and lands in a points burst — the further
+      you fly, the bigger the bang. This is the scoring engine drawn as one picture.</p>
+      <div class="previews">
+        <div class="hero"><img src="05-great-circle.svg" alt="Great circle mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="05-great-circle.svg" width="48" height="48" alt=""><img src="05-great-circle.svg" width="32" height="32" alt=""><img src="05-great-circle.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="05-great-circle.svg" width="48" height="48" alt=""><img src="05-great-circle.svg" width="32" height="32" alt=""><img src="05-great-circle.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="05-great-circle.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">06</span> Dot-Matrix Earth</h2>
+      <span class="feature">World map · Orbit</span>
+      <p>Orbit's glowing mission-control globe. Bright dots are countries you've logged; the pink
+      dot is the next target. The only dark-native mark of the ten — unmissable in a tab row.</p>
+      <div class="previews">
+        <div class="hero"><img src="06-dot-matrix-earth.svg" alt="Dot matrix earth mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="06-dot-matrix-earth.svg" width="48" height="48" alt=""><img src="06-dot-matrix-earth.svg" width="32" height="32" alt=""><img src="06-dot-matrix-earth.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="06-dot-matrix-earth.svg" width="48" height="48" alt=""><img src="06-dot-matrix-earth.svg" width="32" height="32" alt=""><img src="06-dot-matrix-earth.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="06-dot-matrix-earth.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">07</span> Compass Rose</h2>
+      <span class="feature">The expedition atlas</span>
+      <p>The heirloom atlas distilled to one instrument: an engraved eight-point rose with a gold
+      north needle. The most timeless of the set — it'll still look right in ten years.</p>
+      <div class="previews">
+        <div class="hero"><img src="07-compass-rose.svg" alt="Compass rose mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="07-compass-rose.svg" width="48" height="48" alt=""><img src="07-compass-rose.svg" width="32" height="32" alt=""><img src="07-compass-rose.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="07-compass-rose.svg" width="48" height="48" alt=""><img src="07-compass-rose.svg" width="32" height="32" alt=""><img src="07-compass-rose.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="07-compass-rose.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">08</span> Pin Planet</h2>
+      <span class="feature">Log where you've been</span>
+      <p>A map pin whose head is the whole world, on a bold gold field. The simplest and loudest
+      mark here — reads instantly at 16&nbsp;px, impossible to mistake for anything else.</p>
+      <div class="previews">
+        <div class="hero"><img src="08-pin-planet.svg" alt="Pin planet mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="08-pin-planet.svg" width="48" height="48" alt=""><img src="08-pin-planet.svg" width="32" height="32" alt=""><img src="08-pin-planet.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="08-pin-planet.svg" width="48" height="48" alt=""><img src="08-pin-planet.svg" width="32" height="32" alt=""><img src="08-pin-planet.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="08-pin-planet.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">09</span> XP Badge</h2>
+      <span class="feature">Points · tiers · unlockable styles</span>
+      <p>The game layer as a hexagonal achievement badge: globe, rank chevron, and a points burst
+      pinned to the corner. For the version of Traveleria that's proudly a game.</p>
+      <div class="previews">
+        <div class="hero"><img src="09-xp-badge.svg" alt="XP badge mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="09-xp-badge.svg" width="48" height="48" alt=""><img src="09-xp-badge.svg" width="32" height="32" alt=""><img src="09-xp-badge.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="09-xp-badge.svg" width="48" height="48" alt=""><img src="09-xp-badge.svg" width="32" height="32" alt=""><img src="09-xp-badge.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="09-xp-badge.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">10</span> Paper Plane Orbit</h2>
+      <span class="feature">The joy of going places</span>
+      <p>A paper plane lapping a little world on a dashed orbit. No single feature — this one sells
+      the feeling: going places is one of the best things humans do.</p>
+      <div class="previews">
+        <div class="hero"><img src="10-paper-plane-orbit.svg" alt="Paper plane orbit mark, large"></div>
+        <div class="sizes">
+          <div class="strip light"><img src="10-paper-plane-orbit.svg" width="48" height="48" alt=""><img src="10-paper-plane-orbit.svg" width="32" height="32" alt=""><img src="10-paper-plane-orbit.svg" width="16" height="16" alt=""><span class="label">Tab · light</span></div>
+          <div class="strip dark"><img src="10-paper-plane-orbit.svg" width="48" height="48" alt=""><img src="10-paper-plane-orbit.svg" width="32" height="32" alt=""><img src="10-paper-plane-orbit.svg" width="16" height="16" alt=""><span class="label">Tab · dark</span></div>
+          <div class="lockup"><img src="10-paper-plane-orbit.svg" alt=""><span class="wordmark">Travel<span class="accent">eria</span></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>All ten are hand-authored SVG on a 512×512 grid with the same rounded-square footprint, so any
+    winner drops straight in as <code>client/public/favicon.svg</code> and the PWA icon set with no rework.
+    Colours come from the app's own theme swatches (Atlas, Orbit, Jetstream). Once a direction is picked,
+    the rollout is: favicon + <code>index.html</code>, app icon sizes, the theme wordmark lockups, and the
+    README/docs headers.</p>
+  </footer>
+</div>
+</body>
+</html>

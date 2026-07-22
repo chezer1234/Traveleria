@@ -22,6 +22,11 @@ self-contained HTML file with zero JavaScript).
 > over HTTP: it imports the live geometry from `client/src/lib/trophyArt.js`), and
 > [`../features/trophies-1-6.md`](../features/trophies-1-6.md) for the feature doc.
 
+> **Logo & app icon concepts (July 2026):** ten candidate marks to replace the stock Vite
+> favicon, each built from a shipped feature (passport stamps, territory battles, the trophy
+> cabinet…) — see **[`logos/logos.html`](logos/logos.html)** for the gallery and
+> [`logos/README.md`](logos/README.md) for the rationale and rollout plan.
+
 | # | Concept | File | In one line |
 |---|---------|------|-------------|
 | 01 | **Atlas** | [`concept-1-atlas.html`](concept-1-atlas.html) | An heirloom expedition atlas — warm paper, engraved serifs, passport stamps, great-circle routes. |

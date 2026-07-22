@@ -22,10 +22,10 @@ self-contained HTML file with zero JavaScript).
 > over HTTP: it imports the live geometry from `client/src/lib/trophyArt.js`), and
 > [`../features/trophies-1-6.md`](../features/trophies-1-6.md) for the feature doc.
 
-> **Logo & app icon concepts (July 2026):** ten candidate marks to replace the stock Vite
-> favicon, each built from a shipped feature (passport stamps, territory battles, the trophy
-> cabinet…) — see **[`logos/logos.html`](logos/logos.html)** for the gallery and
-> [`logos/README.md`](logos/README.md) for the rationale and rollout plan.
+> **Logo & app icon (July 2026):** Charlie picked the **boarding-pass ticket** (concept 04)
+> from ten candidate marks, each built from a shipped feature — it's now the favicon, app icon,
+> and the mark beside every theme's wordmark. See **[`logos/logos.html`](logos/logos.html)** for
+> the full gallery and [`logos/README.md`](logos/README.md) for the rationale and rollout.
 
 | # | Concept | File | In one line |
 |---|---------|------|-------------|

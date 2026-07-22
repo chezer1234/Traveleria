@@ -1,4 +1,4 @@
-# Traveleria
+# <img src="client/public/favicon.svg" alt="" width="44" align="top"> Traveleria
 
 Track your travels. Earn points. See the world.
 

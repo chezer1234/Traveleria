@@ -48,4 +48,14 @@ Atlas paper/green/gold, Orbit navy/cyan/pink, Jetstream cream/teal/amber.
 
 ## Status
 
-**Proposal — awaiting Charlie's pick.** (July 2026)
+**Decided — Charlie picked 04 · Boarding Pass** (22 July 2026, PR #72). Rolled out as:
+
+- `client/public/favicon.svg` (the master art verbatim) + `<link rel="icon">` in `client/index.html`
+- `client/public/apple-touch-icon.png` (180×180 render on the cream field) for phone home screens
+- `BrandMark` in `client/src/themes/shared.jsx` — the ticket cropped to its bounds, notches punched
+  out with a mask — rendered beside the wordmark by all four theme `Logo` slots (it replaced
+  Orbit's orb and Antiquity's fleuron)
+- Stock `vite.svg` / `react.svg` deleted
+
+The other nine concepts are kept here for the record (and future style unlocks — a per-theme
+favicon was floated as a possible follow-up).

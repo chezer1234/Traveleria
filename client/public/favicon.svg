@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria boarding pass logo">
+  <!-- Concept 04 · Boarding Pass — Jetstream's boarding-pass country pages as the brand mark.
+       A tilted ticket with a tear-off barcode stub: every country is a ticket to somewhere. -->
+  <rect width="512" height="512" rx="112" fill="#fdfbf7"/>
+  <g transform="rotate(-7 256 256)">
+    <!-- ticket body -->
+    <rect x="66" y="158" width="380" height="196" rx="22" fill="#0f9d8f"/>
+    <!-- perforation notches punched out of the ticket -->
+    <circle cx="330" cy="158" r="17" fill="#fdfbf7"/>
+    <circle cx="330" cy="354" r="17" fill="#fdfbf7"/>
+    <line x1="330" y1="186" x2="330" y2="328" stroke="#fdfbf7" stroke-width="6" stroke-dasharray="2 16" stroke-linecap="round"/>
+    <!-- big T, drawn as shapes so no font is needed -->
+    <g fill="#fdfbf7">
+      <rect x="118" y="190" width="160" height="40" rx="8"/>
+      <rect x="177" y="190" width="42" height="112" rx="8"/>
+    </g>
+    <!-- barcode on the stub -->
+    <g fill="#fdfbf7">
+      <rect x="356" y="192" width="9" height="128"/>
+      <rect x="371" y="192" width="16" height="128"/>
+      <rect x="393" y="192" width="7" height="128"/>
+      <rect x="406" y="192" width="12" height="128"/>
+    </g>
+    <!-- route lines, like the destination row on a real pass -->
+    <rect x="118" y="314" width="120" height="13" rx="6.5" fill="#f59e0b"/>
+    <rect x="250" y="314" width="46" height="13" rx="6.5" fill="#7ed8cf"/>
+  </g>
+</svg>

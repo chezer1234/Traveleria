@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria passport stamp logo">
+  <!-- Concept 01 · Passport Stamp — the Atlas theme's signature feature as the brand mark.
+       A rubber entry stamp: every country you log gets one, so the logo IS the reward. -->
+  <rect width="512" height="512" rx="112" fill="#f6f1e7"/>
+  <g transform="rotate(-8 256 256)" fill="none" stroke="#3e5f45">
+    <circle cx="256" cy="256" r="192" stroke-width="11"/>
+    <circle cx="256" cy="256" r="173" stroke-width="4"/>
+    <circle cx="256" cy="256" r="112" stroke-width="7"/>
+    <!-- globe inside the inner circle -->
+    <ellipse cx="256" cy="256" rx="52" ry="106" stroke-width="5"/>
+    <line x1="150" y1="256" x2="362" y2="256" stroke-width="5"/>
+    <path d="M163 203 A160 160 0 0 1 349 203" stroke-width="5"/>
+    <path d="M163 309 A160 160 0 0 0 349 309" stroke-width="5"/>
+  </g>
+  <g transform="rotate(-8 256 256)">
+    <defs>
+      <path id="ring-top" d="M113,256 A143,143 0 0 1 399,256"/>
+      <path id="ring-bottom" d="M116,256 A140,140 0 0 0 396,256"/>
+    </defs>
+    <text fill="#3e5f45" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="41" letter-spacing="7">
+      <textPath href="#ring-top" startOffset="50%" text-anchor="middle">TRAVELERIA</textPath>
+    </text>
+    <text fill="#3e5f45" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="26" letter-spacing="5">
+      <textPath href="#ring-bottom" startOffset="50%" text-anchor="middle">195 NATIONS</textPath>
+    </text>
+    <!-- gold stars flanking the ring text -->
+    <g fill="#c9a227">
+      <circle cx="123" cy="313" r="9"/>
+      <circle cx="389" cy="313" r="9"/>
+    </g>
+  </g>
+</svg>

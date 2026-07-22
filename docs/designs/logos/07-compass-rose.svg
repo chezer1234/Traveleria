@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria compass rose logo">
+  <!-- Concept 07 · Compass Rose — the heirloom expedition atlas distilled to one instrument.
+       An engraved eight-point rose with a gold north needle: adventure always points somewhere new. -->
+  <style>
+    .half-light { fill: #3e5f45; }
+    .half-dark { fill: #2b4230; }
+    .c0.half-light { fill: #c9a227; }
+    .c0.half-dark { fill: #a37f16; }
+  </style>
+  <rect width="512" height="512" rx="112" fill="#f6f1e7"/>
+  <!-- dial ring and ticks -->
+  <circle cx="256" cy="256" r="188" fill="none" stroke="#3e5f45" stroke-width="8"/>
+  <g stroke="#3e5f45" stroke-linecap="round">
+    <line x1="256" y1="86" x2="256" y2="60" stroke-width="7"/>
+    <line x1="302.6" y1="82.1" x2="306.7" y2="66.7" stroke-width="4"/>
+    <line x1="346" y1="100.1" x2="354" y2="86.3" stroke-width="4"/>
+    <line x1="383.3" y1="128.7" x2="394.6" y2="117.4" stroke-width="4"/>
+    <line x1="411.9" y1="166" x2="425.7" y2="158" stroke-width="4"/>
+    <line x1="429.9" y1="209.4" x2="445.3" y2="205.3" stroke-width="4"/>
+    <line x1="426" y1="256" x2="452" y2="256" stroke-width="7"/>
+    <line x1="429.9" y1="302.6" x2="445.3" y2="306.7" stroke-width="4"/>
+    <line x1="411.9" y1="346" x2="425.7" y2="354" stroke-width="4"/>
+    <line x1="383.3" y1="383.3" x2="394.6" y2="394.6" stroke-width="4"/>
+    <line x1="346" y1="411.9" x2="354" y2="425.7" stroke-width="4"/>
+    <line x1="302.6" y1="429.9" x2="306.7" y2="445.3" stroke-width="4"/>
+    <line x1="256" y1="426" x2="256" y2="452" stroke-width="7"/>
+    <line x1="209.4" y1="429.9" x2="205.3" y2="445.3" stroke-width="4"/>
+    <line x1="166" y1="411.9" x2="158" y2="425.7" stroke-width="4"/>
+    <line x1="128.7" y1="383.3" x2="117.4" y2="394.6" stroke-width="4"/>
+    <line x1="100.1" y1="346" x2="86.3" y2="354" stroke-width="4"/>
+    <line x1="82.1" y1="302.6" x2="66.7" y2="306.7" stroke-width="4"/>
+    <line x1="86" y1="256" x2="60" y2="256" stroke-width="7"/>
+    <line x1="82.1" y1="209.4" x2="66.7" y2="205.3" stroke-width="4"/>
+    <line x1="100.1" y1="166" x2="86.3" y2="158" stroke-width="4"/>
+    <line x1="128.7" y1="128.7" x2="117.4" y2="117.4" stroke-width="4"/>
+    <line x1="166" y1="100.1" x2="158" y2="86.3" stroke-width="4"/>
+    <line x1="209.4" y1="82.1" x2="205.3" y2="66.7" stroke-width="4"/>
+  </g>
+  <!-- faint inner circle behind the rose -->
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#3e5f45" stroke-width="3" opacity="0.35"/>
+  <!-- eight-point rose, each point split light/dark for the engraved look;
+       the north point (c0) is gold -->
+  <g stroke="#f6f1e7" stroke-width="2" stroke-linejoin="round">
+    <polygon points="321.1,190.9 267.3,267.3 256,256" class="half-light c1"/>
+    <polygon points="321.1,190.9 244.7,244.7 256,256" class="half-dark c1"/>
+    <polygon points="406,256 256,282 256,256" class="half-light c2"/>
+    <polygon points="406,256 256,230 256,256" class="half-dark c2"/>
+    <polygon points="321.1,321.1 244.7,267.3 256,256" class="half-light c3"/>
+    <polygon points="321.1,321.1 267.3,244.7 256,256" class="half-dark c3"/>
+    <polygon points="256,406 230,256 256,256" class="half-light c4"/>
+    <polygon points="256,406 282,256 256,256" class="half-dark c4"/>
+    <polygon points="190.9,321.1 244.7,244.7 256,256" class="half-light c5"/>
+    <polygon points="190.9,321.1 267.3,267.3 256,256" class="half-dark c5"/>
+    <polygon points="106,256 256,230 256,256" class="half-light c6"/>
+    <polygon points="106,256 256,282 256,256" class="half-dark c6"/>
+    <polygon points="190.9,190.9 267.3,244.7 256,256" class="half-light c7"/>
+    <polygon points="190.9,190.9 244.7,267.3 256,256" class="half-dark c7"/>
+    <polygon points="256,106 282,256 256,256" class="half-light c0"/>
+    <polygon points="256,106 230,256 256,256" class="half-dark c0"/>
+  </g>
+  <circle cx="256" cy="256" r="26" fill="#c9a227" stroke="#f6f1e7" stroke-width="5"/>
+  <circle cx="256" cy="256" r="9" fill="#2b2a26"/>
+</svg>

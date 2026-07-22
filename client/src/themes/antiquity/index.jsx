@@ -1,5 +1,6 @@
 import PassportStamp from '../atlas/PassportStamp';
 import { hashCode } from '../../lib/themeArt';
+import { BrandMark } from '../shared';
 import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 import MapFrame from './MapFrame';
 
@@ -11,8 +12,8 @@ import MapFrame from './MapFrame';
 function AntiquityLogo({ className = '' }) {
   return (
     <span className={`antiquity-wordmark font-display font-bold text-ink ${className}`}>
-      <span className="antiquity-wordmark-flourish" aria-hidden="true">❦</span>
-      Travel<span className="text-gold">eria</span>
+      <BrandMark className="h-[1.02em] w-auto shrink-0" />
+      <span>Travel<span className="text-gold">eria</span></span>
     </span>
   );
 }

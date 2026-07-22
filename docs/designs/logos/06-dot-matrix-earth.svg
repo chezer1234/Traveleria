@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria dot matrix earth logo">
+  <!-- Concept 06 · Dot-Matrix Earth — Orbit's glowing mission-control globe as the brand mark.
+       Bright dots are countries you've logged; the pink dot is the next target. -->
+  <style>
+    .bright { fill: #38e1ff; }
+    .dim { fill: #38e1ff; opacity: 0.28; }
+  </style>
+  <rect width="512" height="512" rx="112" fill="#070d18"/>
+  <g>
+    <circle cx="177" cy="111" r="9" class="bright"/>
+    <circle cx="210" cy="111" r="9" class="dim"/>
+    <circle cx="243" cy="111" r="9" class="dim"/>
+    <circle cx="276" cy="111" r="9" class="bright"/>
+    <circle cx="309" cy="111" r="9" class="bright"/>
+    <circle cx="342" cy="111" r="9" class="dim"/>
+    <circle cx="144" cy="144" r="9" class="dim"/>
+    <circle cx="177" cy="144" r="9" class="dim"/>
+    <circle cx="210" cy="144" r="9" class="bright"/>
+    <circle cx="243" cy="144" r="9" class="dim"/>
+    <circle cx="276" cy="144" r="9" class="bright"/>
+    <circle cx="309" cy="144" r="9" class="dim"/>
+    <circle cx="342" cy="144" r="9" class="bright"/>
+    <circle cx="375" cy="144" r="9" class="dim"/>
+    <circle cx="111" cy="177" r="9" class="bright"/>
+    <circle cx="144" cy="177" r="9" class="dim"/>
+    <circle cx="177" cy="177" r="9" class="bright"/>
+    <circle cx="210" cy="177" r="9" class="bright"/>
+    <circle cx="243" cy="177" r="9" class="bright"/>
+    <circle cx="276" cy="177" r="9" class="dim"/>
+    <circle cx="309" cy="177" r="9" class="bright"/>
+    <circle cx="342" cy="177" r="9" class="bright"/>
+    <circle cx="375" cy="177" r="9" class="dim"/>
+    <circle cx="111" cy="210" r="9" class="bright"/>
+    <circle cx="144" cy="210" r="9" class="dim"/>
+    <circle cx="177" cy="210" r="9" class="dim"/>
+    <circle cx="210" cy="210" r="9" class="bright"/>
+    <circle cx="243" cy="210" r="9" class="bright"/>
+    <circle cx="276" cy="210" r="9" class="dim"/>
+    <circle cx="309" cy="210" r="9" class="bright"/>
+    <circle cx="342" cy="210" r="9" class="dim"/>
+    <circle cx="375" cy="210" r="9" class="bright"/>
+    <circle cx="408" cy="210" r="9" class="dim"/>
+    <circle cx="111" cy="243" r="9" class="bright"/>
+    <circle cx="144" cy="243" r="9" class="dim"/>
+    <circle cx="177" cy="243" r="9" class="dim"/>
+    <circle cx="210" cy="243" r="9" class="dim"/>
+    <circle cx="243" cy="243" r="9" class="dim"/>
+    <circle cx="276" cy="243" r="9" class="dim"/>
+    <circle cx="309" cy="243" r="9" class="bright"/>
+    <circle cx="342" cy="243" r="9" class="dim"/>
+    <circle cx="375" cy="243" r="9" class="dim"/>
+    <circle cx="408" cy="243" r="9" class="dim"/>
+    <circle cx="111" cy="276" r="9" class="dim"/>
+    <circle cx="144" cy="276" r="9" class="bright"/>
+    <circle cx="177" cy="276" r="9" class="bright"/>
+    <circle cx="210" cy="276" r="9" class="bright"/>
+    <circle cx="243" cy="276" r="9" class="bright"/>
+    <circle cx="276" cy="276" r="9" class="dim"/>
+    <circle cx="309" cy="276" r="9" class="bright"/>
+    <circle cx="342" cy="276" r="9" class="bright"/>
+    <circle cx="375" cy="276" r="9" class="dim"/>
+    <circle cx="408" cy="276" r="9" class="dim"/>
+    <circle cx="111" cy="309" r="9" class="bright"/>
+    <circle cx="144" cy="309" r="9" class="dim"/>
+    <circle cx="177" cy="309" r="9" class="bright"/>
+    <circle cx="210" cy="309" r="9" class="dim"/>
+    <circle cx="243" cy="309" r="9" class="dim"/>
+    <circle cx="276" cy="309" r="9" class="bright"/>
+    <circle cx="309" cy="309" r="9" class="dim"/>
+    <circle cx="342" cy="309" r="9" class="dim"/>
+    <circle cx="375" cy="309" r="9" class="dim"/>
+    <circle cx="408" cy="309" r="9" class="dim"/>
+    <circle cx="111" cy="342" r="9" class="dim"/>
+    <circle cx="144" cy="342" r="9" class="dim"/>
+    <circle cx="177" cy="342" r="9" class="bright"/>
+    <circle cx="210" cy="342" r="9" class="bright"/>
+    <circle cx="243" cy="342" r="9" class="bright"/>
+    <circle cx="276" cy="342" r="9" class="dim"/>
+    <circle cx="309" cy="342" r="9" class="dim"/>
+    <circle cx="342" cy="342" r="9" class="bright"/>
+    <circle cx="375" cy="342" r="9" class="bright"/>
+    <circle cx="144" cy="375" r="9" class="dim"/>
+    <circle cx="177" cy="375" r="9" class="dim"/>
+    <circle cx="210" cy="375" r="9" class="dim"/>
+    <circle cx="243" cy="375" r="9" class="bright"/>
+    <circle cx="276" cy="375" r="9" class="bright"/>
+    <circle cx="309" cy="375" r="9" class="bright"/>
+    <circle cx="342" cy="375" r="9" class="bright"/>
+    <circle cx="375" cy="375" r="9" class="bright"/>
+    <circle cx="210" cy="408" r="9" class="bright"/>
+    <circle cx="243" cy="408" r="9" class="dim"/>
+    <circle cx="276" cy="408" r="9" class="dim"/>
+    <circle cx="309" cy="408" r="9" class="dim"/>
+  </g>
+  <!-- tilted orbit ring -->
+  <ellipse cx="256" cy="256" rx="228" ry="86" fill="none" stroke="#38e1ff" stroke-width="5" opacity="0.5" transform="rotate(-22 256 256)"/>
+  <!-- the next target: a glowing pink dot riding the ring -->
+  <circle cx="423" cy="142" r="26" fill="#d84a86" opacity="0.35"/>
+  <circle cx="423" cy="142" r="14" fill="#d84a86"/>
+</svg>

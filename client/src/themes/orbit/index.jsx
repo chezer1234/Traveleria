@@ -1,4 +1,4 @@
-import { StampMark } from '../shared';
+import { StampMark, BrandMark } from '../shared';
 import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 
 // Orbit — night-flight mission control (dark).
@@ -7,7 +7,7 @@ import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 function OrbitLogo({ className = '' }) {
   return (
     <span className={`font-display font-bold tracking-tight text-ink inline-flex items-center gap-[0.45em] ${className}`}>
-      <span className="logo-orb" aria-hidden="true" />
+      <BrandMark className="h-[1.02em] w-auto shrink-0" />
       <span>
         Travel<span className="text-compass">eria</span>
       </span>

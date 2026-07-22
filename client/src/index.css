@@ -291,29 +291,6 @@
    the mark scales with the font-size the caller sets.
 --------------------------------------------------------------------------- */
 
-/* Orbit: glowing planet orb with a tilted orbit ring. */
-.logo-orb {
-  width: 0.72em;
-  height: 0.72em;
-  border-radius: 50%;
-  position: relative;
-  flex: none;
-  background: radial-gradient(
-    circle at 35% 35%,
-    var(--color-compass),
-    color-mix(in srgb, var(--color-compass) 40%, #001020) 70%
-  );
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-compass) 50%, transparent));
-}
-.logo-orb::after {
-  content: "";
-  position: absolute;
-  inset: -0.26em;
-  border: 1px solid color-mix(in srgb, var(--color-compass) 50%, transparent);
-  border-radius: 50%;
-  transform: rotate(-24deg) scaleY(0.45);
-}
-
 /* Jetstream: rounded jet-trail underline beneath the wordmark. */
 .logo-jet {
   position: relative;
@@ -510,17 +487,12 @@
    physical-map unfold. Everything token-driven; geometry lives in the SVGs.
 --------------------------------------------------------------------------- */
 
-/* Wordmark: engraved serif with a fleuron flourish. */
+/* Wordmark: engraved serif beside the boarding-pass brand mark. */
 .antiquity-wordmark {
   letter-spacing: 0.02em;
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.3em;
-}
-.antiquity-wordmark-flourish {
-  color: var(--color-gold);
-  font-size: 0.72em;
-  transform: translateY(-0.05em);
+  align-items: center;
+  gap: 0.42em;
 }
 
 /* Plate: heavier double rule + a faint sepia vignette, like a framed folio. */

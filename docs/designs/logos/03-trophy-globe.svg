@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria trophy globe logo">
+  <!-- Concept 03 · Trophy Globe — the 46-trophy cabinet as the brand mark.
+       A gold cup whose bowl is the world itself: travel the world, win the world. -->
+  <rect width="512" height="512" rx="112" fill="#3e5f45"/>
+  <g fill="#c9a227">
+    <!-- handles -->
+    <path d="M128 152 C74 152 62 208 96 240 C118 261 146 268 168 270 L168 234 C150 232 132 226 122 212 C110 195 116 182 134 182 L146 182 L146 152 Z"/>
+    <path d="M384 152 C438 152 450 208 416 240 C394 261 366 268 344 270 L344 234 C362 232 380 226 390 212 C402 195 396 182 378 182 L366 182 L366 152 Z"/>
+    <!-- bowl -->
+    <path d="M136 120 L376 120 L376 224 C376 294 322 336 256 336 C190 336 136 294 136 224 Z"/>
+    <!-- stem and base -->
+    <path d="M236 332 L276 332 L284 384 L228 384 Z"/>
+    <rect x="196" y="384" width="120" height="26" rx="8"/>
+    <rect x="176" y="410" width="160" height="34" rx="10"/>
+  </g>
+  <!-- rim highlight -->
+  <rect x="136" y="120" width="240" height="18" rx="9" fill="#e8cf7a"/>
+  <!-- globe engraved into the bowl -->
+  <g fill="none" stroke="#3e5f45" stroke-width="7">
+    <circle cx="256" cy="230" r="74"/>
+    <ellipse cx="256" cy="230" rx="34" ry="74"/>
+    <line x1="182" y1="230" x2="330" y2="230"/>
+    <path d="M191 193 A110 110 0 0 1 321 193"/>
+    <path d="M191 267 A110 110 0 0 0 321 267"/>
+  </g>
+  <!-- star on the base -->
+  <g transform="translate(256 427)">
+    <polygon points="0,-13 3.7,-4.3 12.4,-4 5,1.6 7.6,10.5 0,5.2 -7.6,10.5 -5,1.6 -12.4,-4 -3.7,-4.3" fill="#f6f1e7"/>
+  </g>
+</svg>

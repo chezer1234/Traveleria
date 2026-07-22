@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria paper plane orbit logo">
+  <!-- Concept 10 · Paper Plane Orbit — pure joy of going places: a paper plane
+       lapping a little world, trail streaming behind it. Playful, ageless. -->
+  <rect width="512" height="512" rx="112" fill="#f6f1e7"/>
+  <!-- the little world -->
+  <circle cx="256" cy="268" r="98" fill="#3e5f45"/>
+  <g fill="none" stroke="#f6f1e7" stroke-width="6" opacity="0.5">
+    <ellipse cx="256" cy="268" rx="43" ry="98"/>
+    <line x1="158" y1="268" x2="354" y2="268"/>
+    <path d="M166 222 A130 130 0 0 1 346 222"/>
+    <path d="M166 314 A130 130 0 0 0 346 314"/>
+  </g>
+  <!-- orbit path: behind-the-globe half is masked out so the plane visibly laps it -->
+  <g transform="rotate(-18 256 256)">
+    <path d="M60 256 A196 78 0 0 0 452 256" fill="none" stroke="#c9a227" stroke-width="10" stroke-dasharray="1 22" stroke-linecap="round"/>
+    <path d="M60 256 A196 78 0 0 1 452 256" fill="none" stroke="#c9a227" stroke-width="10" stroke-dasharray="1 22" stroke-linecap="round" opacity="0.25"/>
+  </g>
+  <!-- paper plane on the near side of the orbit, nose up the ring -->
+  <g transform="translate(406 324) rotate(48)">
+    <polygon points="0,-44 32,40 0,21 -32,40" fill="#c9a227" stroke="#f6f1e7" stroke-width="6" stroke-linejoin="round"/>
+    <line x1="0" y1="-36" x2="0" y2="19" stroke="#f6f1e7" stroke-width="5"/>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria XP badge logo">
+  <!-- Concept 09 · XP Badge — the game layer as the brand mark: points, tiers,
+       unlockable styles. A hexagonal achievement badge with a points burst and
+       rank chevrons, in Jetstream's bold travel-game palette. -->
+  <rect width="512" height="512" rx="112" fill="#fdfbf7"/>
+  <!-- hexagon badge (rounded via fat stroke) -->
+  <polygon points="256,76 403.2,161 403.2,331 256,416 108.8,331 108.8,161"
+           fill="#0f9d8f" stroke="#0f9d8f" stroke-width="30" stroke-linejoin="round"/>
+  <polygon points="256,104 379,175 379,317 256,388 133,317 133,175"
+           fill="none" stroke="#fdfbf7" stroke-width="7" opacity="0.5"/>
+  <!-- globe -->
+  <circle cx="256" cy="238" r="86" fill="none" stroke="#fdfbf7" stroke-width="9"/>
+  <ellipse cx="256" cy="238" rx="38" ry="86" fill="none" stroke="#fdfbf7" stroke-width="7"/>
+  <line x1="170" y1="238" x2="342" y2="238" stroke="#fdfbf7" stroke-width="7"/>
+  <path d="M178 196 A122 122 0 0 1 334 196" fill="none" stroke="#fdfbf7" stroke-width="7"/>
+  <path d="M178 280 A122 122 0 0 0 334 280" fill="none" stroke="#fdfbf7" stroke-width="7"/>
+  <!-- rank chevrons -->
+  <g fill="none" stroke="#fdfbf7" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="216,344 256,368 296,344"/>
+  </g>
+  <!-- points burst pinned to the badge corner -->
+  <g transform="translate(392 128)">
+    <polygon points="0,-62 7,-26.1 31,-53.7 19.1,-19.1 53.7,-31 26.1,-7 62,0 26.1,7 53.7,31 19.1,19.1 31,53.7 7,26.1 0,62 -7,26.1 -31,53.7 -19.1,19.1 -53.7,31 -26.1,7 -62,0 -26.1,-7 -53.7,-31 -19.1,-19.1 -31,-53.7 -7,-26.1" fill="#f59e0b"/>
+    <!-- plus sign -->
+    <rect x="-22" y="-7" width="44" height="14" rx="7" fill="#fdfbf7"/>
+    <rect x="-7" y="-22" width="14" height="44" rx="7" fill="#fdfbf7"/>
+  </g>
+</svg>

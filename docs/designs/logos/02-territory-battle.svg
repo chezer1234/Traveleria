@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria territory battle logo">
+  <!-- Concept 02 · Tug-of-War World — the territory battle as the brand mark.
+       A world split down a jagged front line between you (blue) and your rival (red),
+       with the tug-of-war bar from the battle screen underneath. -->
+  <rect width="512" height="512" rx="112" fill="#f6f1e7"/>
+  <defs>
+    <clipPath id="globe-clip"><circle cx="256" cy="232" r="158"/></clipPath>
+    <!-- jagged battle front, drawn once and reused as divider + clip edge -->
+    <path id="front" d="M266 74 L242 128 L286 168 L238 214 L280 258 L234 300 L272 344 L246 390"/>
+  </defs>
+  <g clip-path="url(#globe-clip)">
+    <rect x="98" y="74" width="200" height="316" fill="#2563eb"/>
+    <rect x="242" y="74" width="200" height="316" fill="#dc2626"/>
+    <!-- red side follows the jagged front -->
+    <path d="M266 74 L242 128 L286 168 L238 214 L280 258 L234 300 L272 344 L246 390 L442 390 L442 74 Z" fill="#dc2626"/>
+    <!-- graticule over both territories -->
+    <g fill="none" stroke="#f6f1e7" stroke-width="4" opacity="0.38">
+      <ellipse cx="256" cy="232" rx="72" ry="158"/>
+      <ellipse cx="256" cy="232" rx="130" ry="158"/>
+      <line x1="98" y1="232" x2="414" y2="232"/>
+      <path d="M110 158 A210 210 0 0 1 402 158"/>
+      <path d="M110 306 A210 210 0 0 0 402 306"/>
+    </g>
+    <use href="#front" fill="none" stroke="#f6f1e7" stroke-width="9" stroke-linejoin="round"/>
+  </g>
+  <circle cx="256" cy="232" r="158" fill="none" stroke="#2b2a26" stroke-width="10"/>
+  <!-- contested star on the front line -->
+  <g transform="translate(259 234)">
+    <polygon points="0,-30 7,-9.7 28.5,-9.3 11.4,3.7 17.6,24.3 0,12 -17.6,24.3 -11.4,3.7 -28.5,-9.3 -7,-9.7" fill="#7c3aed" stroke="#f6f1e7" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+  <!-- tug-of-war bar: 58/42 to you -->
+  <g>
+    <rect x="106" y="424" width="300" height="34" rx="17" fill="#2b2a26"/>
+    <rect x="112" y="430" width="168" height="22" rx="11" fill="#2563eb"/>
+    <rect x="284" y="430" width="116" height="22" rx="11" fill="#dc2626"/>
+    <rect x="277" y="420" width="7" height="42" rx="3.5" fill="#f6f1e7"/>
+  </g>
+</svg>

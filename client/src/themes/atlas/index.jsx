@@ -1,13 +1,15 @@
 import PassportStamp from './PassportStamp';
 import { hashCode } from '../../lib/themeArt';
+import { BrandMark } from '../shared';
 
 // Atlas — heirloom expedition atlas (Charlie's chosen default direction).
 // Design source: docs/designs/concept-1-atlas.html
 
 function AtlasLogo({ className = '' }) {
   return (
-    <span className={`font-display font-black tracking-tight text-ink ${className}`}>
-      Travel<span className="text-gold">eria</span>
+    <span className={`font-display font-black tracking-tight text-ink inline-flex items-center gap-[0.42em] ${className}`}>
+      <BrandMark className="h-[1.02em] w-auto shrink-0" />
+      <span>Travel<span className="text-gold">eria</span></span>
     </span>
   );
 }

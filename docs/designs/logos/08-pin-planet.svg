@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Traveleria pin planet logo">
+  <!-- Concept 08 · Pin Planet — "log where you've been" in its boldest form.
+       A map pin whose head is the whole world. Reads instantly at 16px. -->
+  <rect width="512" height="512" rx="112" fill="#c9a227"/>
+  <!-- ground shadow -->
+  <ellipse cx="256" cy="446" rx="82" ry="16" fill="#a37f16"/>
+  <!-- pin body -->
+  <path d="M256 62 C165 62 100 130 100 214 C100 328 256 442 256 442 C256 442 412 328 412 214 C412 130 347 62 256 62 Z" fill="#f6f1e7"/>
+  <!-- globe in the pin head -->
+  <circle cx="256" cy="212" r="104" fill="#3e5f45"/>
+  <g fill="none" stroke="#f6f1e7" stroke-width="7" opacity="0.85">
+    <ellipse cx="256" cy="212" rx="46" ry="104"/>
+    <line x1="152" y1="212" x2="360" y2="212"/>
+    <path d="M162 162 A140 140 0 0 1 350 162"/>
+    <path d="M162 262 A140 140 0 0 0 350 262"/>
+  </g>
+</svg>

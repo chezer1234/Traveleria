@@ -68,7 +68,7 @@ through systematically) · line references are into the concept HTML files.
 |---|---------|-----------------|------------|--------|
 | O1 | **Dot-matrix Earth** — land as glowing dot grid (uniform pitch, point-in-polygon sampled), visited dots glow | 615–2266, 2621–4247, CSS 220–230 | `Map.jsx`, `Territory.jsx` | ✅ |
 | O2 | 20° graticule behind the dots | 616, 2622 | `Map.jsx`, `Territory.jsx` | ✅ (part of O1) |
-| O3 | Orb wordmark (radial-gradient planet + tilted orbit ring) | 160–169 | `Layout.jsx` | ✅ (G1) |
+| O3 | Orb wordmark (radial-gradient planet + tilted orbit ring) | 160–169 | `Layout.jsx` | ✅ (G1) · superseded July 2026 by the boarding-pass brand mark (docs/designs/logos, PR #72) |
 | O4 | Mono user chip with pulsing signal dot | 173–179 | `Layout.jsx` | ⬜ |
 | O5 | Status line telemetry banner (home coords, sector/tier crumb) | 572–578, 2325–2328 | `Map.jsx`, `CountryDetail.jsx` | ⬜ |
 | O6 | Instrument stat tiles with 6px bars + glowing cyan hero | 196–213 | `Map.jsx`, `Dashboard.jsx` | ⬜ |

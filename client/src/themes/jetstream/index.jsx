@@ -1,4 +1,4 @@
-import { StampMark } from '../shared';
+import { StampMark, BrandMark } from '../shared';
 import { barcodeBars } from '../../lib/themeArt';
 import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 
@@ -7,8 +7,9 @@ import { STYLE_UNLOCK_POINTS } from '../../lib/styleUnlocks';
 
 function JetstreamLogo({ className = '' }) {
   return (
-    <span className={`logo-jet font-display font-black tracking-tight text-ink ${className}`}>
-      Travel<span className="text-atlas">eria</span>
+    <span className={`font-display font-black tracking-tight text-ink inline-flex items-center gap-[0.42em] ${className}`}>
+      <BrandMark className="h-[1.02em] w-auto shrink-0" />
+      <span className="logo-jet">Travel<span className="text-atlas">eria</span></span>
     </span>
   );
 }

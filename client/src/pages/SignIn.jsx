@@ -45,7 +45,7 @@ export default function SignIn() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="identifier" className="block text-sm font-medium text-ink mb-1">
-              Handle or email
+              Username
             </label>
             <input
               id="identifier"

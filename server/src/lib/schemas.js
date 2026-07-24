@@ -1,20 +1,17 @@
 import { z } from 'zod';
 
-// An identifier can be either a handle (^[a-z0-9][a-z0-9._-]{2,31}$) or an email.
-// We deliberately keep the regexes separate and forgiving — the user probably typed
-// one or the other, and we care about uniqueness, not purity.
+// Signup identifiers are usernames only (letters, numbers, . _ -) — no email
+// prompt. Existing accounts created back when email was accepted keep working
+// (signinSchema below doesn't re-validate format), we just stop offering/accepting
+// email as a new identifier going forward.
 const HANDLE_REGEX = /^[a-z0-9][a-z0-9._-]{2,31}$/i;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const identifierSchema = z
   .string()
   .trim()
-  .min(3, 'Identifier must be at least 3 characters')
-  .max(254, 'Identifier is too long')
-  .refine(
-    (v) => HANDLE_REGEX.test(v) || EMAIL_REGEX.test(v),
-    'Must be a handle (letters, numbers, . _ -) or a valid email'
-  );
+  .min(3, 'Username must be at least 3 characters')
+  .max(254, 'Username is too long')
+  .refine((v) => HANDLE_REGEX.test(v), 'Must be a username (letters, numbers, . _ -)');
 
 const passwordSchema = z
   .string()

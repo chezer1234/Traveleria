@@ -6,7 +6,7 @@ Track your travels. Earn points. See the world.
 
 ### [traveleria.onrender.com](https://traveleria.onrender.com/)
 
-Sign up with a handle (or email) and a password — no email verification, no OAuth. Pick a home country, start logging where you've been, watch your score climb. The app runs local-first in your browser: reads come from a synced SQLite database on your device, so the interface feels instant once the first page has loaded.
+Sign up with a username and a password — no email required, no OAuth. Pick a home country, start logging where you've been, watch your score climb. The app runs local-first in your browser: reads come from a synced SQLite database on your device, so the interface feels instant once the first page has loaded.
 
 Render's free tier lets the API sleep after 15 minutes of idle, so the very first request after a quiet spell takes ~30 seconds to wake it up. Once it's warm, everything is snappy.
 

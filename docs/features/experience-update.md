@@ -35,20 +35,39 @@ scalar = magnitude_component × rarity_component
 
 - **`x` = the target country's `visit_base + explorer_ceiling`** (its full explorable value from the user's home country), not `visit_base` alone. Confirmed by Charlie after seeing both options worked out — `visit_base` alone made even severe events round to a few points, which didn't feel earned; the bigger anchor puts a rare, severe event in the same ballpark as fully exploring a solid mid-tier country, without dwarfing a full country visit.
 - **Magnitude component** — real USGS magnitude classes: M4.0-4.9 light = 1.0, M5.0-5.9 moderate = 1.5, M6.0-6.9 strong = 2.0, M7.0-7.9 major = 2.5, M8.0+ great = 3.0.
-- **Rarity component** — how unusual that magnitude is *for that specific country*, sourced from the real **USGS earthquake catalog** (per-country historical frequency by magnitude band), not hand-assigned tiers. This is the harder half of the work — needs an actual data pull before any of it ships, same rigor bar as `advisory_level` was supposed to meet (and hasn't fully, yet — see [points-redesign.md](points-redesign.md) open questions).
+- **Rarity component** — how unusual that magnitude is *for that specific country*, from real per-country M6+ annual frequency (see Sourced rarity data below), not hand-assigned tiers.
 - User logs which country they experienced the event in; the event isn't province-scoped.
 
-**Worked examples** (home country UK), illustrative rarity values pending real USGS sourcing:
+**Sourced rarity data.** The live USGS catalog API (`earthquake.usgs.gov/fdsnws/event`) isn't reachable from this environment's network policy, so these come from published secondary summaries (VolcanoDiscovery / worlddata.info seismic-statistics pages, BGS for the UK) rather than a direct catalog pull — good enough to bracket a first tier table, but the real implementation should query the USGS catalog directly once that's possible, the same way `01_countries.js` pulls straight from World Bank/UNWTO/CIA Factbook rather than a summary site.
 
-| Country | Event | x (visit_base + ceiling) | Scalar | Points |
-|---|---|---|---|---|
-| Japan | M6 (common there) | 167.77 | 1.0 | 8.39 |
-| Japan | M8+ (rare even for Japan) | 167.77 | 3.0 | 25.17 |
-| US | M6 (California, fairly common) | 231.94 | 1.5 | 17.40 |
-| US | M7+ (rare major event) | 231.94 | 3.13 | 36.24 |
-| UK | M4 (very rare for UK) | 16.43 | 2.5 | 2.05 |
+| Country | Avg M6+ events/year | Source |
+|---|---|---|
+| Indonesia | ~12.5 | VolcanoDiscovery |
+| Japan | ~10.7 (≈20% of world's M6+ activity) | VolcanoDiscovery |
+| Chile | ~6.1 | VolcanoDiscovery |
+| New Zealand | ~2.5 | VolcanoDiscovery |
+| Greece | ~1.51 | VolcanoDiscovery |
+| Turkey | ~0.86-1.03 (M7+: ~0.05, i.e. once every ~18.5 yrs) | VolcanoDiscovery / Statista |
+| Italy | ~0.77 | VolcanoDiscovery |
+| UK | ~0 in the modern record — M5.5 roughly once per century, M4.5 once per decade; no M6+ in the historical catalogue | British Geological Survey |
 
-For reference, US visit_base alone (just landing in the country, no exploration) is 44.9 from the UK; Laos' full `x` is 98.45. So a rare M7+ US quake (36.24) sits comfortably below a full country visit, and a common Japanese M6 (8.39) stays a modest bonus rather than a dominant score source.
+Bucketed into a rarity multiplier: ≥10/yr → 0.5, 3-9.9/yr → 0.75, 1-2.9/yr → 1.0, 0.3-0.9/yr → 1.5, <0.3/yr (historically rare) → 2.5. **US, Mexico, and Nepal aren't sourced yet** — flagged the same way `advisory_level` flags its ~35-country coverage as provisional; fill these in before shipping rather than guessing.
+
+**Worked examples** (home country UK), using the sourced rarity buckets above:
+
+| Country | Event | x (visit_base + ceiling) | Rarity | Scalar | Points |
+|---|---|---|---|---|---|
+| Indonesia | M6 (very common there) | 376.38 | 0.5 | 1.0 | 18.82 |
+| Japan | M6 (common there) | 167.77 | 0.5 | 1.0 | 8.39 |
+| Chile | M6 (frequent) | 182.27 | 0.75 | 1.5 | 13.67 |
+| Turkey | M6 (occasional) | 92.16 | 1.0 | 2.0 | 9.22 |
+| Greece | M6 (occasional) | 15.51 | 1.0 | 2.0 | 1.55 |
+| Italy | M6 (uncommon) | 29.70 | 1.5 | 3.0 | 4.46 |
+| UK | M4 (very rare for UK) | 16.43 | 2.5 | 2.5 | 2.05 |
+
+For reference, US visit_base alone (just landing in the country, no exploration) is 44.9 from the UK; Laos' full `x` is 98.45. A rare, severe event stays below the value of a full country visit, and a common event in a highly active country (Indonesia, Japan) stays a modest bonus rather than a dominant score source.
+
+**Open catch: country-level rarity breaks down for geographically huge countries.** The US and China (already Tier 0, with real province infrastructure) have wildly uneven internal seismicity — an M6 in California is unremarkable, the same M6 in most of the rest of the US would be historic. A single US-wide rarity number can't represent both. Worth deciding whether Tier 0 countries get *province-level* rarity (reusing the province data model, same as their experiences) while every other country stays country-level.
 
 **v1 scope:** earthquakes only, shipped end-to-end (data model, USGS sourcing, formula, UI) before extending. The same `magnitude × rarity` pattern extends cleanly to:
 - **Volcanic eruptions** — Smithsonian Global Volcanism Program's VEI 0-8 scale, same public/structured shape as USGS.
@@ -79,7 +98,8 @@ Both are real, sourceable scales — good next additions once the earthquake mec
 
 - Exact per-route transport point value (flat small number vs. tourism-scaled) — not yet fixed.
 - Where non-Tier-0 landmark experiences attach in the data model (province vs. country-level row).
-- USGS data pull: is this a one-time seed (like `advisory_level`) or does it need periodic refresh? Given `advisory_level`'s "provisional, ~35 countries only" state, worth deciding up front whether experience data should hold itself to a stricter bar before shipping widely.
+- Rarity data needs a real USGS catalog pull (not secondary-sourced summaries) for production, and coverage is still missing for the US, Mexico, and Nepal at minimum — same "provisional, partial coverage" state `advisory_level` is in today. Is this a one-time seed or does it need periodic refresh?
+- Should Tier 0 countries (US, China) get *province-level* earthquake rarity instead of one country-wide number, given how unevenly seismicity is distributed within them? (see "Open catch" under Disasters above)
 - Anti-abuse: can a user log the same magnitude-band disaster in the same country more than once? Existing patterns in the app (province/city visited = boolean) suggest no — one log per country per magnitude-band — but not yet confirmed with Charlie.
 - Global tab layout/sort — not yet designed (this doc currently covers data model + scoring only).
 
@@ -97,8 +117,8 @@ Not yet built. Sketch based on the existing Tier 0 schema (`province_experiences
 
 ## Next Steps
 
-1. Pull real USGS per-country earthquake frequency-by-magnitude data to replace the illustrative rarity values above.
-2. Resolve the open questions, especially transport point value and landmark attachment model.
+1. Rarity data sourced for 8 countries from secondary summaries (see table above) — still need a direct USGS catalog pull (blocked from this sandboxed environment, doable outside it) plus coverage for the US, Mexico, Nepal, and any other country in scope.
+2. Resolve the remaining open questions, especially transport point value, landmark attachment model, and province- vs. country-level rarity for Tier 0.
 3. Design the data model and migrations.
 4. Build the earthquake logging mechanic end-to-end (data, scoring, UI) as the v1 slice.
 5. Global Experiences tab UI + country-page sub-tab.

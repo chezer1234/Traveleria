@@ -67,7 +67,7 @@ Bucketed into a rarity multiplier: ≥10/yr → 0.5, 3-9.9/yr → 0.75, 1-2.9/yr
 
 For reference, US visit_base alone (just landing in the country, no exploration) is 44.9 from the UK; Laos' full `x` is 98.45. A rare, severe event stays below the value of a full country visit, and a common event in a highly active country (Indonesia, Japan) stays a modest bonus rather than a dominant score source.
 
-**Open catch: country-level rarity breaks down for geographically huge countries.** The US and China (already Tier 0, with real province infrastructure) have wildly uneven internal seismicity — an M6 in California is unremarkable, the same M6 in most of the rest of the US would be historic. A single US-wide rarity number can't represent both. Worth deciding whether Tier 0 countries get *province-level* rarity (reusing the province data model, same as their experiences) while every other country stays country-level.
+**Known simplification: country-level rarity breaks down for geographically huge countries.** The US and China (already Tier 0, with real province infrastructure) have wildly uneven internal seismicity — an M6 in California is unremarkable, the same M6 in most of the rest of the US would be historic. A single US-wide rarity number can't represent both. **Decided:** v1 ships with uniform country-level rarity everywhere anyway, including US/China — province-level rarity is a real improvement but adds schema complexity for a refinement that only matters for 2 of 195 countries, so it's punted to v2 rather than blocking the earthquakes-only v1 slice.
 
 **v1 scope:** earthquakes only, shipped end-to-end (data model, USGS sourcing, formula, UI) before extending. The same `magnitude × rarity` pattern extends cleanly to:
 - **Volcanic eruptions** — Smithsonian Global Volcanism Program's VEI 0-8 scale, same public/structured shape as USGS.
@@ -133,14 +133,17 @@ Still meaningfully rewards a landmark in a small, less-touristy country — the 
 
 ---
 
+## Resolved (this round)
+
+- **Landmark cap:** up to 10 per country, no forced minimum — a country with only 3 genuinely notable landmarks gets 3, not padded to a quota.
+- **Disaster anti-abuse:** one log per user, per country, per magnitude-band (boolean, same pattern as province/city visits).
+- **Rarity data cadence:** sourced once per country, no scheduled refresh job. Earthquake frequency is a geological base rate that moves on decade/century timescales, unlike `advisory_level` (which tracks live political risk and genuinely needs periodic review) — treated like population/area data, a fixed snapshot re-sourced only if something material changes. Coverage growing to more countries over time is separate from refreshing existing entries.
+- **Tier 0 province-level rarity:** punted to v2. v1 ships uniform country-level rarity everywhere, including US/China, flagged as a known simplification (same honesty `advisory_level` already models) — building province-level rarity now would add schema complexity to the v1 slice for a refinement that only matters for 2 of 195 countries.
+- **Global tab layout/sort:** not a scoring/data-model question — moved to Next Steps (UI phase), not tracked here.
+
 ## Open Questions
 
-- Soft cap on landmarks per country (both for content-curation sanity and to bound the additive bonus) — likely 5-10, matching Tier 0's per-province range, but not confirmed.
-- `TRANSPORT_RATIO` (0.02) and the 1-5% landmark range are both provisional starting points — worth revisiting once more of the catalog is drafted and the numbers can be sanity-checked across more examples.
-- Rarity data needs a real USGS catalog pull (not secondary-sourced summaries) for production, and coverage is still missing for the US, Mexico, and Nepal at minimum — same "provisional, partial coverage" state `advisory_level` is in today. Is this a one-time seed or does it need periodic refresh?
-- Should Tier 0 countries (US, China) get *province-level* earthquake rarity instead of one country-wide number, given how unevenly seismicity is distributed within them? (see "Open catch" under Disasters above)
-- Anti-abuse: can a user log the same magnitude-band disaster in the same country more than once? Existing patterns in the app (province/city visited = boolean) suggest no — one log per country per magnitude-band — but not yet confirmed with Charlie.
-- Global tab layout/sort — not yet designed (this doc currently covers data model + scoring only).
+- `TRANSPORT_RATIO` (0.02) and the 1-5% landmark range are provisional starting points that can't really be sanity-checked further in the abstract — need real catalog entries (more than the handful of worked examples above) before they're worth tuning.
 
 ---
 

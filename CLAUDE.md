@@ -188,3 +188,4 @@ Mark the feature doc status as complete. Update `points-system.md` or other ever
 | [docs/points-rebalance-plan.md](docs/points-rebalance-plan.md) | Historical analysis behind the April 2026 rebalance |
 | [docs/features/turso-migration.md](docs/features/turso-migration.md) | Migration from PostgreSQL to Turso/SQLite |
 | [docs/features/stats-points-history.md](docs/features/stats-points-history.md) | Stats page: points-over-time graph (issue #75, phase 1) |
+| [docs/features/stats-continent-map.md](docs/features/stats-continent-map.md) | Stats page: continent map, pie overlay + choropleth (issue #75, phase 2) |

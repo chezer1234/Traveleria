@@ -153,8 +153,8 @@ pointed at it).
 ## 6. Open Questions / Follow-ups
 
 - The continent-comparison map (pie-chart overlay toggling to a choropleth,
-  drill-down into base vs. experience points per continent) — separate
-  follow-up issue.
+  drill-down into base vs. experience points per continent) — shipped as
+  phase 2, see `docs/features/stats-continent-map.md`.
 - The user-comparison page (nations visited, subregions explored, cities,
   trophies, experiences, explorer points, leaderboard position, as
   blue-vs-red bars) — separate follow-up issue.

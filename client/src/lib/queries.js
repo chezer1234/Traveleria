@@ -21,6 +21,7 @@ import {
 import { getContinent, CONTINENTS } from './continents.js';
 import { rankMostLeastVisited } from './globalStats.js';
 import { buildPointsHistory } from './pointsHistory.js';
+import { computeContinentBreakdown } from './continentStats.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
@@ -269,6 +270,36 @@ export async function getUserPointsHistoryLocal(db, userId, homeCountryCode) {
   ];
 
   return buildPointsHistory(home, allCountries, countryRefs, events);
+}
+
+// Stats page (issue #75, phase 2): continent map — the pie overlay's
+// per-continent Base/Experience numbers and the choropleth's per-country
+// totals, in one pass over the same per-country point results
+// getUserCountriesLocal produces. See client/src/lib/continentStats.js for
+// the bucketing rules.
+export async function getUserContinentStatsLocal(db, userId, homeCountryCode) {
+  const { homeCountry, allCountries, visitedCountries } = await getUserTravelData(
+    db, userId, homeCountryCode,
+  );
+
+  const countryPoints = visitedCountries.map(({
+    country, visitedCities = [], visitedProvinces = [], allProvinces = [], allCities = [],
+    allExperiences = [], visitedExperienceIds = [],
+  }) => ({
+    country,
+    pts: calculateCountryPoints(country, homeCountry, allCountries, {
+      visitedProvinces, visitedCities, allProvinces, allCities, allExperiences, visitedExperienceIds,
+    }),
+  }));
+
+  const visitedCodes = new Set(visitedCountries.map(({ country }) => country.code));
+  const claimedRows = await db.all(
+    `SELECT subregion FROM user_subregions WHERE user_id = ?`, [userId],
+  );
+  const claimedSubregions = new Set(claimedRows.map((r) => r.subregion));
+  const { subregions } = calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions);
+
+  return computeContinentBreakdown(countryPoints, subregions);
 }
 
 // ---------- Country list (AddCountries, SignUp precedent) ----------

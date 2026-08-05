@@ -1,15 +1,17 @@
-// Stats page, phase 1 (issue #75): a graph of your points as you've logged
-// them over the app's history. Lives as a sub-tab under Overview alongside
-// Dashboard/Trophies/Map/Settings (see client/src/lib/navGroups.js).
-// See docs/features/stats-points-history.md for the design + Q&A behind
-// this scope — the continent map (pie/choropleth toggle) and the user
-// comparison bars from the original issue are separate follow-up issues.
+// Stats page (issue #75): phase 1 is the points-over-time graph, phase 2
+// adds the continent map (pie overlay + choropleth toggle). Lives as a
+// sub-tab under Overview alongside Dashboard/Trophies/Map/Settings (see
+// client/src/lib/navGroups.js). See docs/features/stats-points-history.md
+// and docs/features/stats-continent-map.md for the design + Q&A behind this
+// scope — the user-comparison bars from the original issue are a separate
+// follow-up issue (phase 3).
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserPointsHistoryLocal } from '../lib/queries';
+import { getUserPointsHistoryLocal, getUserContinentStatsLocal } from '../lib/queries';
 import { bucketHistoryByDay } from '../lib/pointsHistory';
 import PointsHistoryChart from '../components/PointsHistoryChart';
+import ContinentPointsMap from '../components/ContinentPointsMap';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -17,6 +19,7 @@ const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric',
 export default function Stats() {
   const { user, db, dbStatus } = useAuth();
   const [history, setHistory] = useState(null);
+  const [continentStats, setContinentStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -25,8 +28,12 @@ export default function Stats() {
     setLoading(true);
     setError('');
     try {
-      const raw = await getUserPointsHistoryLocal(db, user.id, user.home_country);
+      const [raw, continentData] = await Promise.all([
+        getUserPointsHistoryLocal(db, user.id, user.home_country),
+        getUserContinentStatsLocal(db, user.id, user.home_country),
+      ]);
       setHistory(bucketHistoryByDay(raw));
+      setContinentStats(continentData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,10 +101,12 @@ export default function Stats() {
             <PointsHistoryChart history={history} />
           </div>
 
-          <p className="text-xs text-ink-soft/70 px-1">
+          <p className="text-xs text-ink-soft/70 px-1 mb-6">
             Plots your running total at the moment each country, province, city, or experience was logged in the app
             — not the date you actually travelled, which isn't always known.
           </p>
+
+          {continentStats && <ContinentPointsMap continentStats={continentStats} />}
         </>
       )}
     </div>

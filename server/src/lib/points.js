@@ -74,11 +74,27 @@ export const TIER_0_CODES = new Set(['US', 'CN']);
 
 // Tier 0 province value split: visiting a state/province immediately awards
 // TIER0_VISIT_RATIO of its base value x; logging all its experiences earns
-// the remaining TIER0_EXPERIENCE_RATIO. Cities are a bonus on top of both.
-// See docs/features/tier-0-nations.md.
+// the remaining experience ratio (see getTier0ExperienceRatio below). Cities
+// are a bonus on top of both. See docs/features/tier-0-nations.md.
 export const TIER0_VISIT_RATIO = 0.9;
 export const TIER0_EXPERIENCE_RATIO = 0.5;
 export const TIER0_SUBREGION_BONUS_RATIO = 0.5;
+
+// Experience Update (issue #74) Q&A: auditing the real seeded data found
+// every one of the US's 51 states scored under 1pt per logged experience
+// under the flat 0.5 ratio (California 0.115, Texas 0.129) — population-
+// inverse weighting is correct for the visit baseline, but crushes landmark
+// value for populous states. China isn't affected the same way (its
+// advisory_level-driven danger score roughly doubles its ceiling vs the
+// US's), so only the US gets an override. See "Landmarks / wonders" in
+// docs/features/experience-update.md for the worked numbers behind 2.5x.
+export const TIER0_EXPERIENCE_RATIO_BY_COUNTRY = {
+  US: TIER0_EXPERIENCE_RATIO * 2.5, // 1.25
+};
+
+export function getTier0ExperienceRatio(countryCode) {
+  return TIER0_EXPERIENCE_RATIO_BY_COUNTRY[countryCode] ?? TIER0_EXPERIENCE_RATIO;
+}
 
 // Flat points for microstates — bypass all exploration formulas
 export const MICROSTATE_POINTS = {
@@ -335,6 +351,8 @@ export function calculateTier0ProvinceExploration(
     (experiencesByProvince[exp.province_code] ||= []).push(exp);
   }
 
+  const experienceRatio = getTier0ExperienceRatio(country.code);
+
   let totalEarned = 0; // visit + experience only — cities are tallied separately, see calculateCityPoints
   let totalCeiling = 0;
   const provinceBreakdown = [];
@@ -344,7 +362,7 @@ export function calculateTier0ProvinceExploration(
     const visited = visitedProvinceCodes.has(province.code);
 
     const experiences = experiencesByProvince[province.code] || [];
-    const experiencePool = TIER0_EXPERIENCE_RATIO * x;
+    const experiencePool = experienceRatio * x;
     const experienceValue = experiences.length > 0 ? experiencePool / experiences.length : 0;
     const visitedExpCount = experiences.filter(e => visitedExpIds.has(e.id)).length;
     const experiencePoints = experienceValue * visitedExpCount;
@@ -355,7 +373,7 @@ export function calculateTier0ProvinceExploration(
 
     const visitBaseline = visited ? TIER0_VISIT_RATIO * x : 0;
     const earned = visitBaseline + experiencePoints; // cities excluded, see note above
-    const ceilingForProvince = (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO) * x;
+    const ceilingForProvince = (TIER0_VISIT_RATIO + experienceRatio) * x;
     const totalAvailable = ceilingForProvince + cityMax;
     const totalEarnedForProvince = visitBaseline + experiencePoints + cityEarned;
 
@@ -561,7 +579,7 @@ export function getScoreBreakdown(country, homeCountry, allCountries, explorerCe
       explanation: isNoExplorationOverride
         ? `${country.name} has no genuine tourist access to provinces or cities, so there's no exploration bonus available — your score here comes entirely from having visited at all.`
         : tier === 0
-          ? `${country.name} is a Tier 0 nation. Visiting a state/province earns ${Math.round(TIER0_VISIT_RATIO * 100)}% of its value immediately; logging all its experiences earns the remaining ${Math.round(TIER0_EXPERIENCE_RATIO * 100)}%. Cities add ${CITY_MAJOR_POINTS} pts (major) or ${CITY_ADDITIONAL_POINTS} pts (additional) on top, and visiting every state in a sub-region earns a bonus.`
+          ? `${country.name} is a Tier 0 nation. Visiting a state/province earns ${Math.round(TIER0_VISIT_RATIO * 100)}% of its value immediately; logging all its experiences earns the remaining ${Math.round(getTier0ExperienceRatio(country.code) * 100)}%. Cities add ${CITY_MAJOR_POINTS} pts (major) or ${CITY_ADDITIONAL_POINTS} pts (additional) on top, and visiting every state in a sub-region earns a bonus.`
           : (tier === 1 || tier === 2)
             ? `Explore provinces within ${country.name} to earn up to ${Math.round(explorerCeiling)} bonus points — less-visited provinces are worth more, not less. Each city you visit adds ${CITY_FLAT_POINTS} pts.`
             : `Each city you visit in ${country.name} adds ${CITY_FLAT_POINTS} pts.`,
@@ -831,6 +849,118 @@ export function calculateSubregionBonuses(homeCountry, allCountries, visitedCode
   }
 
   return { subregions, totalBonusPoints };
+}
+
+// ── Experience Update (issue #74) ───────────────────────────────────────────
+// Three new experience types, each scored differently, plus the Seven
+// Wonders showcase. Full design + worked examples:
+// docs/features/experience-update.md.
+
+// Shared anchor for all three mechanics below: a country's full explorable
+// value from the user's home country (visit_base + explorer_ceiling) — not
+// visit_base alone, which made even severe/epic experiences round to a few
+// points. Not the country TOTAL either — that already includes earned
+// exploration, which would compound.
+export function getCountryX(country, homeCountry, allCountries) {
+  const baseline = getBaseline(country, homeCountry, allCountries);
+  const exploreBase = getExploreBase(country, homeCountry);
+  const ceiling = getExplorerCeiling(exploreBase, country, allCountries);
+  return round2(baseline + ceiling);
+}
+
+// ── Landmarks / wonders ──────────────────────────────────────────────────
+
+// Designation x visitor-volume matrix — see "Landmarks / wonders" in the
+// feature doc. High = >= 5M visitors/year (a threshold that splits the
+// worked examples cleanly). Missing/unsourced visitor data is treated as
+// High (common) rather than Low (rare) — conservative, since "Low" is only
+// justified when we actually have sourced evidence a landmark is exclusive,
+// not by absence of data (CLAUDE.md: don't estimate, use conservative
+// figures for anything unsourced).
+export const HIGH_VISITOR_THRESHOLD = 5_000_000;
+
+export function getLandmarkSignificancePct({ is_new7wonders, is_unesco, annual_visitors } = {}) {
+  const lowVisitors = annual_visitors != null && Number(annual_visitors) < HIGH_VISITOR_THRESHOLD;
+  if (is_new7wonders) return lowVisitors ? 5 : 4;
+  if (is_unesco) return lowVisitors ? 3 : 2;
+  return lowVisitors ? 2 : 1;
+}
+
+// Flat percentage of the host country's x — purely additive on top of the
+// existing visit/province score, not a pooled split (see the Tier 0 vs.
+// everyone-else distinction in the feature doc).
+export function getLandmarkPoints(landmark, country, homeCountry, allCountries) {
+  const x = getCountryX(country, homeCountry, allCountries);
+  const pct = landmark.significance_pct != null
+    ? Number(landmark.significance_pct)
+    : getLandmarkSignificancePct(landmark);
+  return round2((x * pct) / 100);
+}
+
+// ── Seven Wonders showcase ───────────────────────────────────────────────
+// Completing all 7 New7Wonders doubles their combined value — same shape as
+// calculateSubregionBonuses' visit+completion pattern (completionBonus
+// equals visitBonus when complete, i.e. 2x total).
+export const NEW7WONDERS_TOTAL = 7;
+
+export function calculateSevenWondersBonus(loggedWonderPoints) {
+  if (!loggedWonderPoints || loggedWonderPoints.length < NEW7WONDERS_TOTAL) {
+    return { bonus: 0, complete: false };
+  }
+  const bonus = round2(loggedWonderPoints.reduce((s, p) => s + Number(p), 0));
+  return { bonus, complete: true };
+}
+
+// ── Country-specific transport ───────────────────────────────────────────
+
+export const TRANSPORT_RATIO = 0.02; // provisional — see Open Questions in the feature doc
+
+// Real distance-based bands (a route's own significance, not host-country
+// difficulty — that half comes from tourism/danger below).
+export function getRouteSignificance(distanceKm) {
+  const km = Number(distanceKm) || 0;
+  if (km >= 5000) return 3.0; // transcontinental epic (week+)
+  if (km >= 1500) return 2.0; // long-distance multi-day
+  if (km >= 300) return 1.5; // extended regional
+  return 1.0; // short/regional
+}
+
+// route: { significance_band } (stored on the row, derived from
+// getRouteSignificance at seed time) or { distance_km } to derive it live.
+export function getTransportPoints(route, hostCountry, homeCountry, allCountries) {
+  const x = getCountryX(hostCountry, homeCountry, allCountries);
+  const significance = route.significance_band != null
+    ? Number(route.significance_band)
+    : getRouteSignificance(route.distance_km);
+  const tourism = getTourismScore(hostCountry);
+  const danger = getDangerScore(hostCountry);
+  const scalar = significance * (1 + (tourism + danger) / (TOURISM_CAP + DANGER_CAP));
+  return round2(TRANSPORT_RATIO * x * scalar);
+}
+
+// ── Natural disasters (v1: earthquakes only) ─────────────────────────────
+
+export const DISASTER_RATIO = 0.05;
+
+// Real USGS magnitude classes.
+export function getMagnitudeComponent(magnitude) {
+  const m = Number(magnitude) || 0;
+  if (m >= 8.0) return 3.0; // great
+  if (m >= 7.0) return 2.5; // major
+  if (m >= 6.0) return 2.0; // strong
+  if (m >= 5.0) return 1.5; // moderate
+  return 1.0; // light (M4.0-4.9)
+}
+
+// rarityMultiplier comes from the sourced country_disaster_rarity table —
+// see docs/features/experience-update.md's "Sourced rarity data" table.
+// Callers should block logging for a country with no sourced rarity row
+// rather than guessing (same provisional-coverage philosophy as
+// advisory_level).
+export function getDisasterPoints(magnitude, rarityMultiplier, country, homeCountry, allCountries) {
+  const x = getCountryX(country, homeCountry, allCountries);
+  const scalar = getMagnitudeComponent(magnitude) * Number(rarityMultiplier);
+  return round2(DISASTER_RATIO * x * scalar);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

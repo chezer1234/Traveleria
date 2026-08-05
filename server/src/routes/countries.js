@@ -159,4 +159,38 @@ router.get('/:code/cities', async (req, res) => {
   }
 });
 
+// GET /api/countries/:code/landmark-experiences — landmark catalog for a
+// country (Experience Update, issue #74). Tier 0 countries (US/China) have
+// their landmarks in province_experiences instead — see /:code/province-experiences
+// pattern used elsewhere for those.
+router.get('/:code/landmark-experiences', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const country = await db('countries').where({ code: code.toUpperCase() }).first();
+    if (!country) return res.status(404).json({ error: 'Country not found' });
+
+    const landmarks = await db('landmark_experiences').where({ country_code: country.code });
+    res.json(landmarks);
+  } catch (err) {
+    console.error('GET /countries/:code/landmark-experiences error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/countries/:code/transport-experiences — transport catalog hosted
+// in a country.
+router.get('/:code/transport-experiences', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const country = await db('countries').where({ code: code.toUpperCase() }).first();
+    if (!country) return res.status(404).json({ error: 'Country not found' });
+
+    const routes = await db('transport_experiences').where({ host_country_code: country.code });
+    res.json(routes);
+  } catch (err) {
+    console.error('GET /countries/:code/transport-experiences error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

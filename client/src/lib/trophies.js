@@ -2,10 +2,10 @@
 // Feature doc: docs/features/trophies-1-6.md (issue #52)
 // Artwork: lib/trophyArt.js · art sheet: docs/designs/trophies-1-6.html
 //
-// Forty-nine trophies in three groups:
+// Fifty trophies in three groups:
 //   · seven LADDERS, five tiers each (bronze → silver → gold → diamond → platinum)
 //   · six CONQUESTS — complete a continent, platinum only
-//   · eight SPECIALS — five one-off honours + three style unlocks (issue #69)
+//   · nine SPECIALS — six one-off honours (incl. Seven Wonders, issue #74) + three style unlocks (issue #69)
 //
 // `evaluateTrophies(stats)` consumes the stats object built by
 // getTrophyStatusLocal in lib/queries.js:
@@ -21,11 +21,12 @@
 //   countryPoints        [{code, name, points}] — per-nation totals from the score engine
 //   totalAccounts        how many accounts exist (users_public)
 //   visitorsByCountry    country_code → distinct accounts that have visited it
+//   sevenWondersLogged   count of the 7 New7Wonders the user has logged (issue #74)
 //
 // Every 1.5 trophy id survives — either as a ladder rung with the same id or
 // as a special — so nothing a user has earned disappears.
 
-import { getTourismDifficulty } from './points.js';
+import { getTourismDifficulty, NEW7WONDERS_TOTAL } from './points.js';
 import { CONTINENTS, getContinent } from './continents.js';
 import { STYLE_UNLOCK_POINTS } from './styleUnlocks.js';
 
@@ -453,6 +454,31 @@ export const SPECIALS = [
         earned: false,
         progress: { current: 0, target: 1 },
         detail: 'Every nation in your log is well-trodden. Go somewhere nobody goes.',
+      };
+    },
+  },
+  {
+    id: 'seven-wonders',
+    name: 'Seven Wonders',
+    medal: 'platinum',
+    shape: 'laurel',
+    glyph: '7',
+    group: 'special',
+    requirement: 'Log all 7 New7Wonders of the World',
+    // All-or-nothing, platinum only — same "that's the point" shape as the
+    // continental conquests above (issue #74).
+    evaluate(stats) {
+      const current = Number(stats.sevenWondersLogged) || 0;
+      if (current >= NEW7WONDERS_TOTAL) {
+        return {
+          earned: true,
+          detail: `All ${NEW7WONDERS_TOTAL} — the world's most iconic sites, in your book.`,
+        };
+      }
+      return {
+        earned: false,
+        progress: { current, target: NEW7WONDERS_TOTAL },
+        detail: `${current} of ${NEW7WONDERS_TOTAL} logged — ${NEW7WONDERS_TOTAL - current} to go.`,
       };
     },
   },

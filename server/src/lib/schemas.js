@@ -80,6 +80,36 @@ export const addProvinceExperienceSchema = z.object({
   province_visit_id: clientIdSchema,
 });
 
+// Experience Update (issue #74): landmarks and transport are logged the
+// same shape as province experiences (a fixed catalog row referenced by
+// id), just without the auto-visit-province side effect — they're purely
+// additive, not a split of an existing score.
+export const addLandmarkExperienceSchema = z.object({
+  id: clientIdSchema,
+  experience_id: z.string().trim().min(1, 'experience_id is required'),
+  visited_at: visitedAtSchema,
+});
+
+export const addTransportExperienceSchema = z.object({
+  id: clientIdSchema,
+  experience_id: z.string().trim().min(1, 'experience_id is required'),
+  visited_at: visitedAtSchema,
+});
+
+// Disasters (v1: earthquakes only) aren't a fixed catalog row — the user
+// reports a real magnitude for a country they were in. magnitude_band is
+// derived server-side (getMagnitudeComponent), not trusted from the client.
+export const addDisasterLogSchema = z.object({
+  id: clientIdSchema,
+  country_code: countryCodeSchema,
+  disaster_type: z.enum(['earthquake']).default('earthquake'),
+  magnitude: z
+    .number({ invalid_type_error: 'Magnitude must be a number' })
+    .min(4.0, 'Magnitude must be at least 4.0 (below the light band)')
+    .max(10.0, 'Magnitude is unrealistically large'),
+  logged_at: visitedAtSchema,
+});
+
 // Territory score (issue #29): a single logged stay in a country. `days` is
 // required; `visited_at` is optional (the user may not remember when). 36500 ≈
 // 100 years — a generous sanity cap, not a real-world limit.

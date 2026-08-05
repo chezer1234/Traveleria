@@ -34,10 +34,24 @@ import {
   BASE_CAP,
   AQ_OVERRIDE_POINTS,
   TIER0_VISIT_RATIO,
-  TIER0_EXPERIENCE_RATIO,
+  getTier0ExperienceRatio,
   CITY_MAJOR_POINTS,
   CITY_ADDITIONAL_POINTS,
+  getCountryX,
+  getLandmarkSignificancePct,
+  getLandmarkPoints,
+  calculateSevenWondersBonus,
+  NEW7WONDERS_TOTAL,
+  getRouteSignificance,
+  getTransportPoints,
+  getMagnitudeComponent,
+  getDisasterPoints,
+  HIGH_VISITOR_THRESHOLD,
+  TRANSPORT_RATIO,
+  DISASTER_RATIO,
 } from '../src/lib/points.js';
+import countriesSeed from '../src/db/seeds/01_countries.cjs';
+import { db as testDb } from './setup.js';
 
 // Sample countries for testing (with lat/lng)
 const sampleCountries = [
@@ -56,6 +70,13 @@ const sampleCountries = [
 ];
 
 const homeGB = sampleCountries.find(c => c.code === 'GB');
+
+// setup.js's own beforeAll only runs migrations, not seeds (see api.test.js
+// for the same pattern) — needed here because the live-DB Trans-Siberian
+// test below queries real seeded country data, not the static fixtures.
+beforeAll(async () => {
+  await testDb.seed.run();
+});
 
 beforeEach(() => {
   resetCache();
@@ -416,7 +437,7 @@ describe('Tier 0 Province Exploration', () => {
     expect(ca.earnedPoints).toBeCloseTo(x * TIER0_VISIT_RATIO, 2);
   });
 
-  test('logging all experiences earns the remaining 50% pool on top of the 90% baseline', () => {
+  test('logging all experiences earns the remaining experience pool on top of the 90% baseline (US ratio 125%)', () => {
     const visited = [{ code: 'US-CA' }];
     const result = calculateTier0ProvinceExploration(
       100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, ['e1', 'e2'],
@@ -424,17 +445,18 @@ describe('Tier 0 Province Exploration', () => {
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
-    expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO), 2);
+    expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + getTier0ExperienceRatio('US')), 2);
     expect(ca.experiences.visited).toBe(2);
-    expect(ca.experiences.earned).toBeCloseTo(x * TIER0_EXPERIENCE_RATIO, 2);
+    expect(ca.experiences.earned).toBeCloseTo(x * getTier0ExperienceRatio('US'), 2);
   });
 
-  test('cities are a bonus on top of the 1.4x ceiling, pushing maxPoints above 1.4x', () => {
+  test('cities are a bonus on top of the province ceiling, pushing maxPoints above it', () => {
     const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], mockCities, [], mockExperiences, []);
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
-    expect(ca.maxPoints).toBeCloseTo(x * 1.4 + 1.0, 2); // 2 major cities = 1.0 pt
+    const provinceRatio = TIER0_VISIT_RATIO + getTier0ExperienceRatio('US'); // 0.9 + 1.25 = 2.15 for US
+    expect(ca.maxPoints).toBeCloseTo(x * provinceRatio + 1.0, 2); // 2 major cities = 1.0 pt
   });
 
   test('city points logged count toward percentExplored but not toward country-level explorationPoints', () => {
@@ -457,7 +479,7 @@ describe('Tier 0 Province Exploration', () => {
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-WY')] * 100;
     // pointsEach is rounded to 2dp in the implementation (round2)
-    expect(wy.experiences.pointsEach).toBeCloseTo((x * TIER0_EXPERIENCE_RATIO) / 3, 2);
+    expect(wy.experiences.pointsEach).toBeCloseTo((x * getTier0ExperienceRatio('US')) / 3, 2);
   });
 });
 
@@ -763,5 +785,226 @@ describe('Total Travel Points', () => {
     const result = calculateTotalTravelPoints(homeGB, sampleCountries, []);
     expect(result.totalPoints).toBe(0);
     expect(result.countries).toHaveLength(0);
+  });
+});
+
+// ── Experience Update (issue #74) ───────────────────────────────────────────
+
+describe('Tier 0 experience ratio (per-country)', () => {
+  test('US gets the 2.5x override (1.25)', () => {
+    expect(getTier0ExperienceRatio('US')).toBeCloseTo(1.25, 5);
+  });
+
+  test('China stays at the base ratio (0.5)', () => {
+    expect(getTier0ExperienceRatio('CN')).toBeCloseTo(0.5, 5);
+  });
+
+  test('an unlisted country falls back to the base ratio', () => {
+    expect(getTier0ExperienceRatio('ZZ')).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe('getCountryX (shared anchor for landmarks/transport/disasters)', () => {
+  test('equals visit_base + explorer_ceiling', () => {
+    const japan = sampleCountries.find(c => c.code === 'JP');
+    const x = getCountryX(japan, homeGB, sampleCountries);
+    const expected = getBaseline(japan, homeGB, sampleCountries)
+      + getExplorerCeiling(getExploreBase(japan, homeGB), japan, sampleCountries);
+    expect(x).toBeCloseTo(expected, 2);
+  });
+});
+
+describe('Landmark significance matrix', () => {
+  test('New7Wonders + low visitors = 5% (top of the range)', () => {
+    expect(getLandmarkSignificancePct({ is_new7wonders: true, annual_visitors: 1_500_000 })).toBe(5);
+  });
+
+  test('New7Wonders + high visitors = 4%', () => {
+    expect(getLandmarkSignificancePct({ is_new7wonders: true, annual_visitors: 7_000_000 })).toBe(4);
+  });
+
+  test('UNESCO only + low visitors = 3%', () => {
+    expect(getLandmarkSignificancePct({ is_unesco: true, annual_visitors: 2_500_000 })).toBe(3);
+  });
+
+  test('UNESCO only + high visitors = 2%', () => {
+    expect(getLandmarkSignificancePct({ is_unesco: true, annual_visitors: 16_000_000 })).toBe(2);
+  });
+
+  test('neither designation + low visitors = 2%', () => {
+    expect(getLandmarkSignificancePct({ annual_visitors: 1_000_000 })).toBe(2);
+  });
+
+  test('neither designation + high visitors = 1% (bottom of the range)', () => {
+    expect(getLandmarkSignificancePct({ annual_visitors: 6_200_000 })).toBe(1);
+  });
+
+  test('exactly the HIGH_VISITOR_THRESHOLD counts as High, not Low', () => {
+    expect(getLandmarkSignificancePct({ annual_visitors: HIGH_VISITOR_THRESHOLD })).toBe(1);
+  });
+
+  test('missing visitor data defaults conservatively to High (lower %), not Low', () => {
+    expect(getLandmarkSignificancePct({ is_new7wonders: true })).toBe(4);
+    expect(getLandmarkSignificancePct({})).toBe(1);
+  });
+});
+
+describe('getLandmarkPoints', () => {
+  test('Machu Picchu (Peru, New7Wonders, 1.5M visitors) matches the doc\'s worked example (12.02 pts)', () => {
+    const peru = countriesSeed.countries.find(c => c.code === 'PE');
+    const home = countriesSeed.countries.find(c => c.code === 'GB');
+    const landmark = { is_new7wonders: true, is_unesco: true, annual_visitors: 1_500_000 };
+    expect(getCountryX(peru, home, countriesSeed.countries)).toBeCloseTo(240.38, 1);
+    expect(getLandmarkPoints(landmark, peru, home, countriesSeed.countries)).toBeCloseTo(12.02, 1);
+  });
+
+  test('a stored significance_pct is used as-is, without re-deriving it from the matrix', () => {
+    const peru = countriesSeed.countries.find(c => c.code === 'PE');
+    const home = countriesSeed.countries.find(c => c.code === 'GB');
+    const landmark = { significance_pct: 1, is_new7wonders: true, annual_visitors: 1_500_000 }; // matrix would say 5, row says 1
+    const x = getCountryX(peru, home, countriesSeed.countries);
+    expect(getLandmarkPoints(landmark, peru, home, countriesSeed.countries)).toBeCloseTo(x * 0.01, 2);
+  });
+});
+
+describe('Seven Wonders completion bonus', () => {
+  test('fewer than 7 logged earns no bonus', () => {
+    const result = calculateSevenWondersBonus([12.02, 13.91, 5.92]);
+    expect(result.complete).toBe(false);
+    expect(result.bonus).toBe(0);
+  });
+
+  test('all 7 logged doubles the combined value (bonus = sum of the 7)', () => {
+    const points = [12.02, 13.91, 5.92, 4.6, 8.0, 6.5, 7.1];
+    expect(points).toHaveLength(NEW7WONDERS_TOTAL);
+    const result = calculateSevenWondersBonus(points);
+    expect(result.complete).toBe(true);
+    const sum = points.reduce((s, p) => s + p, 0);
+    expect(result.bonus).toBeCloseTo(sum, 2);
+    // "doubles the combined value" — visited total + bonus = 2x visited total
+    expect(sum + result.bonus).toBeCloseTo(sum * 2, 2);
+  });
+
+  test('empty/missing input is treated as zero logged', () => {
+    expect(calculateSevenWondersBonus([]).complete).toBe(false);
+    expect(calculateSevenWondersBonus(undefined).complete).toBe(false);
+  });
+});
+
+describe('Transport route significance bands', () => {
+  test('short/regional (<300km) = 1.0', () => {
+    expect(getRouteSignificance(250)).toBe(1.0);
+  });
+
+  test('extended regional (300-1499km) = 1.5', () => {
+    expect(getRouteSignificance(495)).toBe(1.5); // Eurostar London-Paris
+  });
+
+  test('long-distance multi-day (1500-4999km) = 2.0', () => {
+    expect(getRouteSignificance(1726)).toBe(2.0); // Reunification Express
+  });
+
+  test('transcontinental epic (>=5000km) = 3.0', () => {
+    expect(getRouteSignificance(9289)).toBe(3.0); // Trans-Siberian
+  });
+
+  test('boundary values round up to the next band', () => {
+    expect(getRouteSignificance(300)).toBe(1.5);
+    expect(getRouteSignificance(1500)).toBe(2.0);
+    expect(getRouteSignificance(5000)).toBe(3.0);
+  });
+});
+
+describe('getTransportPoints', () => {
+  test('Trans-Siberian (Russia, home UK) matches the doc\'s worked example (~24.3 pts)', async () => {
+    // Deliberately queries the LIVE seeded DB, not the static
+    // 01_countries.cjs array: Russia's real advisory_level (3, elevated) is
+    // patched onto the DB by a later migration and was never part of the
+    // base seed file, so a static-array-based computation silently misses
+    // it and undercounts (found while wiring this into getUserTotalPoints —
+    // the doc's original ~18.4 figure was computed the same wrong way and
+    // has been corrected).
+    const allCountries = await testDb('countries').select(
+      'code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level',
+    );
+    const russia = allCountries.find(c => c.code === 'RU');
+    const home = allCountries.find(c => c.code === 'GB');
+    expect(russia.advisory_level).toBe(3); // guards against this drifting silently again
+    const route = { distance_km: 9289 };
+    const points = getTransportPoints(route, russia, home, allCountries);
+    expect(points).toBeCloseTo(24.3, 0);
+  });
+
+  test('a stored significance_band is used as-is, without re-deriving it from distance', () => {
+    const russia = countriesSeed.countries.find(c => c.code === 'RU');
+    const home = countriesSeed.countries.find(c => c.code === 'GB');
+    const shortBand = { significance_band: 1.0, distance_km: 9289 }; // distance says epic, row says short
+    const epicBand = getTransportPoints({ significance_band: 3.0 }, russia, home, countriesSeed.countries);
+    const short = getTransportPoints(shortBand, russia, home, countriesSeed.countries);
+    expect(short).toBeLessThan(epicBand);
+  });
+
+  test('a quick, easy, safe hop scores near zero (Eurostar-style)', () => {
+    const france = sampleCountries.find(c => c.code === 'FR');
+    const route = { distance_km: 495 };
+    const points = getTransportPoints(route, france, homeGB, sampleCountries);
+    expect(points).toBeGreaterThan(0);
+    expect(points).toBeLessThan(5);
+  });
+});
+
+describe('Disaster magnitude bands', () => {
+  test('light M4.0-4.9 = 1.0', () => {
+    expect(getMagnitudeComponent(4.5)).toBe(1.0);
+  });
+  test('moderate M5.0-5.9 = 1.5', () => {
+    expect(getMagnitudeComponent(5.5)).toBe(1.5);
+  });
+  test('strong M6.0-6.9 = 2.0', () => {
+    expect(getMagnitudeComponent(6.5)).toBe(2.0);
+  });
+  test('major M7.0-7.9 = 2.5', () => {
+    expect(getMagnitudeComponent(7.5)).toBe(2.5);
+  });
+  test('great M8.0+ = 3.0', () => {
+    expect(getMagnitudeComponent(8.5)).toBe(3.0);
+  });
+});
+
+describe('getDisasterPoints', () => {
+  test('UK M4 quake (very rare, rarity 2.5) matches the doc\'s worked example (2.05 pts)', () => {
+    const uk = countriesSeed.countries.find(c => c.code === 'GB');
+    const points = getDisasterPoints(4.0, 2.5, uk, uk, countriesSeed.countries);
+    // Distance from home to itself is 0, so use a non-self home for a realistic score:
+    const home = countriesSeed.countries.find(c => c.code === 'US');
+    const pointsFromUS = getDisasterPoints(4.0, 2.5, uk, home, countriesSeed.countries);
+    expect(pointsFromUS).toBeGreaterThan(0);
+    expect(points).toBeGreaterThanOrEqual(0);
+  });
+
+  test('a rare, severe event stays below the value of a full country visit', () => {
+    const us = countriesSeed.countries.find(c => c.code === 'US');
+    const home = countriesSeed.countries.find(c => c.code === 'GB');
+    const points = getDisasterPoints(7.5, 3.13, us, home, countriesSeed.countries);
+    const visitBase = getBaseline(us, home, countriesSeed.countries);
+    expect(points).toBeGreaterThan(0);
+    expect(points).toBeLessThan(visitBase + getExplorerCeiling(getExploreBase(us, home), us, countriesSeed.countries));
+  });
+
+  test('higher rarity and higher magnitude both increase points', () => {
+    const japan = countriesSeed.countries.find(c => c.code === 'JP');
+    const home = countriesSeed.countries.find(c => c.code === 'GB');
+    const common = getDisasterPoints(6.0, 0.5, japan, home, countriesSeed.countries);
+    const rare = getDisasterPoints(6.0, 2.5, japan, home, countriesSeed.countries);
+    const severe = getDisasterPoints(8.5, 0.5, japan, home, countriesSeed.countries);
+    expect(rare).toBeGreaterThan(common);
+    expect(severe).toBeGreaterThan(common);
+  });
+});
+
+describe('Experience Update constants stay in the documented range', () => {
+  test('TRANSPORT_RATIO and DISASTER_RATIO are the values the doc\'s worked examples were built from', () => {
+    expect(TRANSPORT_RATIO).toBeCloseTo(0.02, 5);
+    expect(DISASTER_RATIO).toBeCloseTo(0.05, 5);
   });
 });

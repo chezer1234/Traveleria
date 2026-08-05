@@ -1,7 +1,10 @@
 import express from 'express';
 import crypto from 'crypto';
 import db from '../db/connection.js';
-import { calculateCountryPoints, calculateTotalTravelPoints, calculateSubregionBonuses, getCountryTier } from '../lib/points.js';
+import {
+  calculateCountryPoints, calculateTotalTravelPoints, calculateSubregionBonuses, getCountryTier,
+  getLandmarkPoints, getTransportPoints, getDisasterPoints, getMagnitudeComponent, calculateSevenWondersBonus,
+} from '../lib/points.js';
 import { STYLE_UNLOCK_POINTS, isStyleUnlocked } from '../lib/styleUnlocks.js';
 import { requireAuth, requireOwnership } from '../middleware/auth.js';
 import {
@@ -9,6 +12,9 @@ import {
   addCitySchema,
   addProvinceSchema,
   addProvinceExperienceSchema,
+  addLandmarkExperienceSchema,
+  addTransportExperienceSchema,
+  addDisasterLogSchema,
   addVisitSchema,
   addProvinceVisitSchema,
   updateStyleSchema,
@@ -42,7 +48,64 @@ async function getUserTotalPoints(userId, homeCountryCode) {
   const { totalBonusPoints } = calculateSubregionBonuses(
     homeCountry, allCountries, visitedCodes, new Set(claimedRows),
   );
-  return Math.round((result.totalPoints + totalBonusPoints) * 100) / 100;
+  const experienceUpdateTotal = await getExperienceUpdateBonus(userId, homeCountry, allCountries, result);
+  return Math.round((result.totalPoints + totalBonusPoints + experienceUpdateTotal) * 100) / 100;
+}
+
+// Experience Update (issue #74): landmark/transport/disaster points and the
+// Seven Wonders completion bonus are additive on top of the country total —
+// same treatment as the subregion bonus above (mirrors getUserScoreLocal on
+// the client, client/src/lib/queries.js).
+async function getExperienceUpdateBonus(userId, homeCountry, allCountries, totalTravelResult) {
+  const [loggedLandmarks, loggedTransport, disasterRows, wonderProvinceRow] = await Promise.all([
+    db('user_landmark_experiences')
+      .join('landmark_experiences', 'user_landmark_experiences.experience_id', 'landmark_experiences.id')
+      .where({ 'user_landmark_experiences.user_id': userId })
+      .select('landmark_experiences.*'),
+    db('user_transport_experiences')
+      .join('transport_experiences', 'user_transport_experiences.experience_id', 'transport_experiences.id')
+      .where({ 'user_transport_experiences.user_id': userId })
+      .select('transport_experiences.*'),
+    db('disaster_logs').where({ user_id: userId }).select('points'),
+    // The 7th New7Wonder (Great Wall at Badaling) lives in Tier 0's
+    // province-pool model, not this flat landmark model.
+    db('user_province_experiences')
+      .join('province_experiences', 'user_province_experiences.experience_id', 'province_experiences.id')
+      .where({ 'user_province_experiences.user_id': userId, 'province_experiences.is_new7wonders': true })
+      .select('province_experiences.province_code')
+      .first(),
+  ]);
+
+  let landmarkPoints = 0;
+  const wonderPoints = [];
+  for (const lm of loggedLandmarks) {
+    const country = allCountries.find(c => c.code === lm.country_code);
+    if (!country || !homeCountry) continue;
+    const pts = getLandmarkPoints(lm, country, homeCountry, allCountries);
+    landmarkPoints += pts;
+    if (lm.is_new7wonders) wonderPoints.push(pts);
+  }
+
+  let transportPoints = 0;
+  for (const rt of loggedTransport) {
+    const hostCountry = allCountries.find(c => c.code === rt.host_country_code);
+    if (!hostCountry || !homeCountry) continue;
+    transportPoints += getTransportPoints(rt, hostCountry, homeCountry, allCountries);
+  }
+
+  const disasterPoints = disasterRows.reduce((s, r) => s + (Number(r.points) || 0), 0);
+
+  // Its per-experience value is already computed as part of China's
+  // provinceBreakdown (experiences.pointsEach, shared by every experience in
+  // that province) — reuse it rather than re-deriving the Tier 0 formula.
+  if (wonderProvinceRow) {
+    const china = (totalTravelResult.countries || []).find(c => c.countryCode === 'CN');
+    const beijing = china?.provinceBreakdown?.find(p => p.code === wonderProvinceRow.province_code);
+    if (beijing) wonderPoints.push(beijing.experiences.pointsEach);
+  }
+
+  const { bonus: sevenWondersBonus } = calculateSevenWondersBonus(wonderPoints);
+  return landmarkPoints + transportPoints + disasterPoints + sevenWondersBonus;
 }
 
 // Style preference (issue #60). Deliberately NOT recorded in the _changes
@@ -536,6 +599,219 @@ router.get('/:id/province-experiences', async (req, res) => {
     .where({ 'user_province_experiences.user_id': id })
     .select('province_experiences.*', 'user_province_experiences.visited_at');
   res.json(visited);
+});
+
+// ── Experience Update (issue #74): landmarks, transport, disasters ─────────
+// Landmarks/transport are purely additive (see docs/features/experience-update.md)
+// — no auto-visit-country side effect, and no points stored on the row;
+// points are always derived live via calculateCountryPoints/getScoreBreakdown
+// (the /:id/score endpoint below), same as every other exploration bonus in
+// the app. This mirrors the province-experiences routes above minus the
+// province auto-visit step, which doesn't apply here.
+
+router.post(
+  '/:id/landmark-experiences',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addLandmarkExperienceSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, experience_id, visited_at } = req.body;
+
+    const experience = await db('landmark_experiences').where({ id: experience_id }).first();
+    if (!experience) return fail(res, 'experience_id', 'Unknown experience');
+
+    const hasCountry = await db('user_countries')
+      .where({ user_id: id, country_code: experience.country_code })
+      .first();
+    if (!hasCountry) return fail(res, 'experience_id', 'Add the country before logging an experience');
+
+    const existing = await db('user_landmark_experiences')
+      .where({ user_id: id, experience_id })
+      .first();
+    if (existing) return fail(res, 'experience_id', 'Already logged');
+
+    const row = { id: clientId || crypto.randomUUID(), user_id: id, experience_id, visited_at: visited_at || null };
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_landmark_experiences').insert(row);
+      change_id = await changes.record(trx, { table: 'user_landmark_experiences', pk: row.id, op: 'insert', row });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/landmark-experiences/:experienceId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, experienceId } = req.params;
+    const existing = await db('user_landmark_experiences')
+      .where({ user_id: id, experience_id: experienceId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Experience visit not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_landmark_experiences').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, { table: 'user_landmark_experiences', pk: existing.id, op: 'delete' });
+    });
+    res.json({ message: 'Experience visit removed', change_id });
+  }
+);
+
+router.get('/:id/landmark-experiences', async (req, res) => {
+  const { id } = req.params;
+  const visited = await db('user_landmark_experiences')
+    .join('landmark_experiences', 'user_landmark_experiences.experience_id', 'landmark_experiences.id')
+    .where({ 'user_landmark_experiences.user_id': id })
+    .select('landmark_experiences.*', 'user_landmark_experiences.visited_at');
+  res.json(visited);
+});
+
+router.post(
+  '/:id/transport-experiences',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addTransportExperienceSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, experience_id, visited_at } = req.body;
+
+    const experience = await db('transport_experiences').where({ id: experience_id }).first();
+    if (!experience) return fail(res, 'experience_id', 'Unknown experience');
+
+    const hasCountry = await db('user_countries')
+      .where({ user_id: id, country_code: experience.host_country_code })
+      .first();
+    if (!hasCountry) return fail(res, 'experience_id', 'Add the host country before logging a route');
+
+    const existing = await db('user_transport_experiences')
+      .where({ user_id: id, experience_id })
+      .first();
+    if (existing) return fail(res, 'experience_id', 'Already logged');
+
+    const row = { id: clientId || crypto.randomUUID(), user_id: id, experience_id, visited_at: visited_at || null };
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_transport_experiences').insert(row);
+      change_id = await changes.record(trx, { table: 'user_transport_experiences', pk: row.id, op: 'insert', row });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/transport-experiences/:experienceId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, experienceId } = req.params;
+    const existing = await db('user_transport_experiences')
+      .where({ user_id: id, experience_id: experienceId })
+      .first();
+    if (!existing) return res.status(404).json({ error: 'Route not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('user_transport_experiences').where({ id: existing.id }).del();
+      change_id = await changes.record(trx, { table: 'user_transport_experiences', pk: existing.id, op: 'delete' });
+    });
+    res.json({ message: 'Route removed', change_id });
+  }
+);
+
+router.get('/:id/transport-experiences', async (req, res) => {
+  const { id } = req.params;
+  const visited = await db('user_transport_experiences')
+    .join('transport_experiences', 'user_transport_experiences.experience_id', 'transport_experiences.id')
+    .where({ 'user_transport_experiences.user_id': id })
+    .select('transport_experiences.*', 'user_transport_experiences.visited_at');
+  res.json(visited);
+});
+
+// Disasters (v1: earthquakes only) aren't a fixed catalog row — the user
+// reports a real magnitude for a country they were in. Unlike landmarks/
+// transport, points ARE stored on the row: a disaster is a one-time real-world
+// event, and "how much this specific earthquake was worth" is a fact about
+// that moment (home country included), not something that should silently
+// change later if the user's home country changes — same reasoning a trophy,
+// once earned, doesn't unearn. Blocked entirely for countries with no sourced
+// rarity row rather than guessing (see country_disaster_rarity, "don't
+// estimate" in CLAUDE.md).
+router.post(
+  '/:id/disaster-logs',
+  requireAuth,
+  requireOwnership('id'),
+  validateBody(addDisasterLogSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { id: clientId, country_code, disaster_type, magnitude, logged_at } = req.body;
+
+    const hasCountry = await db('user_countries').where({ user_id: id, country_code }).first();
+    if (!hasCountry) return fail(res, 'country_code', 'Add the country before logging a disaster');
+
+    const rarity = await db('country_disaster_rarity')
+      .where({ country_code, disaster_type })
+      .first();
+    if (!rarity) {
+      return fail(res, 'country_code', 'No sourced rarity data for this country yet — logging is blocked rather than guessed');
+    }
+
+    const magnitude_band = getMagnitudeComponent(magnitude);
+    const existing = await db('disaster_logs')
+      .where({ user_id: id, country_code, disaster_type, magnitude_band })
+      .first();
+    if (existing) return fail(res, 'magnitude', 'Already logged this magnitude band for this country');
+
+    const country = await db('countries').where({ code: country_code }).first();
+    const allCountries = await db('countries').select('code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level');
+    const homeCountry = allCountries.find(c => c.code === (req.query.home_country || '').toUpperCase());
+    const points = homeCountry
+      ? getDisasterPoints(magnitude, rarity.rarity_multiplier, country, homeCountry, allCountries)
+      : 0;
+
+    const row = {
+      id: clientId || crypto.randomUUID(),
+      user_id: id,
+      country_code,
+      disaster_type,
+      magnitude_band,
+      points,
+      logged_at: logged_at || null,
+    };
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('disaster_logs').insert(row);
+      change_id = await changes.record(trx, { table: 'disaster_logs', pk: row.id, op: 'insert', row });
+    });
+    res.status(201).json({ ...row, change_id });
+  }
+);
+
+router.delete(
+  '/:id/disaster-logs/:logId',
+  requireAuth,
+  requireOwnership('id'),
+  async (req, res) => {
+    const { id, logId } = req.params;
+    const existing = await db('disaster_logs').where({ id: logId, user_id: id }).first();
+    if (!existing) return res.status(404).json({ error: 'Disaster log not found' });
+
+    let change_id;
+    await db.transaction(async (trx) => {
+      await trx('disaster_logs').where({ id: logId }).del();
+      change_id = await changes.record(trx, { table: 'disaster_logs', pk: logId, op: 'delete' });
+    });
+    res.json({ message: 'Disaster log removed', change_id });
+  }
+);
+
+router.get('/:id/disaster-logs', async (req, res) => {
+  const { id } = req.params;
+  const logs = await db('disaster_logs').where({ user_id: id });
+  res.json(logs);
 });
 
 router.get('/:id/score', async (req, res) => {

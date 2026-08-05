@@ -47,6 +47,7 @@ function stats(over = {}) {
     countryPoints: [],
     totalAccounts: 1,
     visitorsByCountry: {},
+    sevenWondersLogged: 0,
     ...over,
   };
 }
@@ -58,8 +59,10 @@ function get(evaluated, id) {
 }
 
 describe('the cabinet roster', () => {
-  it('holds 49 trophies: 7 ladders × 5 tiers + 6 conquests + 5 specials + 3 style unlocks', () => {
-    expect(TROPHIES).toHaveLength(7 * 5 + CONTINENTS.length + 5 + 3);
+  it('holds 50 trophies: 7 ladders × 5 tiers + 6 conquests + 6 specials + 3 style unlocks', () => {
+    // 6 specials (issue #74 added Seven Wonders): first-stamp, ten-thousand-km-club,
+    // hard-mode, century-nation, off-the-map, seven-wonders.
+    expect(TROPHIES).toHaveLength(7 * 5 + CONTINENTS.length + 6 + 3);
   });
 
   it('has unique ids', () => {
@@ -238,6 +241,22 @@ describe('special honours', () => {
     expect(get(evaluated, 'off-the-map').earned).toBe(false);
   });
 
+  it('Seven Wonders is locked with fewer than 7 logged (issue #74)', () => {
+    const evaluated = evaluateTrophies(stats({ sevenWondersLogged: 5 }));
+    const t = get(evaluated, 'seven-wonders');
+    expect(t.earned).toBe(false);
+    expect(t.progress).toEqual({ current: 5, target: 7 });
+    expect(t.detail).toContain('2 to go');
+  });
+
+  it('Seven Wonders is platinum and all-or-nothing — earns at exactly 7', () => {
+    const evaluated = evaluateTrophies(stats({ sevenWondersLogged: 7 }));
+    const t = get(evaluated, 'seven-wonders');
+    expect(t.earned).toBe(true);
+    expect(t.medal).toBe('platinum');
+    expect(t.detail).toContain('All 7');
+  });
+
   it('First Stamp and Hard Mode still behave as in 1.5', () => {
     const evaluated = evaluateTrophies(stats({
       visited: [country('TM', {
@@ -296,7 +315,7 @@ describe('evaluateCabinet', () => {
       expect(ladder.trophies.map((t) => t.medal)).toEqual(TIERS);
     }
     expect(cabinet.conquests).toHaveLength(CONTINENTS.length);
-    expect(cabinet.specials).toHaveLength(8);
+    expect(cabinet.specials).toHaveLength(9); // 6 one-off honours (incl. seven-wonders) + 3 style unlocks
     expect(cabinet.all).toHaveLength(TROPHIES.length);
   });
 });

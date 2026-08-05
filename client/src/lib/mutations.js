@@ -185,6 +185,105 @@ export async function removeProvinceExperienceOptimistic(db, userId, experienceI
   });
 }
 
+// Experience Update (issue #74). Landmarks and transport are purely
+// additive — no auto-visit-country/province side effect, unlike
+// addProvinceExperienceOptimistic above, and no points computed client-side
+// (always derived live from calculateCountryPoints, same as everywhere
+// else). Both mirror the province-experience pattern otherwise.
+
+export async function addLandmarkExperienceOptimistic(db, userId, experienceId) {
+  const id = newId();
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO user_landmark_experiences (id, user_id, experience_id, visited_at)
+                VALUES (?, ?, ?, ?)`,
+        bind: [id, userId, experienceId, null],
+      },
+    ],
+    endpoint: `/api/users/${userId}/landmark-experiences`,
+    method: 'POST',
+    body: { id, experience_id: experienceId },
+  });
+}
+
+export async function removeLandmarkExperienceOptimistic(db, userId, experienceId) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_landmark_experiences WHERE user_id = ? AND experience_id = ?`,
+        bind: [userId, experienceId],
+      },
+    ],
+    endpoint: `/api/users/${userId}/landmark-experiences/${experienceId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+export async function addTransportExperienceOptimistic(db, userId, experienceId) {
+  const id = newId();
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO user_transport_experiences (id, user_id, experience_id, visited_at)
+                VALUES (?, ?, ?, ?)`,
+        bind: [id, userId, experienceId, null],
+      },
+    ],
+    endpoint: `/api/users/${userId}/transport-experiences`,
+    method: 'POST',
+    body: { id, experience_id: experienceId },
+  });
+}
+
+export async function removeTransportExperienceOptimistic(db, userId, experienceId) {
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `DELETE FROM user_transport_experiences WHERE user_id = ? AND experience_id = ?`,
+        bind: [userId, experienceId],
+      },
+    ],
+    endpoint: `/api/users/${userId}/transport-experiences/${experienceId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
+// Disasters aren't a fixed catalog row (see server/src/routes/users.js) — the
+// server computes magnitude_band + points, so there's no reliable local
+// preStep insert for those two columns; the optimistic row is created
+// without them and gets filled in for real once the response lands (the
+// worker's mutate() fast-forwards the cursor past the server's echoed
+// change, which carries the full row).
+export async function addDisasterLogOptimistic(db, userId, countryCode, magnitude, loggedAt) {
+  const id = newId();
+  return db.mutate({
+    preSteps: [
+      {
+        sql: `INSERT INTO disaster_logs (id, user_id, country_code, disaster_type, magnitude_band, points, logged_at)
+                VALUES (?, ?, ?, 'earthquake', NULL, NULL, ?)`,
+        bind: [id, userId, countryCode.toUpperCase(), loggedAt || null],
+      },
+    ],
+    endpoint: `/api/users/${userId}/disaster-logs`,
+    method: 'POST',
+    body: { id, country_code: countryCode.toUpperCase(), magnitude, logged_at: loggedAt || null },
+  });
+}
+
+export async function removeDisasterLogOptimistic(db, userId, logId) {
+  return db.mutate({
+    preSteps: [
+      { sql: `DELETE FROM disaster_logs WHERE id = ?`, bind: [logId] },
+    ],
+    endpoint: `/api/users/${userId}/disaster-logs/${logId}`,
+    method: 'DELETE',
+    body: null,
+  });
+}
+
 export async function claimSubregionOptimistic(db, userId, subregion) {
   const id = newId();
   return db.mutate({

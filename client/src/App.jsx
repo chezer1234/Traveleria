@@ -16,6 +16,7 @@ import StateBattle from './pages/StateBattle';
 import Groups from './pages/Groups';
 import GroupBattle from './pages/GroupBattle';
 import Trophies from './pages/Trophies';
+import Experiences from './pages/Experiences';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
 
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/map" element={<Map />} />
         <Route path="/subregions" element={<Subregions />} />
         <Route path="/trophies" element={<Trophies />} />
+        <Route path="/experiences" element={<Experiences />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

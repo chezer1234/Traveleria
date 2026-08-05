@@ -256,6 +256,12 @@ function ensureSchema() {
   try { db.exec('ALTER TABLE cities ADD COLUMN province_code TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE cities ADD COLUMN city_type TEXT'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE users_public ADD COLUMN display_name TEXT'); } catch { /* already exists */ }
+  // Experience Update (issue #74): province_experiences predates this
+  // feature, so its two new columns need the same idempotent-ALTER
+  // treatment as the columns above — CREATE TABLE IF NOT EXISTS alone
+  // wouldn't add them to an already-existing local table.
+  try { db.exec('ALTER TABLE province_experiences ADD COLUMN is_new7wonders INTEGER'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE province_experiences ADD COLUMN is_unesco INTEGER'); } catch { /* already exists */ }
 }
 
 function bulkInsert(table, rows, columns) {
@@ -292,7 +298,9 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('provinces', snap.provinces, [
       'id', 'country_code', 'code', 'name', 'population', 'area_km2', 'disputed', 'subregion',
     ]);
-    bulkInsert('province_experiences', snap.province_experiences || [], ['id', 'province_code', 'name', 'description']);
+    bulkInsert('province_experiences', snap.province_experiences || [], [
+      'id', 'province_code', 'name', 'description', 'is_new7wonders', 'is_unesco',
+    ]);
     bulkInsert('users_public', snap.users_public, ['id', 'identifier', 'display_name', 'home_country']);
     // User-visit tables are part of the cold-boot payload so pre-existing
     // writes (made before this client's cursor) aren't orphaned. The changes

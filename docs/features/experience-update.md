@@ -1,6 +1,6 @@
 # Experience Update
 
-**Status:** Planning
+**Status:** In progress — backend foundation complete (schema, scoring, tests, seed data), API routes + client UI not yet started. See "Implementation Progress" below for exact resume point.
 **Branch:** `claude/friendly-bell-49ykdb`
 **Issue:** [#74 — Experience update](https://github.com/chezer1234/Traveleria/issues/74)
 
@@ -189,3 +189,35 @@ Not yet built. Sketch based on the existing Tier 0 schema (`province_experiences
 4. Build the earthquake logging mechanic end-to-end (data, scoring, UI) as the v1 slice.
 5. Global Experiences tab UI + country-page sub-tab, including the Seven Wonders showcase section, its completion-bonus scoring (mirrors `calculateSubregionBonuses`), and the new `seven-wonders` platinum trophy (mirrors `conquestTrophy()`).
 6. Extend to transport catalog, then volcanic eruptions / cyclones.
+
+---
+
+## Implementation Progress
+
+Written per explicit instruction ("if you run out of context getting to ~85%, write a doc so we can continue with another Claude session") — this is that doc. All work below is committed and pushed to `claude/friendly-bell-49ykdb`; nothing is sitting uncommitted.
+
+### Done (commits, oldest first)
+
+1. **`20260805001_add_experience_update_schema.cjs`** — migration for `landmark_experiences`/`user_landmark_experiences`, `transport_experiences`/`user_transport_experiences`, `disaster_logs`, `country_disaster_rarity`, plus `is_new7wonders`/`is_unesco` columns added to the existing `province_experiences` table. Verified clean on a fresh DB (`NODE_ENV=test npm run migrate`).
+2. **`server/src/lib/points.js`** scoring functions, mirrored byte-for-byte to `client/src/lib/points.js` (`make check-points-parity` passes):
+   - `getTier0ExperienceRatio(countryCode)` — per-country override map, US=1.25 (the 2.5x fix), everyone else (China included) stays at the base 0.5. Replaces the flat `TIER0_EXPERIENCE_RATIO` constant everywhere it was used inside `calculateTier0ProvinceExploration` and `getScoreBreakdown`.
+   - `getCountryX(country, homeCountry, allCountries)` — shared anchor (`visit_base + explorer_ceiling`) for the three mechanics below.
+   - `getLandmarkSignificancePct(landmark)` / `getLandmarkPoints(landmark, country, homeCountry, allCountries)` — the designation x visitor-volume matrix.
+   - `calculateSevenWondersBonus(loggedWonderPoints)` — mirrors `calculateSubregionBonuses`' visit+completion shape exactly.
+   - `getRouteSignificance(distanceKm)` / `getTransportPoints(route, hostCountry, homeCountry, allCountries)`.
+   - `getMagnitudeComponent(magnitude)` / `getDisasterPoints(magnitude, rarityMultiplier, country, homeCountry, allCountries)`.
+3. **Tests** — `server/__tests__/points.test.js` and the client mirror: full coverage of every new function, using real seed data to pin the doc's exact worked numbers (Machu Picchu = 12.02, Trans-Siberian ≈ 18.4) where the fixture size doesn't affect regional-value math, and self-consistent assertions in the client's smaller fixture where it does. Also fixed 3 pre-existing Tier0 tests that hardcoded the old flat 0.5/1.4x ratio. **174/174 server tests, 106/106 client tests, both green.**
+4. **Seed data** — `05_landmark_experiences.cjs` (11 rows: the 6 non-Tier0 New7Wonders + 5 others), `06_transport_experiences.cjs` (10 real routes), `07_disaster_rarity.cjs` (8 sourced countries), plus flagging the Great Wall at Badaling in `04_province_experiences.cjs`. Verified: the Seven Wonders union across `landmark_experiences` + `province_experiences` totals exactly 7. Also fixed a libsql batch-insert quirk (mixed-shape rows need explicit `false` defaults on the new boolean columns — same issue `02_provinces.cjs`'s `subregion` column already worked around).
+
+### Not started yet — concrete resume point
+
+**Task 6, API routes** — not yet written. The existing pattern to mirror (from `server/src/routes/users.js` + `server/src/lib/schemas.js`'s `addProvinceExperienceSchema`) is a POST/DELETE pair per experience type: `/api/users/:userId/province-experiences` (existing) → need `/api/users/:userId/landmark-experiences`, `/api/users/:userId/transport-experiences`, `/api/users/:userId/disaster-logs`, each with a zod schema in `schemas.js`. The disaster-logs endpoint should validate against `country_disaster_rarity` (block logging for a country with no sourced row, per the doc's "don't guess" rule) rather than accepting arbitrary countries.
+
+**Task 8-9, client UI** — investigated the local-first sync layer enough to leave real guidance, not a guess:
+- **`client/src/db/worker.js`** maintains its own local SQLite schema mirror — `CREATE TABLE IF NOT EXISTS` statements, a `SYNC_TABLES` map, and per-table column lists for `bulkInsert`. All 6 new tables need entries here, mirroring how `province_experiences`/`user_province_experiences` already appear (search those two names in the file to find every spot that needs a twin for the new tables).
+- **`server/src/routes/snapshot.js`** — a single `Promise.all` fetching every syncable table, returned keyed by table name; this is what hydrates the client's local DB on load/poll. The 6 new tables need adding to that `Promise.all` and the returned object, mirroring `province_experiences`/`user_province_experiences` there too.
+- **`client/src/lib/mutations.js`** — `addProvinceExperienceOptimistic(db, userId, experienceId, provinceCode, alreadyVisitedProvince)` is the exact pattern: optimistic local `preSteps` (raw SQL insert), then `db.mutate({ preSteps, endpoint, method, body })` which POSTs to the real server route. Write `addLandmarkExperienceOptimistic`, `addTransportExperienceOptimistic`, `addDisasterLogOptimistic` the same way, plus `remove*` counterparts mirroring `removeProvinceExperienceOptimistic`.
+- **`client/src/lib/queries.js`** — needs read functions: a country's landmarks/transport/disasters (mirroring the existing province-experience query functions around line 69-82), and a dedicated Seven Wonders showcase query that unions `landmark_experiences` (`is_new7wonders = 1`) with `province_experiences` (`is_new7wonders = 1`) — the exact query used to verify the seed data in the commit above, now needs a client-side (and probably server API) equivalent.
+- Once the data layer above exists: the global Experiences tab page (`client/src/pages/Experiences.jsx`, new), nav wiring (`navGroups.js`/`BottomTabBar`/`SubTabStrip`), the CountryDetail sub-tab, the `--color-wonder` CSS token across all 4 themes in `index.css`, and the `seven-wonders` platinum trophy in `client/src/lib/trophies.js` (mirror `conquestTrophy()` — all-or-nothing, platinum).
+
+**Suggested order for whoever picks this up:** routes (6) → client data layer (worker.js + snapshot.js + mutations.js + queries.js, in that order since each depends on the last) → trophy (11, small and self-contained, no UI dependency) → purple token (10, small, self-contained) → Experiences tab (8) → CountryDetail sub-tab (9) → full test suite pass (12).

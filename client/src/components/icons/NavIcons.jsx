@@ -82,3 +82,14 @@ export function IconGlobe(props) {
     </svg>
   );
 }
+
+// Experiences tab (issue #74) — a simple monument/landmark glyph: pediment
+// roof over columns, matching the Trophy/Podium icons' silhouette style.
+export function IconLandmark(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9 12 4l9 5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 9h16M5 9v9M9 9v9M15 9v9M19 9v9M3 21h18" />
+    </svg>
+  );
+}

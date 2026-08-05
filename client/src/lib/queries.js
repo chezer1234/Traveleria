@@ -426,10 +426,15 @@ export async function getLandmarksAndTransportForCountryLocal(db, userId, code, 
 // GET /api/experiences/seven-wonders.
 export async function getSevenWondersShowcaseLocal(db, userId) {
   const [landmarkWonders, provinceWonders, visitedLandmarkIds, visitedProvinceExpIds] = await Promise.all([
-    db.all(`SELECT id, name, description, country_code, NULL AS province_code, photo_url, photo_credit
-              FROM landmark_experiences WHERE is_new7wonders = 1`),
-    db.all(`SELECT pe.id, pe.name, pe.description, p.country_code, pe.province_code, NULL AS photo_url, NULL AS photo_credit
-              FROM province_experiences pe JOIN provinces p ON p.code = pe.province_code
+    db.all(`SELECT le.id, le.name, le.description, le.country_code, c.name AS country_name,
+                   NULL AS province_code, le.photo_url, le.photo_credit
+              FROM landmark_experiences le JOIN countries c ON c.code = le.country_code
+              WHERE le.is_new7wonders = 1`),
+    db.all(`SELECT pe.id, pe.name, pe.description, p.country_code, c.name AS country_name,
+                   pe.province_code, NULL AS photo_url, NULL AS photo_credit
+              FROM province_experiences pe
+              JOIN provinces p ON p.code = pe.province_code
+              JOIN countries c ON c.code = p.country_code
               WHERE pe.is_new7wonders = 1`),
     db.all(`SELECT experience_id FROM user_landmark_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
     db.all(`SELECT experience_id FROM user_province_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
@@ -439,7 +444,53 @@ export async function getSevenWondersShowcaseLocal(db, userId) {
   return wonders.map((w) => ({
     ...w,
     logged: visitedLandmarkIds.has(w.id) || visitedProvinceExpIds.has(w.id),
-  }));
+  })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Experience Update (issue #74): every landmark, sorted by country, for the
+// global Experiences tab's browse/sort view. Tier 0's province experiences
+// (US/China) are included too, so "found within a sub tab like cities and
+// regions within each country's home tab... yet also found on the
+// experiences tab" (issue #74) holds for Tier 0 as well as everyone else.
+// Points are shown only when a home country is set (same as everywhere
+// else scores depend on distance from home).
+export async function getAllLandmarkExperiencesLocal(db, userId, homeCountryCode) {
+  const allCountries = await loadAllCountries(db);
+  const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
+
+  const [rawLandmarks, rawTier0, visitedLandmarkIds, visitedProvinceExpIds] = await Promise.all([
+    db.all(`SELECT id, name, description, country_code, is_new7wonders, is_unesco, annual_visitors
+              FROM landmark_experiences`),
+    db.all(`SELECT pe.id, pe.name, pe.description, p.country_code, pe.is_new7wonders, pe.is_unesco
+              FROM province_experiences pe JOIN provinces p ON p.code = pe.province_code
+              WHERE pe.is_new7wonders = 1 OR pe.is_unesco = 1`), // Tier 0 has hundreds of unflagged rows — only show the notable ones here
+    db.all(`SELECT experience_id FROM user_landmark_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
+    db.all(`SELECT experience_id FROM user_province_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
+  ]);
+
+  const byCode = {};
+  for (const c of allCountries) byCode[c.code] = c;
+
+  const combined = [
+    ...rawLandmarks.map((lm) => ({ ...lm, source: 'landmark', logged: visitedLandmarkIds.has(lm.id) })),
+    ...rawTier0.map((exp) => ({ ...exp, source: 'tier0', logged: visitedProvinceExpIds.has(exp.id) })),
+  ];
+
+  return combined
+    .map((row) => {
+      const country = byCode[row.country_code];
+      const points = home && country
+        ? row.source === 'landmark'
+          ? getLandmarkPoints(row, country, home, allCountries)
+          : null // Tier 0's per-experience value depends on the province pool, not a flat %; shown on the country page instead
+        : null;
+      return {
+        ...row,
+        country_name: country ? country.name : row.country_code,
+        points,
+      };
+    })
+    .sort((a, b) => a.country_name.localeCompare(b.country_name) || a.name.localeCompare(b.name));
 }
 
 // Tier 0 (issue #46): real per-province breakdown (earnedPoints, maxPoints,

@@ -3,6 +3,7 @@ import {
   IconGlobe,
   IconGroups,
   IconHome,
+  IconLandmark,
   IconMap,
   IconPlusPin,
   IconPodium,
@@ -39,6 +40,10 @@ export const NAV_GROUPS = [
     subTabs: [
       { path: '/dashboard', label: 'Dashboard', icon: IconHome },
       { path: '/trophies', label: 'Trophies', icon: IconTrophy },
+      // Experience Update (issue #74): joins Overview the same way Map did
+      // (issue #65 Q&A) — the issue didn't specify placement, Charlie's call
+      // was Map's precedent, applied here too.
+      { path: '/experiences', label: 'Experiences', icon: IconLandmark },
       { path: '/map', label: 'Map', icon: IconMap },
       { path: '/settings', label: 'Settings', icon: IconGear },
     ],
@@ -52,7 +57,7 @@ export const NAV_GROUPS = [
 const GROUP_PREFIXES = {
   comparison: ['/leaderboard', '/groups', '/territory'],
   points: ['/add-countries', '/subregions', '/state-battle'],
-  overview: ['/dashboard', '/trophies', '/map', '/settings', '/countries'],
+  overview: ['/dashboard', '/trophies', '/experiences', '/map', '/settings', '/countries'],
 };
 
 export function getActiveGroup(pathname) {

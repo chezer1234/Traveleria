@@ -109,18 +109,18 @@ Two different rules depending on tier, decided with Charlie:
   - **Root cause:** population-inverse weighting is the right call for the *visit* baseline (rewards reaching an unusual state), but applying the same weighting to *landmark* value means famous, populous states get crushed — the Golden Gate Bridge isn't less impressive because California is popular.
   - **Fix, confirmed by Charlie:** keep population-inverse weighting (it's still correctly the reason over-visited states should score lower, and that principle should stay) but apply a **US-specific 2.5x multiplier** to the experience pool — effectively `TIER0_EXPERIENCE_RATIO` becomes 1.25 for the US only; China's stays at 0.5, since it isn't broken. Real recalculated numbers: California 0.115→0.288, Texas 0.129→0.324, Wyoming 0.524→1.309. 35 of 51 states still land under 1pt — by design, since the biggest states are supposed to stay relatively low-value — but nothing is left at embarrassing-decimal-dust values anymore. Full-US-fully-explored total (before cities) rises from ~306.7 to **~447.0**, a meaningful but proportionate increase (ruled out 8-10x options, which would have required ~750-935 to clear every state past 1pt — 4-5x inflation that would have made the US dominate every other country's total by a wide margin).
   - Implementation-wise, this needs `TIER0_EXPERIENCE_RATIO` to become per-country rather than a single shared constant (e.g. a small `{ US: 1.25, CN: 0.5 }` map) rather than a global bump — this is a fix to already-shipped, live scoring (issue #46), not new-feature scope, but it's being made here since Tier 0 experiences are the marquee content for the new Experiences tab this feature is building.
-- **Every other country (Tier 1, 2, 3):** each landmark experience is worth a **flat 1-5% of the country's `x`** (`visit_base + explorer_ceiling`, same anchor used everywhere else in this feature), with the exact percentage set per-experience by how significant the landmark is — 1% for a solid regional site, 5% for a globally iconic wonder (Machu Picchu, Angkor Wat tier). This is purely **additive** on top of the existing visit/province score, not a split of it — so it sidesteps the rollout-regression risk a pool-split model would have caused (no existing province visit gets recalculated downward while landmark data is still being backfilled).
+- **Every other country (Tier 1, 2, 3):** each landmark experience is worth a **1-5% band of the country's `x`** (`visit_base + explorer_ceiling`, same anchor used everywhere else in this feature) — a graduated scale, same shape as the earthquake magnitude bands and transport significance bands, not a single fixed number. Tied to a real, sourceable signal rather than a judgment call: **1%** = no special designation, **3%** = nationally significant but no UNESCO status, **5%** = UNESCO World Heritage Site (or equivalent globally-recognized designation) — binary, checkable per landmark, not vibes. This is purely **additive** on top of the existing visit/province score, not a split of it — so it sidesteps the rollout-regression risk a pool-split model would have caused (no existing province visit gets recalculated downward while landmark data is still being backfilled).
   - **Tier 1/2** (~36 countries with real province data — see `02_provinces.js`): landmarks attach to a specific province, for geographic organization, but the point value is the flat country-level percentage above, not province-weighted.
   - **Tier 3** (~159 countries, no province data at all — Laos included, the exact case CLAUDE.md opens with): landmarks attach directly to the country, since there's no province row to attach to.
 
-**Worked examples** (home UK, illustrative percentage per landmark):
+**Worked examples** (home UK) — all three 5% cases are genuine UNESCO World Heritage Sites, confirming the tier assignment against the real criterion, not just "obviously iconic":
 
-| Landmark | Country | Tier | x | % | Points |
-|---|---|---|---|---|---|
-| Machu Picchu | Peru | 1 | 240.38 | 5% (iconic) | 12.02 |
-| Pyramids of Giza | Egypt | 2 | 153.22 | 5% (iconic) | 7.66 |
-| Angkor Wat | Cambodia | 3 | 118.43 | 5% (iconic) | 5.92 |
-| (regional landmark example) | Laos | 3 | 98.45 | 1% (solid, not iconic) | 0.98 |
+| Landmark | Country | Tier | x | UNESCO? | % | Points |
+|---|---|---|---|---|---|---|
+| Machu Picchu | Peru | 1 | 240.38 | Yes | 5% | 12.02 |
+| Pyramids of Giza | Egypt | 2 | 153.22 | Yes | 5% | 7.66 |
+| Angkor Wat | Cambodia | 3 | 118.43 | Yes | 5% | 5.92 |
+| (regional landmark example) | Laos | 3 | 98.45 | No | 1% | 0.98 |
 
 Still meaningfully rewards a landmark in a small, less-touristy country — the Laos example is modest, not a rounding error.
 

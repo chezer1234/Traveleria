@@ -1,4 +1,5 @@
 import {
+  IconChart,
   IconGear,
   IconGlobe,
   IconGroups,
@@ -45,6 +46,7 @@ export const NAV_GROUPS = [
       // was Map's precedent, applied here too.
       { path: '/experiences', label: 'Experiences', icon: IconLandmark },
       { path: '/map', label: 'Map', icon: IconMap },
+      { path: '/stats', label: 'Stats', icon: IconChart },
       { path: '/settings', label: 'Settings', icon: IconGear },
     ],
   },
@@ -58,6 +60,7 @@ const GROUP_PREFIXES = {
   comparison: ['/leaderboard', '/groups', '/territory'],
   points: ['/add-countries', '/subregions', '/state-battle'],
   overview: ['/dashboard', '/trophies', '/experiences', '/map', '/settings', '/countries'],
+  overview: ['/dashboard', '/trophies', '/map', '/stats', '/settings', '/countries'],
 };
 
 export function getActiveGroup(pathname) {

@@ -32,12 +32,15 @@ router.get('/', async (req, res) => {
     // user on a new device) gets a complete picture in one round-trip. Without
     // this, writes that landed before the snapshot cursor would be orphaned:
     // not in the snapshot, and not in changes-since-cursor either.
-    db('user_countries').select('id', 'user_id', 'country_code', 'visited_at'),
-    db('user_cities').select('id', 'user_id', 'city_id', 'visited_at'),
-    db('user_provinces').select('id', 'user_id', 'province_code', 'visited_at'),
+    // created_at rides along on the four "did you log this" tables (not the
+    // time-log/subregion ones) — the Stats page's points-over-time graph
+    // (issue #75) replays events in the order they were logged.
+    db('user_countries').select('id', 'user_id', 'country_code', 'visited_at', 'created_at'),
+    db('user_cities').select('id', 'user_id', 'city_id', 'visited_at', 'created_at'),
+    db('user_provinces').select('id', 'user_id', 'province_code', 'visited_at', 'created_at'),
     db('user_subregions').select('id', 'user_id', 'subregion'),
     db('user_country_visits').select('id', 'user_id', 'country_code', 'days', 'visited_at'),
-    db('user_province_experiences').select('id', 'user_id', 'experience_id', 'visited_at'),
+    db('user_province_experiences').select('id', 'user_id', 'experience_id', 'visited_at', 'created_at'),
     db('user_province_visits').select('id', 'user_id', 'province_code', 'days', 'visited_at'),
     db('groups').select('id', 'name', 'created_by', 'created_at'),
     db('group_members').select('id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'),

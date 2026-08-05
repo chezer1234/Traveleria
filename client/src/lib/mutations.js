@@ -28,9 +28,12 @@ export async function addCountryOptimistic(db, userId, countryCode) {
   return db.mutate({
     preSteps: [
       {
-        sql: `INSERT INTO user_countries (id, user_id, country_code, visited_at)
-                VALUES (?, ?, ?, ?)`,
-        bind: [id, userId, code, null],
+        // created_at is a local stand-in (issue #75's points-over-time graph
+        // reads it) — the server stamps its own on write and the next sync
+        // poll's INSERT OR REPLACE reconciles any clock skew.
+        sql: `INSERT INTO user_countries (id, user_id, country_code, visited_at, created_at)
+                VALUES (?, ?, ?, ?, ?)`,
+        bind: [id, userId, code, null, new Date().toISOString()],
       },
     ],
     endpoint: `/api/users/${userId}/countries`,
@@ -79,9 +82,9 @@ export async function addCityOptimistic(db, userId, cityId) {
   return db.mutate({
     preSteps: [
       {
-        sql: `INSERT INTO user_cities (id, user_id, city_id, visited_at)
-                VALUES (?, ?, ?, ?)`,
-        bind: [id, userId, cityId, null],
+        sql: `INSERT INTO user_cities (id, user_id, city_id, visited_at, created_at)
+                VALUES (?, ?, ?, ?, ?)`,
+        bind: [id, userId, cityId, null, new Date().toISOString()],
       },
     ],
     endpoint: `/api/users/${userId}/cities`,
@@ -109,9 +112,9 @@ export async function addProvinceOptimistic(db, userId, provinceCode) {
   return db.mutate({
     preSteps: [
       {
-        sql: `INSERT INTO user_provinces (id, user_id, province_code, visited_at)
-                VALUES (?, ?, ?, ?)`,
-        bind: [id, userId, provinceCode, null],
+        sql: `INSERT INTO user_provinces (id, user_id, province_code, visited_at, created_at)
+                VALUES (?, ?, ?, ?, ?)`,
+        bind: [id, userId, provinceCode, null, new Date().toISOString()],
       },
     ],
     endpoint: `/api/users/${userId}/provinces`,
@@ -142,9 +145,9 @@ export async function addProvinceExperienceOptimistic(db, userId, experienceId, 
   const id = newId();
   const preSteps = [
     {
-      sql: `INSERT INTO user_province_experiences (id, user_id, experience_id, visited_at)
-              VALUES (?, ?, ?, ?)`,
-      bind: [id, userId, experienceId, null],
+      sql: `INSERT INTO user_province_experiences (id, user_id, experience_id, visited_at, created_at)
+              VALUES (?, ?, ?, ?, ?)`,
+      bind: [id, userId, experienceId, null, new Date().toISOString()],
     },
   ];
   // province_visit_id is generated here and echoed to the server so the
@@ -155,9 +158,9 @@ export async function addProvinceExperienceOptimistic(db, userId, experienceId, 
   if (!alreadyVisitedProvince) {
     provinceVisitId = newId();
     preSteps.push({
-      sql: `INSERT OR IGNORE INTO user_provinces (id, user_id, province_code, visited_at)
-              VALUES (?, ?, ?, ?)`,
-      bind: [provinceVisitId, userId, provinceCode, null],
+      sql: `INSERT OR IGNORE INTO user_provinces (id, user_id, province_code, visited_at, created_at)
+              VALUES (?, ?, ?, ?, ?)`,
+      bind: [provinceVisitId, userId, provinceCode, null, new Date().toISOString()],
     });
   }
   return db.mutate({

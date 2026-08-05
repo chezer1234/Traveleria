@@ -44,12 +44,15 @@ const TABLE_MAP = {
 
 const TABLE_COLUMNS = {
   users_public: ['id', 'identifier', 'display_name', 'home_country'],
-  user_countries: ['id', 'user_id', 'country_code', 'visited_at'],
-  user_cities: ['id', 'user_id', 'city_id', 'visited_at'],
-  user_provinces: ['id', 'user_id', 'province_code', 'visited_at'],
+  // created_at rides along on these four (not the time-log/subregion tables)
+  // — the Stats page's points-over-time graph (issue #75) replays events in
+  // the order they were logged.
+  user_countries: ['id', 'user_id', 'country_code', 'visited_at', 'created_at'],
+  user_cities: ['id', 'user_id', 'city_id', 'visited_at', 'created_at'],
+  user_provinces: ['id', 'user_id', 'province_code', 'visited_at', 'created_at'],
   user_subregions: ['id', 'user_id', 'subregion'],
   user_country_visits: ['id', 'user_id', 'country_code', 'days', 'visited_at'],
-  user_province_experiences: ['id', 'user_id', 'experience_id', 'visited_at'],
+  user_province_experiences: ['id', 'user_id', 'experience_id', 'visited_at', 'created_at'],
   user_province_visits: ['id', 'user_id', 'province_code', 'days', 'visited_at'],
   groups: ['id', 'name', 'created_by', 'created_at'],
   group_members: ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'],
@@ -129,19 +132,22 @@ const DDL = [
     id TEXT PRIMARY KEY,
     user_id TEXT,
     country_code TEXT,
-    visited_at TEXT
+    visited_at TEXT,
+    created_at TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS user_cities (
     id TEXT PRIMARY KEY,
     user_id TEXT,
     city_id TEXT,
-    visited_at TEXT
+    visited_at TEXT,
+    created_at TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS user_provinces (
     id TEXT PRIMARY KEY,
     user_id TEXT,
     province_code TEXT,
-    visited_at TEXT
+    visited_at TEXT,
+    created_at TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS user_subregions (
     id TEXT PRIMARY KEY,
@@ -159,7 +165,8 @@ const DDL = [
     id TEXT PRIMARY KEY,
     user_id TEXT,
     experience_id TEXT,
-    visited_at TEXT
+    visited_at TEXT,
+    created_at TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS user_province_visits (
     id TEXT PRIMARY KEY,
@@ -262,6 +269,13 @@ function ensureSchema() {
   // wouldn't add them to an already-existing local table.
   try { db.exec('ALTER TABLE province_experiences ADD COLUMN is_new7wonders INTEGER'); } catch { /* already exists */ }
   try { db.exec('ALTER TABLE province_experiences ADD COLUMN is_unesco INTEGER'); } catch { /* already exists */ }
+  // issue #75 (Stats page points-over-time graph): created_at on the four
+  // "did you log this" tables. Existing local rows backfill as NULL until
+  // the next full resync — buildPointsHistory skips events it can't place.
+  try { db.exec('ALTER TABLE user_countries ADD COLUMN created_at TEXT'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE user_cities ADD COLUMN created_at TEXT'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE user_provinces ADD COLUMN created_at TEXT'); } catch { /* already exists */ }
+  try { db.exec('ALTER TABLE user_province_experiences ADD COLUMN created_at TEXT'); } catch { /* already exists */ }
 }
 
 function bulkInsert(table, rows, columns) {
@@ -305,12 +319,12 @@ async function hydrate(apiBase, authToken) {
     // User-visit tables are part of the cold-boot payload so pre-existing
     // writes (made before this client's cursor) aren't orphaned. The changes
     // feed then handles everything from the snapshot cursor forward.
-    bulkInsert('user_countries', snap.user_countries || [], ['id', 'user_id', 'country_code', 'visited_at']);
-    bulkInsert('user_cities', snap.user_cities || [], ['id', 'user_id', 'city_id', 'visited_at']);
-    bulkInsert('user_provinces', snap.user_provinces || [], ['id', 'user_id', 'province_code', 'visited_at']);
+    bulkInsert('user_countries', snap.user_countries || [], ['id', 'user_id', 'country_code', 'visited_at', 'created_at']);
+    bulkInsert('user_cities', snap.user_cities || [], ['id', 'user_id', 'city_id', 'visited_at', 'created_at']);
+    bulkInsert('user_provinces', snap.user_provinces || [], ['id', 'user_id', 'province_code', 'visited_at', 'created_at']);
     bulkInsert('user_subregions', snap.user_subregions || [], ['id', 'user_id', 'subregion']);
     bulkInsert('user_country_visits', snap.user_country_visits || [], ['id', 'user_id', 'country_code', 'days', 'visited_at']);
-    bulkInsert('user_province_experiences', snap.user_province_experiences || [], ['id', 'user_id', 'experience_id', 'visited_at']);
+    bulkInsert('user_province_experiences', snap.user_province_experiences || [], ['id', 'user_id', 'experience_id', 'visited_at', 'created_at']);
     bulkInsert('user_province_visits', snap.user_province_visits || [], ['id', 'user_id', 'province_code', 'days', 'visited_at']);
     bulkInsert('groups', snap.groups || [], ['id', 'name', 'created_by', 'created_at']);
     bulkInsert('group_members', snap.group_members || [], ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at']);

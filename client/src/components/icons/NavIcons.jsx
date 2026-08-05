@@ -73,6 +73,15 @@ export function IconGear(props) {
   );
 }
 
+export function IconChart(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 20V4M4 20h16" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l4-5 3 3 5-7" />
+    </svg>
+  );
+}
+
 export function IconGlobe(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>

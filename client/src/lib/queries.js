@@ -23,6 +23,9 @@ import {
 } from './points.js';
 import { getContinent, CONTINENTS } from './continents.js';
 import { rankMostLeastVisited } from './globalStats.js';
+import { buildPointsHistory } from './pointsHistory.js';
+import { computeContinentBreakdown } from './continentStats.js';
+import { evaluateCabinet } from './trophies.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
@@ -274,6 +277,103 @@ export async function getUserScoreLocal(db, userId, homeCountryCode) {
     sevenWondersBonus,
     sevenWondersLogged: wonderPoints.length,
   };
+}
+
+// Stats page (issue #75, phase 1): points-over-time graph. Gathers every
+// logged country/province/city/experience row for this user as a "point
+// event" (country_code + created_at) and hands them to buildPointsHistory,
+// which replays them through the existing scoring engine in order. Static
+// reference data (allProvinces/allCities/allExperiences) is fetched once per
+// visited country — those lists don't change over time, only which items in
+// them are visited does.
+export async function getUserPointsHistoryLocal(db, userId, homeCountryCode) {
+  const [allCountries, provincesByCountry] = await Promise.all([
+    loadAllCountries(db),
+    loadAllProvincesByCountry(db),
+  ]);
+  const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
+
+  const userCountries = await db.all(
+    `SELECT country_code, created_at FROM user_countries WHERE user_id = ?`,
+    [userId],
+  );
+  if (userCountries.length === 0) return [];
+
+  const countryCodes = userCountries.map((r) => r.country_code);
+  const placeholders = countryCodes.map(() => '?').join(',');
+
+  const [userProvinces, userCities, userExperiences] = await Promise.all([
+    db.all(
+      `SELECT up.province_code, up.created_at, p.country_code
+         FROM user_provinces up JOIN provinces p ON up.province_code = p.code
+         WHERE up.user_id = ? AND p.country_code IN (${placeholders})`,
+      [userId, ...countryCodes],
+    ),
+    db.all(
+      `SELECT uc.city_id, uc.created_at, c.country_code
+         FROM user_cities uc JOIN cities c ON uc.city_id = c.id
+         WHERE uc.user_id = ? AND c.country_code IN (${placeholders})`,
+      [userId, ...countryCodes],
+    ),
+    db.all(
+      `SELECT upe.experience_id, upe.created_at, pr.country_code
+         FROM user_province_experiences upe
+         JOIN province_experiences pe ON upe.experience_id = pe.id
+         JOIN provinces pr ON pe.province_code = pr.code
+         WHERE upe.user_id = ? AND pr.country_code IN (${placeholders})`,
+      [userId, ...countryCodes],
+    ),
+  ]);
+
+  const countryRefs = {};
+  for (const code of countryCodes) {
+    const country = allCountries.find((c) => c.code === code);
+    if (!country) continue;
+    const tier = getCountryTier(code);
+    const allProvinces = provincesByCountry[code] || [];
+    const allCities = tier !== 'microstate' ? await loadCitiesForCountry(db, code) : [];
+    const allExperiences = tier === 0 ? await loadExperiencesForCountry(db, allProvinces.map((p) => p.code)) : [];
+    countryRefs[code] = { country, allProvinces, allCities, allExperiences };
+  }
+
+  const events = [
+    ...userCountries.map((r) => ({ type: 'country', country_code: r.country_code, created_at: r.created_at })),
+    ...userProvinces.map((r) => ({ type: 'province', country_code: r.country_code, ref_id: r.province_code, created_at: r.created_at })),
+    ...userCities.map((r) => ({ type: 'city', country_code: r.country_code, ref_id: r.city_id, created_at: r.created_at })),
+    ...userExperiences.map((r) => ({ type: 'experience', country_code: r.country_code, ref_id: r.experience_id, created_at: r.created_at })),
+  ];
+
+  return buildPointsHistory(home, allCountries, countryRefs, events);
+}
+
+// Stats page (issue #75, phase 2): continent map — the pie overlay's
+// per-continent Base/Experience numbers and the choropleth's per-country
+// totals, in one pass over the same per-country point results
+// getUserCountriesLocal produces. See client/src/lib/continentStats.js for
+// the bucketing rules.
+export async function getUserContinentStatsLocal(db, userId, homeCountryCode) {
+  const { homeCountry, allCountries, visitedCountries } = await getUserTravelData(
+    db, userId, homeCountryCode,
+  );
+
+  const countryPoints = visitedCountries.map(({
+    country, visitedCities = [], visitedProvinces = [], allProvinces = [], allCities = [],
+    allExperiences = [], visitedExperienceIds = [],
+  }) => ({
+    country,
+    pts: calculateCountryPoints(country, homeCountry, allCountries, {
+      visitedProvinces, visitedCities, allProvinces, allCities, allExperiences, visitedExperienceIds,
+    }),
+  }));
+
+  const visitedCodes = new Set(visitedCountries.map(({ country }) => country.code));
+  const claimedRows = await db.all(
+    `SELECT subregion FROM user_subregions WHERE user_id = ?`, [userId],
+  );
+  const claimedSubregions = new Set(claimedRows.map((r) => r.subregion));
+  const { subregions } = calculateSubregionBonuses(homeCountry, allCountries, visitedCodes, claimedSubregions);
+
+  return computeContinentBreakdown(countryPoints, subregions);
 }
 
 // ---------- Country list (AddCountries, SignUp precedent) ----------
@@ -801,6 +901,16 @@ export async function getUserPublicLocal(db, userId) {
   );
 }
 
+// Every other user, for the Stats page's comparison picker (issue #75, phase
+// 3) — small-scale app, so a plain list (no pagination/search) is enough.
+export async function getAllUsersPublicLocal(db, excludeUserId) {
+  return db.all(
+    `SELECT id, identifier, display_name, home_country FROM users_public
+       WHERE id != ? ORDER BY identifier`,
+    [excludeUserId],
+  );
+}
+
 // ── Groups (issue #37) ───────────────────────────────────────────────────────
 
 // All groups the given user belongs to, with their members.
@@ -966,5 +1076,49 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
     })),
     totalAccounts: Number(accountCount) || 0,
     visitorsByCountry,
+  };
+}
+
+// Stats page (issue #75, phase 3): the eight comparison stats
+// (client/src/lib/statsCompare.js's COMPARISON_STATS), for one user. Reuses
+// getTrophyStatusLocal/getUserScoreLocal rather than re-deriving their
+// numbers — same values Trophies/Dashboard already show, no new formula.
+// leaderboardRank comes from a full, untruncated ranking (getLeaderboardLocal
+// truncates to the top 50 + the signed-in user, which isn't enough to rank
+// an arbitrary opponent).
+export async function getUserComparisonStatsLocal(db, userId, homeCountryCode) {
+  const [trophyStats, score, { results }] = await Promise.all([
+    getTrophyStatusLocal(db, userId, homeCountryCode),
+    getUserScoreLocal(db, userId, homeCountryCode),
+    computeAllUserTravelResults(db),
+  ]);
+
+  const cabinet = evaluateCabinet(trophyStats);
+  const trophiesUnlocked = cabinet.all.filter((t) => t.earned).length;
+
+  const explorerPointsClaimed = Math.round(
+    (score.countries || []).reduce((sum, c) => sum + (c.explorationPoints || 0) + (c.cityPoints || 0), 0) * 100,
+  ) / 100;
+
+  const ranked = results
+    .map(({ user: u, result, totalBonusPoints }) => ({
+      user_id: u.id,
+      total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
+    }))
+    .sort((a, b) => b.total_points - a.total_points);
+  const rankIndex = ranked.findIndex((r) => r.user_id === userId);
+
+  return {
+    countriesVisited: trophyStats.visited.length,
+    subregionsExplored: trophyStats.subregions.length,
+    subregionPoints: score.subregionBonusPoints,
+    citiesVisited: trophyStats.citiesVisited,
+    trophiesUnlocked,
+    trophiesTotal: cabinet.all.length,
+    experiencesDone: trophyStats.experiencesCompleted,
+    explorerPointsClaimed,
+    totalPoints: score.totalPoints,
+    leaderboardRank: rankIndex === -1 ? null : rankIndex + 1,
+    totalUsers: ranked.length,
   };
 }

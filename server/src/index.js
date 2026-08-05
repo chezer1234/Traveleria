@@ -17,6 +17,7 @@ import authRoutes from './routes/auth.js';
 import groupsRoutes from './routes/groups.js';
 import changesRoutes from './routes/changes.js';
 import snapshotRoutes from './routes/snapshot.js';
+import experiencesRoutes from './routes/experiences.js';
 import debugRoutes from './routes/debug.js';
 import devRoutes from './routes/dev.js';
 
@@ -125,6 +126,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/changes', changesRoutes);
 app.use('/api/snapshot', snapshotRoutes);
+app.use('/api/experiences', experiencesRoutes);
 app.use('/api/debug', debugRoutes);
 
 if (process.env.NODE_ENV !== 'production') {

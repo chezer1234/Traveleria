@@ -715,7 +715,7 @@ export async function getSubregionsLocal(db, userId, homeCountryCode) {
 // Distances come from the same haversine the scoring engine uses
 // (points.js getDistanceKm) — null when there's no home country to measure from.
 export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
-  const [allCountries, visitedRows, experienceCount, cityCount, accountCount, visitorRows, score] = await Promise.all([
+  const [allCountries, visitedRows, experienceCount, cityCount, accountCount, visitorRows, score, sevenWondersLogged] = await Promise.all([
     loadAllCountries(db),
     db.all(
       `SELECT c.code, c.name, c.region, c.subregion, c.population,
@@ -736,6 +736,22 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
          FROM user_countries GROUP BY country_code`,
     ),
     getUserScoreLocal(db, userId, homeCountryCode),
+    // Seven Wonders showcase (issue #74): New7Wonders live in two tables —
+    // landmark_experiences for everyone except the Great Wall at Badaling,
+    // which is Tier 0 (province_experiences) — unioned the same way the
+    // /api/experiences/seven-wonders route does server-side.
+    db.value(
+      `SELECT COUNT(*) FROM (
+         SELECT ule.id FROM user_landmark_experiences ule
+           JOIN landmark_experiences le ON le.id = ule.experience_id
+           WHERE ule.user_id = ? AND le.is_new7wonders = 1
+         UNION ALL
+         SELECT upe.id FROM user_province_experiences upe
+           JOIN province_experiences pe ON pe.id = upe.experience_id
+           WHERE upe.user_id = ? AND pe.is_new7wonders = 1
+       )`,
+      [userId, userId],
+    ),
   ]);
 
   const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
@@ -753,6 +769,7 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
     continents: [...new Set(visited.map((c) => getContinent(c.subregion)).filter(Boolean))],
     experiencesCompleted: Number(experienceCount) || 0,
     citiesVisited: Number(cityCount) || 0,
+    sevenWondersLogged: Number(sevenWondersLogged) || 0,
     totalPoints: score.totalPoints,
     // Per-nation totals from the score engine — powers "Century Nation".
     countryPoints: (score.countries || []).map((c) => ({

@@ -201,6 +201,11 @@ router.post(
       user_id: id,
       country_code: country.code,
       visited_at: visited_at || null,
+      // Stamped explicitly (rather than left to the column's DB default) so
+      // the exact same value lands in the row echoed to _changes — the Stats
+      // page's points-over-time graph (issue #75) replays events by this
+      // timestamp, and it needs to match what's actually stored.
+      created_at: new Date().toISOString(),
     };
 
     let change_id;
@@ -335,6 +340,7 @@ router.post(
       user_id: id,
       city_id,
       visited_at: visited_at || null,
+      created_at: new Date().toISOString(), // see the countries route above for why this is explicit
     };
 
     let change_id;
@@ -393,6 +399,7 @@ router.post(
       user_id: id,
       province_code,
       visited_at: visited_at || null,
+      created_at: new Date().toISOString(), // see the countries route above for why this is explicit
     };
 
     let change_id;
@@ -468,6 +475,7 @@ router.post(
       user_id: id,
       experience_id,
       visited_at: visited_at || null,
+      created_at: new Date().toISOString(), // see the countries route above for why this is explicit
     };
 
     let change_id;
@@ -487,6 +495,7 @@ router.post(
           user_id: id,
           province_code: province.code,
           visited_at: null,
+          created_at: new Date().toISOString(),
         };
         await trx('user_provinces').insert(provinceRow);
         change_id = await changes.record(trx, {

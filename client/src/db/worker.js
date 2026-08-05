@@ -32,6 +32,14 @@ const TABLE_MAP = {
   user_province_visits: 'user_province_visits',
   groups: 'groups',
   group_members: 'group_members',
+  // Experience Update (issue #74) — per-user visit rows, same treatment as
+  // user_province_experiences above. The reference-data tables
+  // (landmark_experiences, transport_experiences, country_disaster_rarity)
+  // are NOT in this map, same reason province_experiences isn't: snapshot
+  // only, no _changes feed entries.
+  user_landmark_experiences: 'user_landmark_experiences',
+  user_transport_experiences: 'user_transport_experiences',
+  disaster_logs: 'disaster_logs',
 };
 
 const TABLE_COLUMNS = {
@@ -45,6 +53,9 @@ const TABLE_COLUMNS = {
   user_province_visits: ['id', 'user_id', 'province_code', 'days', 'visited_at'],
   groups: ['id', 'name', 'created_by', 'created_at'],
   group_members: ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at'],
+  user_landmark_experiences: ['id', 'user_id', 'experience_id', 'visited_at'],
+  user_transport_experiences: ['id', 'user_id', 'experience_id', 'visited_at'],
+  disaster_logs: ['id', 'user_id', 'country_code', 'disaster_type', 'magnitude_band', 'points', 'logged_at'],
 };
 
 let syncApiBase = '';
@@ -171,6 +182,61 @@ const DDL = [
     secondary_colour TEXT,
     joined_at TEXT
   )`,
+  // Experience Update (issue #74): reference data (like province_experiences
+  // above) — synced via snapshot only, not the _changes feed.
+  `CREATE TABLE IF NOT EXISTS landmark_experiences (
+    id TEXT PRIMARY KEY,
+    country_code TEXT,
+    province_code TEXT,
+    name TEXT,
+    description TEXT,
+    is_new7wonders INTEGER,
+    is_unesco INTEGER,
+    annual_visitors INTEGER,
+    significance_pct INTEGER,
+    photo_credit TEXT,
+    photo_url TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS transport_experiences (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    host_country_code TEXT,
+    description TEXT,
+    distance_km INTEGER,
+    duration TEXT,
+    significance_band REAL,
+    photo_credit TEXT,
+    photo_url TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS country_disaster_rarity (
+    id TEXT PRIMARY KEY,
+    country_code TEXT,
+    disaster_type TEXT,
+    avg_events_per_year REAL,
+    rarity_multiplier REAL,
+    source TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS user_landmark_experiences (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    experience_id TEXT,
+    visited_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS user_transport_experiences (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    experience_id TEXT,
+    visited_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS disaster_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    country_code TEXT,
+    disaster_type TEXT,
+    magnitude_band REAL,
+    points REAL,
+    logged_at TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)`,
 ];
 
@@ -240,6 +306,22 @@ async function hydrate(apiBase, authToken) {
     bulkInsert('user_province_visits', snap.user_province_visits || [], ['id', 'user_id', 'province_code', 'days', 'visited_at']);
     bulkInsert('groups', snap.groups || [], ['id', 'name', 'created_by', 'created_at']);
     bulkInsert('group_members', snap.group_members || [], ['id', 'group_id', 'user_id', 'primary_colour', 'secondary_colour', 'joined_at']);
+    // Experience Update (issue #74)
+    bulkInsert('landmark_experiences', snap.landmark_experiences || [], [
+      'id', 'country_code', 'province_code', 'name', 'description', 'is_new7wonders', 'is_unesco',
+      'annual_visitors', 'significance_pct', 'photo_credit', 'photo_url',
+    ]);
+    bulkInsert('transport_experiences', snap.transport_experiences || [], [
+      'id', 'name', 'host_country_code', 'description', 'distance_km', 'duration', 'significance_band', 'photo_credit', 'photo_url',
+    ]);
+    bulkInsert('country_disaster_rarity', snap.country_disaster_rarity || [], [
+      'id', 'country_code', 'disaster_type', 'avg_events_per_year', 'rarity_multiplier', 'source',
+    ]);
+    bulkInsert('user_landmark_experiences', snap.user_landmark_experiences || [], ['id', 'user_id', 'experience_id', 'visited_at']);
+    bulkInsert('user_transport_experiences', snap.user_transport_experiences || [], ['id', 'user_id', 'experience_id', 'visited_at']);
+    bulkInsert('disaster_logs', snap.disaster_logs || [], [
+      'id', 'user_id', 'country_code', 'disaster_type', 'magnitude_band', 'points', 'logged_at',
+    ]);
     db.exec({
       sql: `INSERT OR REPLACE INTO _meta (key, value) VALUES ('cursor', ?)`,
       bind: [String(snap.cursor)],

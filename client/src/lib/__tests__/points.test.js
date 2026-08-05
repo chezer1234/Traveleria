@@ -34,7 +34,7 @@ import {
   BASE_CAP,
   AQ_OVERRIDE_POINTS,
   TIER0_VISIT_RATIO,
-  TIER0_EXPERIENCE_RATIO,
+  getTier0ExperienceRatio,
   CITY_MAJOR_POINTS,
   CITY_ADDITIONAL_POINTS,
 } from '../points.js';
@@ -416,7 +416,7 @@ describe('Tier 0 Province Exploration', () => {
     expect(ca.earnedPoints).toBeCloseTo(x * TIER0_VISIT_RATIO, 2);
   });
 
-  test('logging all experiences earns the remaining 50% pool on top of the 90% baseline', () => {
+  test('logging all experiences earns the remaining experience pool on top of the 90% baseline (US ratio 125%)', () => {
     const visited = [{ code: 'US-CA' }];
     const result = calculateTier0ProvinceExploration(
       100, mockCountry, mockProvinces, visited, mockCities, [], mockExperiences, ['e1', 'e2'],
@@ -424,17 +424,18 @@ describe('Tier 0 Province Exploration', () => {
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
-    expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + TIER0_EXPERIENCE_RATIO), 2);
+    expect(ca.earnedPoints).toBeCloseTo(x * (TIER0_VISIT_RATIO + getTier0ExperienceRatio('US')), 2);
     expect(ca.experiences.visited).toBe(2);
-    expect(ca.experiences.earned).toBeCloseTo(x * TIER0_EXPERIENCE_RATIO, 2);
+    expect(ca.experiences.earned).toBeCloseTo(x * getTier0ExperienceRatio('US'), 2);
   });
 
-  test('cities are a bonus on top of the 1.4x ceiling, pushing maxPoints above 1.4x', () => {
+  test('cities are a bonus on top of the province ceiling, pushing maxPoints above it', () => {
     const result = calculateTier0ProvinceExploration(100, mockCountry, mockProvinces, [], mockCities, [], mockExperiences, []);
     const ca = result.provinceBreakdown.find(p => p.code === 'US-CA');
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-CA')] * 100;
-    expect(ca.maxPoints).toBeCloseTo(x * 1.4 + 1.0, 2); // 2 major cities = 1.0 pt
+    const provinceRatio = TIER0_VISIT_RATIO + getTier0ExperienceRatio('US'); // 0.9 + 1.25 = 2.15 for US
+    expect(ca.maxPoints).toBeCloseTo(x * provinceRatio + 1.0, 2); // 2 major cities = 1.0 pt
   });
 
   test('city points logged count toward percentExplored but not toward country-level explorationPoints', () => {
@@ -457,7 +458,7 @@ describe('Tier 0 Province Exploration', () => {
     const weights = getProvinceWeights(mockProvinces, mockCountry.population);
     const x = weights[mockProvinces.findIndex(p => p.code === 'US-WY')] * 100;
     // pointsEach is rounded to 2dp in the implementation (round2)
-    expect(wy.experiences.pointsEach).toBeCloseTo((x * TIER0_EXPERIENCE_RATIO) / 3, 2);
+    expect(wy.experiences.pointsEach).toBeCloseTo((x * getTier0ExperienceRatio('US')) / 3, 2);
   });
 });
 

@@ -32,6 +32,10 @@
   --color-you: #2e5fa3;
   --color-them: #b4552d;
   --color-contested: #7b4a8f;
+
+  /* Seven Wonders highlight (issue #74) — its own token, not a reuse of
+     --color-plum (already the semantic color for contested territory). */
+  --color-wonder: #7c3aed;
 }
 
 /* ---------------------------------------------------------------------------
@@ -64,6 +68,10 @@
   --color-you: #1e88b8;
   --color-them: #d84a86;
   --color-contested: #a3812c;
+
+  /* Seven Wonders highlight (issue #74) — a genuine purple; Orbit's
+     --color-plum happens to render gold, not purple, on this dark surface. */
+  --color-wonder: #c084fc;
 
   /* Stock reds (error states) re-tuned for the dark surface. */
   --color-red-50: #251218;
@@ -108,6 +116,11 @@
   --color-you: #3b82f6;
   --color-them: #ef4444;
   --color-contested: #a855f7;
+
+  /* Seven Wonders highlight (issue #74) — distinct from both --color-plum
+     (contested territory) and --color-violet below (decorative gradient
+     only, never on data — see its own comment). */
+  --color-wonder: #9333ea;
 
   /* Jet-trail gradient (issue #63) — decorative only, never on data. From the
      concept's implementation notes: coral #ff6b4a → violet #7c5cff. */
@@ -157,6 +170,10 @@
   --color-you: #5d7a52;
   --color-them: #9e4a2a;
   --color-contested: #7a5470;
+
+  /* Seven Wonders highlight (issue #74) — a deeper aged-ink purple, distinct
+     from --color-plum. */
+  --color-wonder: #5b3a6e;
 
   /* Engraved plates have hard corners. */
   --radius-sm: 0.125rem;

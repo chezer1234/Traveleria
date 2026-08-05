@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import db from '../db/connection.js';
 import {
   calculateCountryPoints, calculateTotalTravelPoints, calculateSubregionBonuses, getCountryTier,
-  getLandmarkPoints, getTransportPoints, getDisasterPoints, getMagnitudeComponent,
+  getLandmarkPoints, getTransportPoints, getDisasterPoints, getMagnitudeComponent, calculateSevenWondersBonus,
 } from '../lib/points.js';
 import { STYLE_UNLOCK_POINTS, isStyleUnlocked } from '../lib/styleUnlocks.js';
 import { requireAuth, requireOwnership } from '../middleware/auth.js';
@@ -48,7 +48,64 @@ async function getUserTotalPoints(userId, homeCountryCode) {
   const { totalBonusPoints } = calculateSubregionBonuses(
     homeCountry, allCountries, visitedCodes, new Set(claimedRows),
   );
-  return Math.round((result.totalPoints + totalBonusPoints) * 100) / 100;
+  const experienceUpdateTotal = await getExperienceUpdateBonus(userId, homeCountry, allCountries, result);
+  return Math.round((result.totalPoints + totalBonusPoints + experienceUpdateTotal) * 100) / 100;
+}
+
+// Experience Update (issue #74): landmark/transport/disaster points and the
+// Seven Wonders completion bonus are additive on top of the country total —
+// same treatment as the subregion bonus above (mirrors getUserScoreLocal on
+// the client, client/src/lib/queries.js).
+async function getExperienceUpdateBonus(userId, homeCountry, allCountries, totalTravelResult) {
+  const [loggedLandmarks, loggedTransport, disasterRows, wonderProvinceRow] = await Promise.all([
+    db('user_landmark_experiences')
+      .join('landmark_experiences', 'user_landmark_experiences.experience_id', 'landmark_experiences.id')
+      .where({ 'user_landmark_experiences.user_id': userId })
+      .select('landmark_experiences.*'),
+    db('user_transport_experiences')
+      .join('transport_experiences', 'user_transport_experiences.experience_id', 'transport_experiences.id')
+      .where({ 'user_transport_experiences.user_id': userId })
+      .select('transport_experiences.*'),
+    db('disaster_logs').where({ user_id: userId }).select('points'),
+    // The 7th New7Wonder (Great Wall at Badaling) lives in Tier 0's
+    // province-pool model, not this flat landmark model.
+    db('user_province_experiences')
+      .join('province_experiences', 'user_province_experiences.experience_id', 'province_experiences.id')
+      .where({ 'user_province_experiences.user_id': userId, 'province_experiences.is_new7wonders': true })
+      .select('province_experiences.province_code')
+      .first(),
+  ]);
+
+  let landmarkPoints = 0;
+  const wonderPoints = [];
+  for (const lm of loggedLandmarks) {
+    const country = allCountries.find(c => c.code === lm.country_code);
+    if (!country || !homeCountry) continue;
+    const pts = getLandmarkPoints(lm, country, homeCountry, allCountries);
+    landmarkPoints += pts;
+    if (lm.is_new7wonders) wonderPoints.push(pts);
+  }
+
+  let transportPoints = 0;
+  for (const rt of loggedTransport) {
+    const hostCountry = allCountries.find(c => c.code === rt.host_country_code);
+    if (!hostCountry || !homeCountry) continue;
+    transportPoints += getTransportPoints(rt, hostCountry, homeCountry, allCountries);
+  }
+
+  const disasterPoints = disasterRows.reduce((s, r) => s + (Number(r.points) || 0), 0);
+
+  // Its per-experience value is already computed as part of China's
+  // provinceBreakdown (experiences.pointsEach, shared by every experience in
+  // that province) — reuse it rather than re-deriving the Tier 0 formula.
+  if (wonderProvinceRow) {
+    const china = (totalTravelResult.countries || []).find(c => c.countryCode === 'CN');
+    const beijing = china?.provinceBreakdown?.find(p => p.code === wonderProvinceRow.province_code);
+    if (beijing) wonderPoints.push(beijing.experiences.pointsEach);
+  }
+
+  const { bonus: sevenWondersBonus } = calculateSevenWondersBonus(wonderPoints);
+  return landmarkPoints + transportPoints + disasterPoints + sevenWondersBonus;
 }
 
 // Style preference (issue #60). Deliberately NOT recorded in the _changes

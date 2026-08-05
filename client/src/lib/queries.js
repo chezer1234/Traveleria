@@ -17,6 +17,9 @@ import {
   getScoreBreakdown,
   calculateSubregionBonuses,
   getDistanceKm,
+  getLandmarkPoints,
+  getTransportPoints,
+  calculateSevenWondersBonus,
 } from './points.js';
 import { getContinent, CONTINENTS } from './continents.js';
 import { rankMostLeastVisited } from './globalStats.js';
@@ -195,11 +198,76 @@ export async function getUserScoreLocal(db, userId, homeCountryCode) {
     homeCountry, allCountries, visitedCodes, claimedSubregions,
   );
 
+  // Experience Update (issue #74): landmark/transport/disaster points and the
+  // Seven Wonders completion bonus are additive on top of the country total —
+  // same treatment as the subregion bonus above, not folded into
+  // calculateCountryPoints itself (mirrors getUserTotalPoints on the server).
+  const [loggedLandmarks, loggedTransport, disasterRows, wonderProvinceRow] = await Promise.all([
+    db.all(
+      `SELECT le.* FROM user_landmark_experiences ule
+         JOIN landmark_experiences le ON le.id = ule.experience_id
+         WHERE ule.user_id = ?`,
+      [userId],
+    ),
+    db.all(
+      `SELECT te.* FROM user_transport_experiences ute
+         JOIN transport_experiences te ON te.id = ute.experience_id
+         WHERE ute.user_id = ?`,
+      [userId],
+    ),
+    db.all(`SELECT points FROM disaster_logs WHERE user_id = ?`, [userId]),
+    // The 7th New7Wonder (Great Wall at Badaling) lives in Tier 0's
+    // province-pool model, not this flat landmark model.
+    db.get(
+      `SELECT pe.province_code FROM user_province_experiences upe
+         JOIN province_experiences pe ON pe.id = upe.experience_id
+         WHERE upe.user_id = ? AND pe.is_new7wonders = 1`,
+      [userId],
+    ),
+  ]);
+
+  let landmarkPoints = 0;
+  const wonderPoints = [];
+  for (const lm of loggedLandmarks) {
+    const country = allCountries.find((c) => c.code === lm.country_code);
+    if (!country) continue;
+    const pts = getLandmarkPoints(lm, country, homeCountry, allCountries);
+    landmarkPoints += pts;
+    if (lm.is_new7wonders) wonderPoints.push(pts);
+  }
+
+  let transportPoints = 0;
+  for (const rt of loggedTransport) {
+    const hostCountry = allCountries.find((c) => c.code === rt.host_country_code);
+    if (!hostCountry) continue;
+    transportPoints += getTransportPoints(rt, hostCountry, homeCountry, allCountries);
+  }
+
+  const disasterPoints = disasterRows.reduce((s, r) => s + (Number(r.points) || 0), 0);
+
+  // Its per-experience value is already computed as part of China's
+  // provinceBreakdown (experiences.pointsEach, shared by every experience in
+  // that province) — reuse it rather than re-deriving the Tier 0 formula.
+  if (wonderProvinceRow) {
+    const china = result.countries.find((c) => c.countryCode === 'CN');
+    const beijing = china?.provinceBreakdown?.find((p) => p.code === wonderProvinceRow.province_code);
+    if (beijing) wonderPoints.push(beijing.experiences.pointsEach);
+  }
+
+  const { bonus: sevenWondersBonus } = calculateSevenWondersBonus(wonderPoints);
+
+  const experienceUpdateTotal = landmarkPoints + transportPoints + disasterPoints + sevenWondersBonus;
+
   return {
     user_id: userId,
     ...result,
-    totalPoints: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
+    totalPoints: Math.round((result.totalPoints + totalBonusPoints + experienceUpdateTotal) * 100) / 100,
     subregionBonusPoints: totalBonusPoints,
+    landmarkPoints: Math.round(landmarkPoints * 100) / 100,
+    transportPoints: Math.round(transportPoints * 100) / 100,
+    disasterPoints: Math.round(disasterPoints * 100) / 100,
+    sevenWondersBonus,
+    sevenWondersLogged: wonderPoints.length,
   };
 }
 

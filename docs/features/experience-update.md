@@ -93,13 +93,15 @@ scalar = route_significance × (1 + (tourism_score + danger_score) / 26)
 
 | Route | Host | Distance/duration | Significance | x | Points |
 |---|---|---|---|---|---|
-| Trans-Siberian (full) | Russia | 9,289 km, ~7 days | 3.0 (epic) | 199.34 | 18.42 |
+| Trans-Siberian (full) | Russia | 9,289 km, ~7 days | 3.0 (epic) | 239.04 | 24.28 |
 | Reunification Express | Vietnam | 1,726 km, ~30-36 hrs | 2.0 (long-distance) | 181.47 | 10.99 |
 | The Ghan | Australia | 2,979 km, ~3 days | 2.0 (long-distance) | 179.15 | 9.78 |
 | Shinkansen (Tokyo–Shin-Osaka) | Japan | 515 km, ~2.5 hrs | 1.5 (regional) | 167.77 | 7.28 |
 | Eurostar (London–Paris) | France | 495 km, ~2h15 | 1.0 (short) | 21.44 | 0.50 |
 
-Range comes out 0.5-18.4 — a quick, easy, safe hop barely registers; a week-long transcontinental epic through a harder-to-visit country is meaningfully rewarding, but stays below the value of a full country visit (Laos = 29.08).
+Range comes out 0.5-24.3 — a quick, easy, safe hop barely registers; a week-long transcontinental epic through a harder-to-visit country is meaningfully rewarding, but stays below the value of a full country visit (Laos = 29.08).
+
+**Correction found while wiring this into the total-points calculation:** the Trans-Siberian/Taj Mahal/Pyramids-of-Giza figures above were originally computed against the static `01_countries.cjs` seed *array* — which doesn't carry `advisory_level` at all, since that column is patched onto the live database separately by a later migration (`20260719001_add_advisory_level_to_countries.cjs`), not baked into the base seed file. Russia (advisory_level 3), India, and Egypt (both 2) all got silently under-scored as a result (Trans-Siberian was originally shown as 18.42, not the correct 24.28). Fixed here, and the regression test now queries the live seeded DB instead of the static array specifically so this can't drift silently again — see `getTransportPoints` in `server/__tests__/points.test.js`.
 
 ### Landmarks / wonders
 
@@ -129,9 +131,9 @@ Two different rules depending on tier, decided with Charlie:
 | Landmark | Country | Tier | x | Visitors/yr | Designation | % | Points |
 |---|---|---|---|---|---|---|---|
 | Machu Picchu | Peru | 1 | 240.38 | 1.5M | New7Wonders | 5% | 12.02 |
-| Taj Mahal | India | 1 | 347.63 | 7M | New7Wonders | 4% | 13.91 |
+| Taj Mahal | India | 1 | 375.42 | 7M | New7Wonders | 4% | 15.02 |
 | Angkor Wat | Cambodia | 3 | 118.43 | 2.5M | UNESCO only | 3% | 3.55 |
-| Pyramids of Giza | Egypt | 2 | 153.22 | ~3M | UNESCO only (not New7Wonders) | 3% | 4.60 |
+| Pyramids of Giza | Egypt | 2 | 169.06 | ~3M | UNESCO only (not New7Wonders) | 3% | 5.07 |
 | (obscure regional site) | Laos | 3 | 98.45 | <5M, no designation | Neither | 2% | 1.97 |
 
 Every cell traces to two checkable facts — a real designation list and a real visitor count — not vibes. **Visitor figures need a proper primary-source pull** (site management authority / national tourism board) before shipping; the numbers used to build this matrix came from aggregator summaries with some source-to-source variance, fine for shaping the mechanism, not for the actual seed data.
@@ -206,18 +208,18 @@ Written per explicit instruction ("if you run out of context getting to ~85%, wr
    - `calculateSevenWondersBonus(loggedWonderPoints)` — mirrors `calculateSubregionBonuses`' visit+completion shape exactly.
    - `getRouteSignificance(distanceKm)` / `getTransportPoints(route, hostCountry, homeCountry, allCountries)`.
    - `getMagnitudeComponent(magnitude)` / `getDisasterPoints(magnitude, rarityMultiplier, country, homeCountry, allCountries)`.
-3. **Tests** — `server/__tests__/points.test.js` and the client mirror: full coverage of every new function, using real seed data to pin the doc's exact worked numbers (Machu Picchu = 12.02, Trans-Siberian ≈ 18.4) where the fixture size doesn't affect regional-value math, and self-consistent assertions in the client's smaller fixture where it does. Also fixed 3 pre-existing Tier0 tests that hardcoded the old flat 0.5/1.4x ratio. **174/174 server tests, 106/106 client tests, both green.**
+3. **Tests** — `server/__tests__/points.test.js` and the client mirror: full coverage of every new function, using real seed data to pin the doc's exact worked numbers (Machu Picchu = 12.02, Trans-Siberian = 24.28 against the live seeded DB — see the "Correction" note under Transport above) where the fixture size doesn't affect regional-value math, and self-consistent assertions in the client's smaller fixture where it does. Also fixed 3 pre-existing Tier0 tests that hardcoded the old flat 0.5/1.4x ratio. **189/189 server tests, 169/169 client tests, both green** (grew from 174/106 as routes/trophy/wiring tests were added).
 4. **Seed data** — `05_landmark_experiences.cjs` (11 rows: the 6 non-Tier0 New7Wonders + 5 others), `06_transport_experiences.cjs` (10 real routes), `07_disaster_rarity.cjs` (8 sourced countries), plus flagging the Great Wall at Badaling in `04_province_experiences.cjs`. Verified: the Seven Wonders union across `landmark_experiences` + `province_experiences` totals exactly 7. Also fixed a libsql batch-insert quirk (mixed-shape rows need explicit `false` defaults on the new boolean columns — same issue `02_provinces.cjs`'s `subregion` column already worked around).
 
 5. **API routes** — `/:id/landmark-experiences`, `/:id/transport-experiences`, `/:id/disaster-logs` (POST/DELETE/GET) in `users.js`, plus catalog routes `/:code/landmark-experiences`/`/:code/transport-experiences` in `countries.js` and a new `/api/experiences/seven-wonders` showcase endpoint that unions `landmark_experiences` with `province_experiences`. `snapshot.js` updated to sync the 6 new tables; `changes.js` needed no changes (already generic). 15 new integration tests. **189/189 server tests green.**
 
+6. **Client local-first sync** — `worker.js` mirrors all 6 new tables (DDL, `TABLE_MAP`/`TABLE_COLUMNS` for the 3 per-user ones, `hydrate()` bulk-inserts for all 6). Verified with a production build.
+7. **Client optimistic mutations** — `addLandmarkExperienceOptimistic`, `addTransportExperienceOptimistic`, `addDisasterLogOptimistic` (+ `remove*` counterparts) in `mutations.js`, mirroring `addProvinceExperienceOptimistic`'s exact shape. Disaster logs are the one difference: `magnitude_band`/`points` are server-computed, so the optimistic row leaves them `NULL` until the server's echoed change lands.
+8. **Total-points wiring** — landmark/transport/disaster points and the Seven Wonders bonus are now additive on top of the country total, in both `getUserScoreLocal` (client `queries.js`) and `getUserTotalPoints` (server `users.js`) — same treatment the subregion bonus already gets, not folded into `calculateCountryPoints` itself. The Great Wall's per-experience contribution (Tier 0's province-pool model, not the flat landmark model) is read straight out of `calculateTotalTravelPoints`'s existing `provinceBreakdown` for China rather than re-deriving the formula.
+9. **Seven Wonders trophy + purple accent** — done (see commits above).
+
+**One accuracy bug found and fixed while wiring step 8**: see the "Correction" note under Transport above — Russia/India/Egypt's `advisory_level` wasn't visible to the static-array-based worked examples, so Trans-Siberian/Taj Mahal/Pyramids were under-scored in the original numbers. Fixed, and the regression test now queries the live seeded DB specifically so this class of bug can't recur silently.
+
 ### Not started yet — concrete resume point
 
-**Task 8-9, client UI** — investigated the local-first sync layer enough to leave real guidance, not a guess:
-- **`client/src/db/worker.js`** maintains its own local SQLite schema mirror — `CREATE TABLE IF NOT EXISTS` statements, a `SYNC_TABLES` map, and per-table column lists for `bulkInsert`. All 6 new tables need entries here, mirroring how `province_experiences`/`user_province_experiences` already appear (search those two names in the file to find every spot that needs a twin for the new tables).
-- **`server/src/routes/snapshot.js`** — a single `Promise.all` fetching every syncable table, returned keyed by table name; this is what hydrates the client's local DB on load/poll. The 6 new tables need adding to that `Promise.all` and the returned object, mirroring `province_experiences`/`user_province_experiences` there too.
-- **`client/src/lib/mutations.js`** — `addProvinceExperienceOptimistic(db, userId, experienceId, provinceCode, alreadyVisitedProvince)` is the exact pattern: optimistic local `preSteps` (raw SQL insert), then `db.mutate({ preSteps, endpoint, method, body })` which POSTs to the real server route. Write `addLandmarkExperienceOptimistic`, `addTransportExperienceOptimistic`, `addDisasterLogOptimistic` the same way, plus `remove*` counterparts mirroring `removeProvinceExperienceOptimistic`.
-- **`client/src/lib/queries.js`** — needs read functions: a country's landmarks/transport/disasters (mirroring the existing province-experience query functions around line 69-82), and a dedicated Seven Wonders showcase query that unions `landmark_experiences` (`is_new7wonders = 1`) with `province_experiences` (`is_new7wonders = 1`) — the exact query used to verify the seed data in the commit above, now needs a client-side (and probably server API) equivalent.
-- Once the data layer above exists: the global Experiences tab page (`client/src/pages/Experiences.jsx`, new), nav wiring (`navGroups.js`/`BottomTabBar`/`SubTabStrip`), the CountryDetail sub-tab, the `--color-wonder` CSS token across all 4 themes in `index.css`, and the `seven-wonders` platinum trophy in `client/src/lib/trophies.js` (mirror `conquestTrophy()` — all-or-nothing, platinum).
-
-**Suggested order for whoever picks this up:** client data layer (worker.js + mutations.js + queries.js, in that order since each depends on the last — snapshot.js is already done) → trophy (11, small and self-contained, no UI dependency) → purple token (10, small, self-contained) → Experiences tab (8) → CountryDetail sub-tab (9) → full test suite pass (12).
+Only the **UI** remains: the global Experiences tab page (`client/src/pages/Experiences.jsx`, new — needs read functions in `queries.js` for a country's landmarks/transport/disasters and a Seven Wonders showcase list, none of which exist yet; only the total-points *sum* was wired, not per-item display queries), nav wiring (`navGroups.js`/`BottomTabBar`/`SubTabStrip`), and the CountryDetail sub-tab. The data layer, scoring, and trophy/styling are all done and tested — this is purely React components + a few more read-only query functions now.

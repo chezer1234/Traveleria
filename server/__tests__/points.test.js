@@ -51,6 +51,7 @@ import {
   DISASTER_RATIO,
 } from '../src/lib/points.js';
 import countriesSeed from '../src/db/seeds/01_countries.cjs';
+import { db as testDb } from './setup.js';
 
 // Sample countries for testing (with lat/lng)
 const sampleCountries = [
@@ -69,6 +70,13 @@ const sampleCountries = [
 ];
 
 const homeGB = sampleCountries.find(c => c.code === 'GB');
+
+// setup.js's own beforeAll only runs migrations, not seeds (see api.test.js
+// for the same pattern) — needed here because the live-DB Trans-Siberian
+// test below queries real seeded country data, not the static fixtures.
+beforeAll(async () => {
+  await testDb.seed.run();
+});
 
 beforeEach(() => {
   resetCache();
@@ -908,12 +916,23 @@ describe('Transport route significance bands', () => {
 });
 
 describe('getTransportPoints', () => {
-  test('Trans-Siberian (Russia, home UK) is close to the doc\'s worked example (~18.4 pts)', () => {
-    const russia = countriesSeed.countries.find(c => c.code === 'RU');
-    const home = countriesSeed.countries.find(c => c.code === 'GB');
+  test('Trans-Siberian (Russia, home UK) matches the doc\'s worked example (~24.3 pts)', async () => {
+    // Deliberately queries the LIVE seeded DB, not the static
+    // 01_countries.cjs array: Russia's real advisory_level (3, elevated) is
+    // patched onto the DB by a later migration and was never part of the
+    // base seed file, so a static-array-based computation silently misses
+    // it and undercounts (found while wiring this into getUserTotalPoints —
+    // the doc's original ~18.4 figure was computed the same wrong way and
+    // has been corrected).
+    const allCountries = await testDb('countries').select(
+      'code', 'name', 'region', 'population', 'annual_tourists', 'area_km2', 'lat', 'lng', 'advisory_level',
+    );
+    const russia = allCountries.find(c => c.code === 'RU');
+    const home = allCountries.find(c => c.code === 'GB');
+    expect(russia.advisory_level).toBe(3); // guards against this drifting silently again
     const route = { distance_km: 9289 };
-    const points = getTransportPoints(route, russia, home, countriesSeed.countries);
-    expect(points).toBeCloseTo(18.4, 0); // within the documented ballpark
+    const points = getTransportPoints(route, russia, home, allCountries);
+    expect(points).toBeCloseTo(24.3, 0);
   });
 
   test('a stored significance_band is used as-is, without re-deriving it from distance', () => {

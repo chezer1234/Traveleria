@@ -13,6 +13,10 @@ import {
   removeCountryVisitOptimistic,
   addProvinceVisitOptimistic,
   removeProvinceVisitOptimistic,
+  addLandmarkExperienceOptimistic,
+  removeLandmarkExperienceOptimistic,
+  addTransportExperienceOptimistic,
+  removeTransportExperienceOptimistic,
 } from '../lib/mutations';
 import {
   getCountryLocal,
@@ -21,6 +25,7 @@ import {
   getUserCountryScoreLocal,
   getProvinceVisitsLocal,
   getUsersWhoVisitedCountryLocal,
+  getLandmarksAndTransportForCountryLocal,
 } from '../lib/queries';
 import ProvinceMap from '../components/ProvinceMap';
 import ScoreBreakdown from '../components/ScoreBreakdown';
@@ -100,15 +105,23 @@ export default function CountryDetail() {
   const [showBattlePicker, setShowBattlePicker] = useState(false);
   const [battleOpponents, setBattleOpponents] = useState(null); // null = not loaded yet
 
+  // Experience Update (issue #74): landmarks + transport routes hosted in
+  // this country, alongside Tier 0's province experiences in the same tab.
+  const [landmarks, setLandmarks] = useState([]);
+  const [visitedLandmarkIds, setVisitedLandmarkIds] = useState(new Set());
+  const [transportRoutes, setTransportRoutes] = useState([]);
+  const [visitedTransportIds, setVisitedTransportIds] = useState(new Set());
+
   const loadData = useCallback(async () => {
     if (!db) return;
     setLoading(true);
     setError('');
     try {
-      const [countryData, status, timeLog] = await Promise.all([
+      const [countryData, status, timeLog, experienceUpdateData] = await Promise.all([
         getCountryLocal(db, code, homeCountry),
         getUserStatusForCountry(db, user.id, code),
         getCountryVisitsLocal(db, user.id, code),
+        getLandmarksAndTransportForCountryLocal(db, user.id, code, homeCountry),
       ]);
       setCountry(countryData);
       setIsVisited(status.isVisited);
@@ -117,6 +130,10 @@ export default function CountryDetail() {
       setVisitedExperienceIds(status.visitedExperienceIds);
       setVisits(timeLog.visits);
       setTotalDays(timeLog.totalDays);
+      setLandmarks(experienceUpdateData.landmarks);
+      setVisitedLandmarkIds(new Set(experienceUpdateData.visitedLandmarkIds));
+      setTransportRoutes(experienceUpdateData.transport);
+      setVisitedTransportIds(new Set(experienceUpdateData.visitedTransportIds));
       if (countryData.tier === 0) {
         setScoreDetail(await getUserCountryScoreLocal(db, user.id, code, homeCountry));
       }
@@ -340,6 +357,64 @@ export default function CountryDetail() {
     }
   }
 
+  // Experience Update (issue #74): landmarks/transport are purely additive —
+  // no auto-visit side effect, unlike toggleExperience above.
+  async function toggleLandmark(experienceId) {
+    if (!isVisited) return;
+    setToggling(experienceId);
+    setError('');
+    const wasVisited = visitedLandmarkIds.has(experienceId);
+    setVisitedLandmarkIds((prev) => {
+      const next = new Set(prev);
+      wasVisited ? next.delete(experienceId) : next.add(experienceId);
+      return next;
+    });
+    try {
+      if (wasVisited) {
+        await removeLandmarkExperienceOptimistic(db, user.id, experienceId);
+      } else {
+        await addLandmarkExperienceOptimistic(db, user.id, experienceId);
+      }
+    } catch (err) {
+      setError(err.message);
+      setVisitedLandmarkIds((prev) => {
+        const next = new Set(prev);
+        wasVisited ? next.add(experienceId) : next.delete(experienceId);
+        return next;
+      });
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  async function toggleTransport(experienceId) {
+    if (!isVisited) return;
+    setToggling(experienceId);
+    setError('');
+    const wasVisited = visitedTransportIds.has(experienceId);
+    setVisitedTransportIds((prev) => {
+      const next = new Set(prev);
+      wasVisited ? next.delete(experienceId) : next.add(experienceId);
+      return next;
+    });
+    try {
+      if (wasVisited) {
+        await removeTransportExperienceOptimistic(db, user.id, experienceId);
+      } else {
+        await addTransportExperienceOptimistic(db, user.id, experienceId);
+      }
+    } catch (err) {
+      setError(err.message);
+      setVisitedTransportIds((prev) => {
+        const next = new Set(prev);
+        wasVisited ? next.add(experienceId) : next.delete(experienceId);
+        return next;
+      });
+    } finally {
+      setToggling(null);
+    }
+  }
+
   if (loading || dbStatus !== 'ready') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
@@ -409,8 +484,14 @@ export default function CountryDetail() {
       label: `${isTier0 ? 'States' : 'Provinces'} (${visitedProvinceCodes.size}/${country.provinces.length})`,
     });
   }
-  if (isTier0 && country.experiences && country.experiences.length > 0) {
-    tabs.push({ key: 'experiences', label: `Experiences (${visitedExperienceIds.size}/${country.experiences.length})` });
+  // Experience Update (issue #74): the tab now covers Tier 0's province
+  // experiences AND landmarks/transport for every tier — one combined count.
+  const tier0ExpCount = isTier0 && country.experiences ? country.experiences.length : 0;
+  const experienceUpdateCount = landmarks.length + transportRoutes.length;
+  const totalExperienceCount = tier0ExpCount + experienceUpdateCount;
+  const totalExperienceVisited = visitedExperienceIds.size + visitedLandmarkIds.size + visitedTransportIds.size;
+  if (totalExperienceCount > 0) {
+    tabs.push({ key: 'experiences', label: `Experiences (${totalExperienceVisited}/${totalExperienceCount})` });
   }
   if (showCities && country.cities.length > 0) {
     tabs.push({ key: 'cities', label: `Cities (${visitedCityIds.size}/${country.cities.length})` });
@@ -848,64 +929,177 @@ export default function CountryDetail() {
       )}
 
       {/* Experiences — Tier 0 only (issue #46) */}
-      {activeTab === 'experiences' && isTier0 && country.experiences && country.experiences.length > 0 && (
+      {activeTab === 'experiences' && (
         <>
-          <h2 className="font-display font-bold text-lg text-ink mb-1">
-            Experiences ({country.experiences.length})
-          </h2>
-          <p className="text-sm text-ink-soft mb-4">
-            {visitedExperienceIds.size} of {country.experiences.length} logged — split a state's experience pool evenly
-          </p>
+          {isTier0 && country.experiences && country.experiences.length > 0 && (
+            <>
+              <h2 className="font-display font-bold text-lg text-ink mb-1">
+                State Experiences ({country.experiences.length})
+              </h2>
+              <p className="text-sm text-ink-soft mb-4">
+                {visitedExperienceIds.size} of {country.experiences.length} logged — split a state's experience pool evenly
+              </p>
 
-          <div className="space-y-4 mb-8">
-            {country.provinces
-              .filter((p) => country.experiences.some((e) => e.province_code === p.code))
-              .map((province) => {
-                const experiences = country.experiences.filter((e) => e.province_code === province.code);
-                const tier0 = tier0BreakdownByCode?.[province.code];
-                return (
-                  <div key={province.code}>
-                    <p className="text-sm font-medium text-ink mb-2">
-                      {province.name}
-                      {tier0 && (
-                        <span className="text-xs font-normal text-ink-soft/70 ml-2">
-                          {tier0.experiences.visited}/{tier0.experiences.total} logged &middot; {tier0.experiences.pointsEach} pts each
+              <div className="space-y-4 mb-8">
+                {country.provinces
+                  .filter((p) => country.experiences.some((e) => e.province_code === p.code))
+                  .map((province) => {
+                    const experiences = country.experiences.filter((e) => e.province_code === province.code);
+                    const tier0 = tier0BreakdownByCode?.[province.code];
+                    return (
+                      <div key={province.code}>
+                        <p className="text-sm font-medium text-ink mb-2">
+                          {province.name}
+                          {tier0 && (
+                            <span className="text-xs font-normal text-ink-soft/70 ml-2">
+                              {tier0.experiences.visited}/{tier0.experiences.total} logged &middot; {tier0.experiences.pointsEach} pts each
+                            </span>
+                          )}
+                        </p>
+                        <div className="space-y-2">
+                          {experiences.map((exp) => {
+                            const isChecked = visitedExperienceIds.has(exp.id);
+                            // Seven Wonders showcase (issue #74): the Great
+                            // Wall at Badaling gets the same purple
+                            // highlight every other wonder does, even though
+                            // it lives in this Tier 0 table.
+                            const isWonder = !!exp.is_new7wonders;
+                            return (
+                              <label
+                                key={exp.id}
+                                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-colors cursor-pointer ${
+                                  isWonder
+                                    ? isChecked
+                                      ? 'bg-wonder/15 border-wonder/50'
+                                      : 'bg-wonder/5 border-wonder/30 hover:border-wonder/50'
+                                    : isChecked
+                                      ? 'bg-gold/10 border-gold/40'
+                                      : 'bg-panel border-hairline hover:border-ink-soft/40'
+                                } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={!isVisited || toggling === exp.id}
+                                  onChange={() => toggleExperience(exp.id, province.code)}
+                                  className={`h-4 w-4 rounded border-hairline ${isWonder ? 'accent-wonder' : 'accent-gold'}`}
+                                />
+                                <div className="flex-1 flex items-center justify-between">
+                                  <span className={`text-sm text-ink ${isChecked ? 'font-medium' : ''}`}>
+                                    {exp.name}
+                                    {isWonder && (
+                                      <span className="ml-2 text-xs font-medium text-wonder">Seven Wonders</span>
+                                    )}
+                                  </span>
+                                  {toggling === exp.id && <span className="text-xs text-ink-soft">saving...</span>}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+
+          {/* Landmarks / wonders (issue #74) — flat % of country x, same for every tier */}
+          {landmarks.length > 0 && (
+            <>
+              <h2 className="font-display font-bold text-lg text-ink mb-1">
+                Landmarks ({landmarks.length})
+              </h2>
+              <p className="text-sm text-ink-soft mb-4">
+                {visitedLandmarkIds.size} of {landmarks.length} logged
+              </p>
+              <div className="space-y-2 mb-8">
+                {landmarks.map((lm) => {
+                  const isChecked = visitedLandmarkIds.has(lm.id);
+                  const isWonder = !!lm.is_new7wonders;
+                  return (
+                    <label
+                      key={lm.id}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-colors cursor-pointer ${
+                        isWonder
+                          ? isChecked
+                            ? 'bg-wonder/15 border-wonder/50'
+                            : 'bg-wonder/5 border-wonder/30 hover:border-wonder/50'
+                          : isChecked
+                            ? 'bg-gold/10 border-gold/40'
+                            : 'bg-panel border-hairline hover:border-ink-soft/40'
+                      } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={!isVisited || toggling === lm.id}
+                        onChange={() => toggleLandmark(lm.id)}
+                        className={`h-4 w-4 rounded border-hairline ${isWonder ? 'accent-wonder' : 'accent-gold'}`}
+                      />
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className={`text-sm text-ink ${isChecked ? 'font-medium' : ''}`}>
+                          {lm.name}
+                          {isWonder && <span className="ml-2 text-xs font-medium text-wonder">Seven Wonders</span>}
                         </span>
-                      )}
-                    </p>
-                    <div className="space-y-2">
-                      {experiences.map((exp) => {
-                        const isChecked = visitedExperienceIds.has(exp.id);
-                        return (
-                          <label
-                            key={exp.id}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-colors cursor-pointer ${
-                              isChecked
-                                ? 'bg-gold/10 border-gold/40'
-                                : 'bg-panel border-hairline hover:border-ink-soft/40'
-                            } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={!isVisited || toggling === exp.id}
-                              onChange={() => toggleExperience(exp.id, province.code)}
-                              className="h-4 w-4 rounded border-hairline accent-gold"
-                            />
-                            <div className="flex-1 flex items-center justify-between">
-                              <span className={`text-sm text-ink ${isChecked ? 'font-medium' : ''}`}>
-                                {exp.name}
-                              </span>
-                              {toggling === exp.id && <span className="text-xs text-ink-soft">saving...</span>}
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                        <span className="text-xs text-ink-soft">
+                          {toggling === lm.id ? 'saving...' : lm.points != null ? `${lm.points} pts` : null}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Transport (issue #74) — real named routes hosted in this country */}
+          {transportRoutes.length > 0 && (
+            <>
+              <h2 className="font-display font-bold text-lg text-ink mb-1">
+                Transport ({transportRoutes.length})
+              </h2>
+              <p className="text-sm text-ink-soft mb-4">
+                {visitedTransportIds.size} of {transportRoutes.length} logged
+              </p>
+              <div className="space-y-2 mb-8">
+                {transportRoutes.map((rt) => {
+                  const isChecked = visitedTransportIds.has(rt.id);
+                  return (
+                    <label
+                      key={rt.id}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-colors cursor-pointer ${
+                        isChecked
+                          ? 'bg-gold/10 border-gold/40'
+                          : 'bg-panel border-hairline hover:border-ink-soft/40'
+                      } ${!isVisited ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={!isVisited || toggling === rt.id}
+                        onChange={() => toggleTransport(rt.id)}
+                        className="h-4 w-4 rounded border-hairline accent-gold"
+                      />
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className={`text-sm text-ink ${isChecked ? 'font-medium' : ''}`}>
+                          {rt.name}
+                          {rt.distance_km && (
+                            <span className="text-xs font-normal text-ink-soft/70 ml-2">
+                              {rt.distance_km.toLocaleString()} km{rt.duration ? ` · ${rt.duration}` : ''}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-ink-soft">
+                          {toggling === rt.id ? 'saving...' : rt.points != null ? `${rt.points} pts` : null}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
 

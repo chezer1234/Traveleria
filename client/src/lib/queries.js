@@ -65,11 +65,16 @@ async function loadCitiesForCountry(db, code) {
 }
 
 // Tier 0 (issue #46): experiences for every province in a country.
+// is_new7wonders/is_unesco (issue #74) ride along so the Great Wall at
+// Badaling can get its purple Seven Wonders highlight in the UI same as
+// every other wonder, even though it lives in this table, not
+// landmark_experiences.
 async function loadExperiencesForCountry(db, provinceCodes) {
   if (!provinceCodes.length) return [];
   const placeholders = provinceCodes.map(() => '?').join(',');
   return db.all(
-    `SELECT id, province_code, name, description FROM province_experiences WHERE province_code IN (${placeholders})`,
+    `SELECT id, province_code, name, description, is_new7wonders, is_unesco
+       FROM province_experiences WHERE province_code IN (${placeholders})`,
     provinceCodes,
   );
 }

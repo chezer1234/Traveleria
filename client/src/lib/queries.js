@@ -372,6 +372,71 @@ export async function getCountryLocal(db, code, homeCountryCode) {
   };
 }
 
+// Experience Update (issue #74): landmarks + transport routes hosted in a
+// country, with each one's points already computed (flat % of x — see
+// getLandmarkPoints/getTransportPoints in points.js), plus which ones this
+// user has logged. Applies to every tier — unlike Tier 0's province
+// experiences above, these aren't province-weighted, so there's no
+// per-tier branching needed.
+export async function getLandmarksAndTransportForCountryLocal(db, userId, code, homeCountryCode) {
+  const upperCode = code.toUpperCase();
+  const allCountries = await loadAllCountries(db);
+  const country = allCountries.find((c) => c.code === upperCode);
+  if (!country) return { landmarks: [], visitedLandmarkIds: [], transport: [], visitedTransportIds: [] };
+  const home = allCountries.find((c) => c.code === (homeCountryCode || '').toUpperCase()) || null;
+
+  const [rawLandmarks, rawTransport, visitedLandmarkRows, visitedTransportRows] = await Promise.all([
+    db.all(`SELECT * FROM landmark_experiences WHERE country_code = ?`, [upperCode]),
+    db.all(`SELECT * FROM transport_experiences WHERE host_country_code = ?`, [upperCode]),
+    db.all(
+      `SELECT experience_id FROM user_landmark_experiences WHERE user_id = ?
+         AND experience_id IN (SELECT id FROM landmark_experiences WHERE country_code = ?)`,
+      [userId, upperCode],
+    ),
+    db.all(
+      `SELECT experience_id FROM user_transport_experiences WHERE user_id = ?
+         AND experience_id IN (SELECT id FROM transport_experiences WHERE host_country_code = ?)`,
+      [userId, upperCode],
+    ),
+  ]);
+
+  const landmarks = home
+    ? rawLandmarks.map((lm) => ({ ...lm, points: getLandmarkPoints(lm, country, home, allCountries) }))
+    : rawLandmarks.map((lm) => ({ ...lm, points: null }));
+  const transport = home
+    ? rawTransport.map((rt) => ({ ...rt, points: getTransportPoints(rt, country, home, allCountries) }))
+    : rawTransport.map((rt) => ({ ...rt, points: null }));
+
+  return {
+    landmarks,
+    visitedLandmarkIds: visitedLandmarkRows.map((r) => r.experience_id),
+    transport,
+    visitedTransportIds: visitedTransportRows.map((r) => r.experience_id),
+  };
+}
+
+// Experience Update (issue #74): the Seven Wonders showcase for the global
+// Experiences tab — unions landmark_experiences with province_experiences
+// (the Great Wall at Badaling is Tier 0), same query shape as the server's
+// GET /api/experiences/seven-wonders.
+export async function getSevenWondersShowcaseLocal(db, userId) {
+  const [landmarkWonders, provinceWonders, visitedLandmarkIds, visitedProvinceExpIds] = await Promise.all([
+    db.all(`SELECT id, name, description, country_code, NULL AS province_code, photo_url, photo_credit
+              FROM landmark_experiences WHERE is_new7wonders = 1`),
+    db.all(`SELECT pe.id, pe.name, pe.description, p.country_code, pe.province_code, NULL AS photo_url, NULL AS photo_credit
+              FROM province_experiences pe JOIN provinces p ON p.code = pe.province_code
+              WHERE pe.is_new7wonders = 1`),
+    db.all(`SELECT experience_id FROM user_landmark_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
+    db.all(`SELECT experience_id FROM user_province_experiences WHERE user_id = ?`, [userId]).then((rows) => new Set(rows.map((r) => r.experience_id))),
+  ]);
+
+  const wonders = [...landmarkWonders, ...provinceWonders];
+  return wonders.map((w) => ({
+    ...w,
+    logged: visitedLandmarkIds.has(w.id) || visitedProvinceExpIds.has(w.id),
+  }));
+}
+
 // Tier 0 (issue #46): real per-province breakdown (earnedPoints, maxPoints,
 // percentExplored, experiences/cities sub-totals) for one country + user.
 // Used by CountryDetail for the hover map + hover % — the simple "visited ?

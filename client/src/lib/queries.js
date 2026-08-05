@@ -22,6 +22,7 @@ import { getContinent, CONTINENTS } from './continents.js';
 import { rankMostLeastVisited } from './globalStats.js';
 import { buildPointsHistory } from './pointsHistory.js';
 import { computeContinentBreakdown } from './continentStats.js';
+import { evaluateCabinet } from './trophies.js';
 
 // Country columns we always want when we pass a row into points.js. Kept in
 // one place so a schema addition only requires one touch.
@@ -711,6 +712,16 @@ export async function getUserPublicLocal(db, userId) {
   );
 }
 
+// Every other user, for the Stats page's comparison picker (issue #75, phase
+// 3) — small-scale app, so a plain list (no pagination/search) is enough.
+export async function getAllUsersPublicLocal(db, excludeUserId) {
+  return db.all(
+    `SELECT id, identifier, display_name, home_country FROM users_public
+       WHERE id != ? ORDER BY identifier`,
+    [excludeUserId],
+  );
+}
+
 // ── Groups (issue #37) ───────────────────────────────────────────────────────
 
 // All groups the given user belongs to, with their members.
@@ -859,5 +870,49 @@ export async function getTrophyStatusLocal(db, userId, homeCountryCode) {
     })),
     totalAccounts: Number(accountCount) || 0,
     visitorsByCountry,
+  };
+}
+
+// Stats page (issue #75, phase 3): the eight comparison stats
+// (client/src/lib/statsCompare.js's COMPARISON_STATS), for one user. Reuses
+// getTrophyStatusLocal/getUserScoreLocal rather than re-deriving their
+// numbers — same values Trophies/Dashboard already show, no new formula.
+// leaderboardRank comes from a full, untruncated ranking (getLeaderboardLocal
+// truncates to the top 50 + the signed-in user, which isn't enough to rank
+// an arbitrary opponent).
+export async function getUserComparisonStatsLocal(db, userId, homeCountryCode) {
+  const [trophyStats, score, { results }] = await Promise.all([
+    getTrophyStatusLocal(db, userId, homeCountryCode),
+    getUserScoreLocal(db, userId, homeCountryCode),
+    computeAllUserTravelResults(db),
+  ]);
+
+  const cabinet = evaluateCabinet(trophyStats);
+  const trophiesUnlocked = cabinet.all.filter((t) => t.earned).length;
+
+  const explorerPointsClaimed = Math.round(
+    (score.countries || []).reduce((sum, c) => sum + (c.explorationPoints || 0) + (c.cityPoints || 0), 0) * 100,
+  ) / 100;
+
+  const ranked = results
+    .map(({ user: u, result, totalBonusPoints }) => ({
+      user_id: u.id,
+      total_points: Math.round((result.totalPoints + totalBonusPoints) * 100) / 100,
+    }))
+    .sort((a, b) => b.total_points - a.total_points);
+  const rankIndex = ranked.findIndex((r) => r.user_id === userId);
+
+  return {
+    countriesVisited: trophyStats.visited.length,
+    subregionsExplored: trophyStats.subregions.length,
+    subregionPoints: score.subregionBonusPoints,
+    citiesVisited: trophyStats.citiesVisited,
+    trophiesUnlocked,
+    trophiesTotal: cabinet.all.length,
+    experiencesDone: trophyStats.experiencesCompleted,
+    explorerPointsClaimed,
+    totalPoints: score.totalPoints,
+    leaderboardRank: rankIndex === -1 ? null : rankIndex + 1,
+    totalUsers: ranked.length,
   };
 }

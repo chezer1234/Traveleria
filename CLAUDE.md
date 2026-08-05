@@ -189,3 +189,4 @@ Mark the feature doc status as complete. Update `points-system.md` or other ever
 | [docs/features/turso-migration.md](docs/features/turso-migration.md) | Migration from PostgreSQL to Turso/SQLite |
 | [docs/features/stats-points-history.md](docs/features/stats-points-history.md) | Stats page: points-over-time graph (issue #75, phase 1) |
 | [docs/features/stats-continent-map.md](docs/features/stats-continent-map.md) | Stats page: continent map, pie overlay + choropleth (issue #75, phase 2) |
+| [docs/features/stats-comparison.md](docs/features/stats-comparison.md) | Stats page: solo/comparison stat bars (issue #75, phase 3) |

@@ -157,7 +157,7 @@ pointed at it).
   phase 2, see `docs/features/stats-continent-map.md`.
 - The user-comparison page (nations visited, subregions explored, cities,
   trophies, experiences, explorer points, leaderboard position, as
-  blue-vs-red bars) — separate follow-up issue.
+  blue-vs-red bars) — shipped as phase 3, see `docs/features/stats-comparison.md`.
 - Pre-migration rows with a `NULL`/legacy-format `created_at` won't appear
   on the graph for a client that synced them before this change, until that
   client does a full resync. Not worth a backfill migration for phase 1 —

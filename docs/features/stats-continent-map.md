@@ -132,7 +132,7 @@ registry (not blocked) and serving it via Playwright request interception.
 - The user-comparison page (nations visited, subregions explored, cities,
   trophies, experiences, explorer points, leaderboard position, as
   blue-vs-red bars matching the existing Territory/GroupBattle pattern) —
-  phase 3, separate follow-up.
+  shipped as phase 3, see `docs/features/stats-comparison.md`.
 - Continent centroids are approximate, chosen for legible badge placement
   rather than precise geographic centres (Oceania's badge, for instance,
   sits over Australia rather than the Pacific's true centroid, since that's

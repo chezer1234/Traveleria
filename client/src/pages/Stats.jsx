@@ -1,10 +1,9 @@
 // Stats page (issue #75): phase 1 is the points-over-time graph, phase 2
-// adds the continent map (pie overlay + choropleth toggle). Lives as a
-// sub-tab under Overview alongside Dashboard/Trophies/Map/Settings (see
-// client/src/lib/navGroups.js). See docs/features/stats-points-history.md
-// and docs/features/stats-continent-map.md for the design + Q&A behind this
-// scope — the user-comparison bars from the original issue are a separate
-// follow-up issue (phase 3).
+// the continent map (pie overlay + choropleth toggle), phase 3 the
+// solo/comparison stat bars. Lives as a sub-tab under Overview alongside
+// Dashboard/Trophies/Map/Settings (see client/src/lib/navGroups.js). See
+// docs/features/stats-points-history.md, docs/features/stats-continent-map.md,
+// and docs/features/stats-comparison.md for the design + Q&A behind this scope.
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +11,7 @@ import { getUserPointsHistoryLocal, getUserContinentStatsLocal } from '../lib/qu
 import { bucketHistoryByDay } from '../lib/pointsHistory';
 import PointsHistoryChart from '../components/PointsHistoryChart';
 import ContinentPointsMap from '../components/ContinentPointsMap';
+import ComparisonStats from '../components/ComparisonStats';
 
 const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -107,6 +107,8 @@ export default function Stats() {
           </p>
 
           {continentStats && <ContinentPointsMap continentStats={continentStats} />}
+
+          <ComparisonStats db={db} userId={user.id} homeCountry={user.home_country} />
         </>
       )}
     </div>

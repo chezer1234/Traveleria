@@ -6,6 +6,11 @@
  * experiences within a province are worth equal points (see
  * calculateTier0ProvinceExploration in points.js). See
  * docs/features/tier-0-nations.md for the sourcing approach and caveats.
+ *
+ * Experience Update (issue #74): the Great Wall at Badaling is flagged
+ * is_new7wonders/is_unesco so it joins the Seven Wonders showcase alongside
+ * everyone else's landmark_experiences rows (see 05_landmark_experiences.cjs)
+ * even though it lives in this Tier 0 table, not that one.
  */
 
 const experiences = [
@@ -41,7 +46,7 @@ const experiences = [
   { province_code: 'US-RI', name: 'Roger Williams Park Zoo' },
   // Beijing
   { province_code: 'CN-BJ', name: 'Forbidden City' },
-  { province_code: 'CN-BJ', name: 'Great Wall at Badaling' },
+  { province_code: 'CN-BJ', name: 'Great Wall at Badaling', is_new7wonders: true, is_unesco: true },
   { province_code: 'CN-BJ', name: 'Temple of Heaven' },
   { province_code: 'CN-BJ', name: 'Tiananmen Square' },
   { province_code: 'CN-BJ', name: 'Summer Palace' },
@@ -399,7 +404,13 @@ exports.seed = async function (knex) {
     return;
   }
 
-  const rows = experiences.map(e => ({ id: crypto.randomUUID(), ...e }));
+  // is_new7wonders/is_unesco must be explicit on every row (not just the
+  // flagged ones) — the libsql dialect's batch insert can't fill in missing
+  // keys across a mixed-shape array (same issue 02_provinces.cjs's
+  // subregion column hit).
+  const rows = experiences.map(e => ({
+    id: crypto.randomUUID(), is_new7wonders: false, is_unesco: false, ...e,
+  }));
   const batchSize = 50;
   for (let i = 0; i < rows.length; i += batchSize) {
     await knex('province_experiences').insert(rows.slice(i, i + batchSize));

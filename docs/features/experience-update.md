@@ -109,22 +109,42 @@ Two different rules depending on tier, decided with Charlie:
   - **Root cause:** population-inverse weighting is the right call for the *visit* baseline (rewards reaching an unusual state), but applying the same weighting to *landmark* value means famous, populous states get crushed — the Golden Gate Bridge isn't less impressive because California is popular.
   - **Fix, confirmed by Charlie:** keep population-inverse weighting (it's still correctly the reason over-visited states should score lower, and that principle should stay) but apply a **US-specific 2.5x multiplier** to the experience pool — effectively `TIER0_EXPERIENCE_RATIO` becomes 1.25 for the US only; China's stays at 0.5, since it isn't broken. Real recalculated numbers: California 0.115→0.288, Texas 0.129→0.324, Wyoming 0.524→1.309. 35 of 51 states still land under 1pt — by design, since the biggest states are supposed to stay relatively low-value — but nothing is left at embarrassing-decimal-dust values anymore. Full-US-fully-explored total (before cities) rises from ~306.7 to **~447.0**, a meaningful but proportionate increase (ruled out 8-10x options, which would have required ~750-935 to clear every state past 1pt — 4-5x inflation that would have made the US dominate every other country's total by a wide margin).
   - Implementation-wise, this needs `TIER0_EXPERIENCE_RATIO` to become per-country rather than a single shared constant (e.g. a small `{ US: 1.25, CN: 0.5 }` map) rather than a global bump — this is a fix to already-shipped, live scoring (issue #46), not new-feature scope, but it's being made here since Tier 0 experiences are the marquee content for the new Experiences tab this feature is building.
-- **Every other country (Tier 1, 2, 3):** each landmark experience is worth a **1-5% band of the country's `x`** (`visit_base + explorer_ceiling`, same anchor used everywhere else in this feature) — a graduated scale, same shape as the earthquake magnitude bands and transport significance bands, not a single fixed number. Tied to a real, sourceable signal rather than a judgment call: **1%** = no special designation, **3%** = nationally significant but no UNESCO status, **5%** = UNESCO World Heritage Site (or equivalent globally-recognized designation) — binary, checkable per landmark, not vibes. This is purely **additive** on top of the existing visit/province score, not a split of it — so it sidesteps the rollout-regression risk a pool-split model would have caused (no existing province visit gets recalculated downward while landmark data is still being backfilled).
+- **Every other country (Tier 1, 2, 3):** each landmark experience is worth a **1-5% band of the country's `x`** (`visit_base + explorer_ceiling`, same anchor used everywhere else in this feature) — a graduated scale, same shape as the earthquake magnitude bands and transport significance bands, not a single fixed number. This is purely **additive** on top of the existing visit/province score, not a split of it — so it sidesteps the rollout-regression risk a pool-split model would have caused (no existing province visit gets recalculated downward while landmark data is still being backfilled).
   - **Tier 1/2** (~36 countries with real province data — see `02_provinces.js`): landmarks attach to a specific province, for geographic organization, but the point value is the flat country-level percentage above, not province-weighted.
   - **Tier 3** (~159 countries, no province data at all — Laos included, the exact case CLAUDE.md opens with): landmarks attach directly to the country, since there's no province row to attach to.
 
-**Worked examples** (home UK) — all three 5% cases are genuine UNESCO World Heritage Sites, confirming the tier assignment against the real criterion, not just "obviously iconic":
+**The 1-5% comes from a matrix, not a judgment call** — two real, independent, checkable signals per landmark:
 
-| Landmark | Country | Tier | x | UNESCO? | % | Points |
-|---|---|---|---|---|---|---|
-| Machu Picchu | Peru | 1 | 240.38 | Yes | 5% | 12.02 |
-| Pyramids of Giza | Egypt | 2 | 153.22 | Yes | 5% | 7.66 |
-| Angkor Wat | Cambodia | 3 | 118.43 | Yes | 5% | 5.92 |
-| (regional landmark example) | Laos | 3 | 98.45 | No | 1% | 0.98 |
+1. **Designation** — is it one of the **New7Wonders of the World** (2007 public vote — Great Wall, Petra, Christ the Redeemer, Machu Picchu, Chichen Itza, Colosseum, Taj Mahal), a **UNESCO World Heritage Site**, or neither? In practice New7Wonders is a tight subset of UNESCO (all 7 are UNESCO-listed too), not an independent axis — one worth flagging: **the Pyramids of Giza are *not* on the New7Wonders list.** They're the sole survivor of the older, separate "Seven Wonders of the Ancient World" and were given standalone honorary status specifically because voting them off felt wrong — a common mix-up worth getting right in the data.
+2. **Annual visitor count** — real, sourced, continuous. **High = ≥5M/year, Low = <5M/year** (a threshold that splits our worked examples cleanly, nothing sits near the boundary).
 
-Still meaningfully rewards a landmark in a small, less-touristy country — the Laos example is modest, not a rounding error.
+| Designation | High visitors (≥5M/yr) | Low visitors (<5M/yr) |
+|---|---|---|
+| New7Wonders | 4% | 5% |
+| UNESCO only | 2% | 3% |
+| Neither | 1% | 2% |
+
+**Worked examples** (home UK):
+
+| Landmark | Country | Tier | x | Visitors/yr | Designation | % | Points |
+|---|---|---|---|---|---|---|---|
+| Machu Picchu | Peru | 1 | 240.38 | 1.5M | New7Wonders | 5% | 12.02 |
+| Taj Mahal | India | 1 | 347.63 | 7M | New7Wonders | 4% | 13.91 |
+| Angkor Wat | Cambodia | 3 | 118.43 | 2.5M | UNESCO only | 3% | 3.55 |
+| Pyramids of Giza | Egypt | 2 | 153.22 | ~3M | UNESCO only (not New7Wonders) | 3% | 4.60 |
+| (obscure regional site) | Laos | 3 | 98.45 | <5M, no designation | Neither | 2% | 1.97 |
+
+Every cell traces to two checkable facts — a real designation list and a real visitor count — not vibes. **Visitor figures need a proper primary-source pull** (site management authority / national tourism board) before shipping; the numbers used to build this matrix came from aggregator summaries with some source-to-source variance, fine for shaping the mechanism, not for the actual seed data.
 
 **Not yet decided:** a soft cap on how many landmarks a single country can have (Tier 0 caps at 5-10 per province; without an equivalent cap here, a country with a very long landmark list could stack a large additive bonus — needs a number, likely similar 5-10 range per country).
+
+### Seven Wonders showcase
+
+Charlie's addition, reusing two patterns that already exist elsewhere in the app rather than inventing new mechanics:
+
+- **All 7 New7Wonders are featured/pinned on the main Experiences tab**, regardless of which country each belongs to — a curated cross-country showcase section, not just findable by browsing individual countries. Needs an explicit `is_new7wonders` flag (or a small dedicated join) on the landmark data so the tab can pull all 7 together in one query.
+- **Completing all 7 doubles their combined point value** — exactly the same shape as the existing subregion completion bonus (`calculateSubregionBonuses` in `points.js`: a subregion's `completionBonus` equals its `visitBonus`, so visiting every country in a subregion earns *another* equal chunk on top, i.e. 2x total). Applied here: once every one of the 7 is logged, award a completion bonus equal to the sum of the 7 wonders' own earned points — same "visit them all → double it" pattern, no new formula shape needed.
+- **A platinum special trophy** for completing all 7, modeled directly on the existing "continental conquests" pattern in `client/src/lib/trophies.js` (`conquestTrophy()` — all-or-nothing, platinum only, "that's the point"). A new special trophy (e.g. `seven-wonders`, medal: platinum, shape/glyph TBD) sits alongside the existing `SPECIALS` array using the identical `evaluate(stats)` shape: earned once all 7 are logged, progress `{ current, target: 7 }` otherwise.
 
 ### Photos
 
@@ -154,7 +174,7 @@ Still meaningfully rewards a landmark in a small, less-touristy country — the 
 
 Not yet built. Sketch based on the existing Tier 0 schema (`province_experiences` / `user_province_experiences` from `20260701001_add_tier0_schema.cjs`):
 
-- New `landmark_experiences` table (kept separate from Tier 0's `province_experiences` rather than overloaded, since the scoring rule is different — flat % of country `x`, not a pooled split): name, country_code, optional province_code (Tier 1/2 only, null for Tier 3), significance_pct (1-5), photo credit/URL. Plus `user_landmark_experiences` for logging, mirroring `user_province_experiences`.
+- New `landmark_experiences` table (kept separate from Tier 0's `province_experiences` rather than overloaded, since the scoring rule is different — flat % of country `x`, not a pooled split): name, country_code, optional province_code (Tier 1/2 only, null for Tier 3), `is_new7wonders` flag, `is_unesco` flag, `annual_visitors`, significance_pct (derived from the matrix, 1-5), photo credit/URL. Plus `user_landmark_experiences` for logging, mirroring `user_province_experiences`. The `is_new7wonders` flag is what lets the Experiences tab pull all 7 together for the showcase section and lets scoring check "has this user logged all 7" for the completion bonus.
 - New `transport_experiences` table: route name, host country_code, distance_km, duration, significance band, photo credit/URL. Plus `user_transport_experiences` for logging.
 - New `disaster_logs` (or similar) table: user, country, disaster type, magnitude/severity band, computed points — plus a reference table for per-country USGS-sourced rarity data once pulled.
 
@@ -166,5 +186,5 @@ Not yet built. Sketch based on the existing Tier 0 schema (`province_experiences
 2. Only genuinely open item left: tuning `TRANSPORT_RATIO`/landmark % once more catalog content exists.
 3. Design the data model and migrations, including the `TIER0_EXPERIENCE_RATIO` per-country fix (US 1.25, China unchanged at 0.5) as part of the same rollout.
 4. Build the earthquake logging mechanic end-to-end (data, scoring, UI) as the v1 slice.
-5. Global Experiences tab UI + country-page sub-tab.
+5. Global Experiences tab UI + country-page sub-tab, including the Seven Wonders showcase section, its completion-bonus scoring (mirrors `calculateSubregionBonuses`), and the new `seven-wonders` platinum trophy (mirrors `conquestTrophy()`).
 6. Extend to transport catalog, then volcanic eruptions / cyclones.

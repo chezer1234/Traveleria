@@ -1,6 +1,6 @@
 # Experience Update
 
-**Status:** In progress — backend foundation complete (schema, scoring, tests, seed data), API routes + client UI not yet started. See "Implementation Progress" below for exact resume point.
+**Status:** Implemented — schema, scoring, seed data, API routes, client sync/mutations/queries, and UI (global Experiences tab + CountryDetail sub-tab, trophy, purple styling) all built and tested. 189/189 server tests, 169/169 client tests, clean production build, clean lint, `make check-points-parity` passes. Not yet visually verified in a running browser (no Chrome tooling available this session) or through CI/PR review — see "What's left" at the end of this section.
 **Branch:** `claude/friendly-bell-49ykdb`
 **Issue:** [#74 — Experience update](https://github.com/chezer1234/Traveleria/issues/74)
 
@@ -220,6 +220,21 @@ Written per explicit instruction ("if you run out of context getting to ~85%, wr
 
 **One accuracy bug found and fixed while wiring step 8**: see the "Correction" note under Transport above — Russia/India/Egypt's `advisory_level` wasn't visible to the static-array-based worked examples, so Trans-Siberian/Taj Mahal/Pyramids were under-scored in the original numbers. Fixed, and the regression test now queries the live seeded DB specifically so this class of bug can't recur silently.
 
-### Not started yet — concrete resume point
+### UI (final phase)
 
-Only the **UI** remains: the global Experiences tab page (`client/src/pages/Experiences.jsx`, new — needs read functions in `queries.js` for a country's landmarks/transport/disasters and a Seven Wonders showcase list, none of which exist yet; only the total-points *sum* was wired, not per-item display queries), nav wiring (`navGroups.js`/`BottomTabBar`/`SubTabStrip`), and the CountryDetail sub-tab. The data layer, scoring, and trophy/styling are all done and tested — this is purely React components + a few more read-only query functions now.
+10. **Read queries for display** — `getLandmarksAndTransportForCountryLocal` (a country's landmarks/transport with points pre-computed) and `getAllLandmarkExperiencesLocal` (every landmark across every country, for the global browse view) in `queries.js`. Also fixed `loadExperiencesForCountry`, which wasn't selecting `is_new7wonders`/`is_unesco` at all — the Great Wall's purple flag never reached the UI until this was added.
+11. **CountryDetail's Experiences tab** — extended from Tier-0-only to every tier: State Experiences (Tier 0, unchanged) + new Landmarks + Transport sections, same checkbox-row pattern throughout, purple `bg-wonder`/`border-wonder`/`accent-wonder` styling on Seven Wonders rows in both the Tier 0 section and the Landmarks section.
+12. **Global Experiences tab** (`client/src/pages/Experiences.jsx`, new, at `/experiences`) — a Seven Wonders showcase grid plus a searchable/sortable table of every landmark. Joined the **Overview** nav group as a new sub-tab (`navGroups.js`), same placement precedent Map used when the tab bar was built (issue #65 Q&A) — restructuring the 3-tab bottom bar to add a 4th top-level tab would have been a much bigger change than following the existing pattern. New `IconLandmark` glyph in `NavIcons.jsx`.
+
+Verified along the way: production build after every commit, full `eslint .` pass (confirmed the few pre-existing unused-var errors in `points.js` predate this branch — checked against the base commit), and the full test suite kept green throughout.
+
+### What's left
+
+Everything in the doc is implemented and tested, but a few things are genuinely still open, listed honestly rather than glossed over:
+
+- **Not visually verified in a running browser.** CLAUDE.md's workflow calls for checking UI changes in Chrome before shipping; that tooling wasn't available in this session. Everything here is build-verified (compiles, lints clean) and logic-reviewed, but nobody has looked at the actual rendered pages yet.
+- **No CI run / PR opened yet.** This branch hasn't gone through GitHub Actions or a review pass.
+- **Landmark/transport catalogs are starter sets, not exhaustive** — 11 landmarks, 10 transport routes, matching the doc's own "not exhaustive" framing from the start. Real content growth is ongoing work, not a blocker.
+- **Rarity and visitor-count data is secondary-sourced**, not pulled from primary sources (live USGS catalog API, official site-management visitor stats) — flagged provisional throughout, same bar `advisory_level` is held to.
+- **No real photos yet, and no UI for them either.** `photo_url`/`photo_credit` columns exist in the schema and are selected by the queries, but nothing in `Experiences.jsx` or `CountryDetail.jsx` actually renders an image — that's real remaining work, not just missing data.
+- **Tier 0 province-level disaster rarity** — punted to v2 per the earlier Q&A, still punted.

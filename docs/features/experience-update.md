@@ -1,6 +1,6 @@
 # Experience Update
 
-**Status:** Implemented — schema, scoring, seed data, API routes, client sync/mutations/queries, and UI (global Experiences tab + CountryDetail sub-tab, trophy, purple styling) all built and tested. 189/189 server tests, 169/169 client tests, clean production build, clean lint, `make check-points-parity` passes. Not yet visually verified in a running browser (no Chrome tooling available this session) or through CI/PR review — see "What's left" at the end of this section.
+**Status:** Merged — [PR #76](https://github.com/chezer1234/Traveleria/pull/76). CI's e2e parity suite caught one real bug after merge-readiness (the client's local SQLite mirror was missing `province_experiences`' two new columns via the idempotent-`ALTER TABLE` pattern the codebase already uses for backward-compat columns) — fixed and verified before the PR went green and merged. Evergreen reference now lives in [docs/points-system.md](../points-system.md#experience-bonuses-issue-74); this doc stays as design history per CLAUDE.md's workflow. See "What's left" below for genuine follow-up work (not merge blockers).
 **Branch:** `claude/friendly-bell-49ykdb`
 **Issue:** [#74 — Experience update](https://github.com/chezer1234/Traveleria/issues/74)
 

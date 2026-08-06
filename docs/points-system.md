@@ -162,6 +162,54 @@ Unchanged — flat per-city points, not weighted by population:
 
 ---
 
+## Experience Bonuses (issue #74)
+
+Landmarks, country-specific transport, and natural disasters are separate additive bonuses layered on top of a user's total — not part of `calculateCountryPoints` itself, same treatment the sub-region bonus already gets. Full design history and worked examples: [docs/features/experience-update.md](features/experience-update.md).
+
+### Landmarks / Wonders
+
+Every country outside Tier 0 gets a flat percentage of `x` (`visit_base + explorer_ceiling`) per logged landmark — not a population-weighted split like Tier 0 provinces:
+
+```
+points = x x significance_pct / 100
+```
+
+`significance_pct` comes from a real 3x2 matrix, not a judgment call — designation crossed with real annual visitor volume:
+
+| Designation | High visitors (>=5M/yr) | Low visitors (<5M/yr) |
+|---|---|---|
+| New7Wonders | 4% | 5% |
+| UNESCO only | 2% | 3% |
+| Neither | 1% | 2% |
+
+Tier 0 (US/China) landmarks stay in the existing province-experience pool model below, rather than this flat one.
+
+### Country-Specific Transport
+
+Real named routes (Trans-Siberian, Shinkansen, etc.), scored by the route's own significance (real distance/duration) times the host country's existing tourism/danger difficulty — no new country-level data to source:
+
+```
+points = TRANSPORT_RATIO x x x route_significance x (1 + (tourism_score + danger_score) / (TOURISM_CAP + DANGER_CAP))
+```
+
+### Natural Disasters (v1: earthquakes only)
+
+Logging a real magnitude for a country scores by magnitude band x real per-country rarity (`country_disaster_rarity`, sourced per country). Logging is blocked entirely for a country with no sourced rarity row, rather than guessed:
+
+```
+points = DISASTER_RATIO x x x magnitude_component x rarity_multiplier
+```
+
+### Seven Wonders Completion Bonus
+
+Logging all 7 New7Wonders (6 live in `landmark_experiences`; the Great Wall at Badaling is Tier 0, in `province_experiences`) doubles their combined value — same shape as the sub-region completion bonus: a bonus equal to the sum already earned, awarded only once all 7 are logged.
+
+### Tier 0 Experience Pool — US-Specific Fix
+
+Auditing the real seeded data found every one of the US's 51 states scored under 1 point per logged experience — population-inverse weighting, correct for the visit baseline, was crushing landmark value for populous states (California: 0.115pt). Fixed with a per-country override on the experience pool ratio: the US's is 1.25 (was 0.5, shared with everyone); China is untouched, since its `advisory_level`-driven danger score already roughly doubles its ceiling relative to the US's.
+
+---
+
 ## Overrides
 
 Two countries bypass the formula entirely — not because the formula is wrong for everyone, but because their underlying data doesn't support it.
@@ -206,6 +254,10 @@ All constants are at the top of `server/src/lib/points.js`:
 | `FLOOR_POP` | 100,000 | Minimum population used in province/experience weighting |
 | `AQ_OVERRIDE_POINTS` | 100 | Flat Antarctica score, same for every user |
 | `EUROPE_ANCHOR` | 50,000 | Regional value anchor for Europe |
+| `TRANSPORT_RATIO` | 0.02 | Country-specific transport point scale |
+| `DISASTER_RATIO` | 0.05 | Natural disaster log point scale |
+| `HIGH_VISITOR_THRESHOLD` | 5,000,000 | Landmark visitor-volume cutoff (matrix rows) |
+| `TIER0_EXPERIENCE_RATIO_BY_COUNTRY.US` | 1.25 | US-specific Tier 0 experience pool fix (shared default is 0.5) |
 
 ---
 

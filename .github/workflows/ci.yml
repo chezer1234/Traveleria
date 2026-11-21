@@ -15,7 +15,7 @@ on:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.60 has no Chromium build for ubuntu-latest (26.04)
     # Unit/build job is ~30s; a 15-min cap turns any hang into a fast, clear
     # failure instead of running to the 360-min GitHub default.
     timeout-minutes: 15
@@ -99,7 +99,7 @@ jobs:
 
   e2e:
     name: End-to-end (prod-build stack)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.60 has no Chromium build for ubuntu-latest (26.04)
     needs: build-and-test
     # The whole job (docker build + stack up + Playwright) normally runs in
     # ~1.5 min. 20 min is generous headroom while still surfacing a stuck step
@@ -150,7 +150,7 @@ jobs:
 
   deploy:
     name: Deploy to Render
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.60 has no Chromium build for ubuntu-latest (26.04)
     needs: [build-and-test, e2e]
     # Run on push to main after tests, OR on manual workflow_dispatch. When
     # dispatched with deploy_only=true the build/e2e jobs are skipped (their

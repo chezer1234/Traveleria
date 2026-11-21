@@ -64,6 +64,7 @@ Ports and versions are locked in — if CLAUDE.md, Makefile, compose files, Vite
 - `ghcr.io/tursodatabase/libsql-server` **v0.24.32**
 - `nginx` **1.27-alpine**
 - `@playwright/test` **1.60.0** (runs on host; Chromium pinned by the package). Must be ≥1.60.0: earlier versions hang during `playwright install` browser extraction on Node 24.16.0+ (the version on CI runners) — see microsoft/playwright#41000, fixed in 1.60.0.
+- CI runner **ubuntu-24.04** (not `ubuntu-latest`): `ubuntu-latest` moved to 26.04 in Nov 2026, and Playwright 1.60 refuses to install Chromium there ("does not support chromium on ubuntu26.04-x64"). Move off it only together with a Playwright version that supports the newer image.
 
 ## Key Files
 

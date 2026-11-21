@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { getSevenWondersShowcaseLocal, getAllLandmarkExperiencesLocal } from '../lib/queries';
 import CountryLink from '../components/CountryLink';
 import ListControls from '../components/ListControls';
+import Tier0ExperiencePanel from '../components/Tier0ExperiencePanel';
 import { countryFlag as flag } from '../lib/flag';
 
 const SORT_OPTIONS = [
@@ -181,6 +182,19 @@ export default function Experiences() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* US & China state experiences — the Tier 0 lists from each country's
+          own page, side by side in fixed-height scroll boxes. */}
+      <section className="mt-12 pt-8 border-t border-hairline">
+        <h2 className="font-display font-bold text-lg text-ink mb-1">United States &amp; China</h2>
+        <p className="text-sm text-ink-soft mb-6">
+          Every state and province experience — tap an outline to jump to that country.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-6">
+          <Tier0ExperiencePanel code="US" />
+          <Tier0ExperiencePanel code="CN" />
+        </div>
       </section>
     </div>
   );

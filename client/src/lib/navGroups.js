@@ -32,6 +32,9 @@ export const NAV_GROUPS = [
     subTabs: [
       { path: '/add-countries', label: 'Add Countries', icon: IconPlusPin },
       { path: '/subregions', label: 'Subregions', icon: IconGlobe },
+      // Experience Update (issue #74): moved from Overview to Points —
+      // logging experiences is a way of earning points, Charlie's call.
+      { path: '/experiences', label: 'Experiences', icon: IconLandmark },
     ],
   },
   {
@@ -41,10 +44,6 @@ export const NAV_GROUPS = [
     subTabs: [
       { path: '/dashboard', label: 'Dashboard', icon: IconHome },
       { path: '/trophies', label: 'Trophies', icon: IconTrophy },
-      // Experience Update (issue #74): joins Overview the same way Map did
-      // (issue #65 Q&A) — the issue didn't specify placement, Charlie's call
-      // was Map's precedent, applied here too.
-      { path: '/experiences', label: 'Experiences', icon: IconLandmark },
       { path: '/map', label: 'Map', icon: IconMap },
       { path: '/stats', label: 'Stats', icon: IconChart },
       { path: '/settings', label: 'Settings', icon: IconGear },
@@ -58,8 +57,7 @@ export const NAV_GROUPS = [
 // works now") without needing full breadcrumb tracking.
 const GROUP_PREFIXES = {
   comparison: ['/leaderboard', '/groups', '/territory'],
-  points: ['/add-countries', '/subregions', '/state-battle'],
-  overview: ['/dashboard', '/trophies', '/experiences', '/map', '/settings', '/countries'],
+  points: ['/add-countries', '/subregions', '/experiences', '/state-battle'],
   overview: ['/dashboard', '/trophies', '/map', '/stats', '/settings', '/countries'],
 };
 
